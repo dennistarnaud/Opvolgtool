@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Opvolgtool — Leerling</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+  <!--
+    GAS-scriplet: bij deploy wordt dit echte JSON.
+    Lokaal (Live Server) blijft de placeholder staan en valt JS terug op mockdata.
+  -->
+  <script id="gas-leerling-payload" type="application/json"><?!= typeof leerlingJson !== 'undefined' ? leerlingJson : '' ?></script>
+
+  <div class="max-w-lg mx-auto p-3 sm:p-4 space-y-3">
+    <a href="#" id="knop-indienen"
+      class="block w-full text-center rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm sm:text-base px-4 py-3 shadow-sm">
+      Taak / Strafwerk Indienen
+    </a>
+
+    <div id="omgeving-badge" class="hidden text-center text-[11px] font-medium text-amber-900 bg-amber-100 rounded-lg px-3 py-1.5">
+      Lokale testdata — open met ?id=A7X9
+    </div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between gap-2">
+        <h1 class="text-sm font-semibold">Mijn opvolging</h1>
+        <p id="samenvatting" class="text-[11px] text-slate-500"></p>
+      </div>
+      <div id="lijst" class="divide-y divide-slate-100">
+        <p class="p-4 text-sm text-slate-500">Gegevens laden…</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /**
+     * Leerlingenscherm (iframe) — toont géén namen.
+     * GAS: payload via scriplet of google.script.run.getLeerlingData(code).
+     * Lokaal: mockdata, filterbaar via ?id=Geheime_Code.
+     */
+
+    const MOCK_TAKEN = [
+      { id: 'T001', naam: 'Wiskunde', type: 'Huistaak', deadline: '2026-08-20' },
+      { id: 'T002', naam: 'Agenda', type: 'Gedrag', deadline: '2026-08-22' },
+      { id: 'T004', naam: 'Materiaal in orde', type: 'Gedrag', deadline: '2026-08-18' },
+      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' }
+    ];
+
+    const MOCK_LEERLINGEN = [
+      { id: 'L001', klas: '3A', code: 'A7X9' },
+      { id: 'L002', klas: '3A', code: 'B2K4' },
+      { id: 'L003', klas: '3B', code: 'C9M1' },
+      { id: 'L004', klas: '3A', code: 'D5P8' },
+      { id: 'L005', klas: '3B', code: 'E3W6' },
+      { id: 'L006', klas: '3A', code: 'F8T2' }
+    ];
+
+    const MOCK_REGISTRATIES = [
+      { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:14', llnId: 'L001', taakId: 'T004', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te maken', opmerking: 'Nog in te dienen.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.', uploadUrl: 'https://drive.google.com/voorbeeld' },
+      { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:20', llnId: 'L004', taakId: 'T004', status: 'Niet in orde', opmerking: 'Geen schrijfgerief.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-18 09:01', llnId: 'L002', taakId: 'T004', status: 'In orde', opmerking: 'Vandaag wel in orde.', uploadUrl: '' }
+    ];
+
+    function isGasOmgeving() {
+      return typeof google !== 'undefined' && google.script && typeof google.script.run === 'function';
+    }
+
+    function leesUrlCode() {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get('id') || 'A7X9').trim();
+    }
+
+    /** Probeert de GAS-scriplet-JSON te parsen. Lokaal is dit geen geldige JSON. */
+    function leesGasPayload() {
+      const el = document.getElementById('gas-leerling-payload');
+      if (!el) return null;
+      const tekst = (el.textContent || '').trim();
+      if (!tekst || tekst.indexOf('<?') !== -1) return null;
+      try {
+        return JSON.parse(tekst);
+      } catch (fout) {
+        console.log('[LOKAAL] GAS-payload niet leesbaar, val terug op mockdata', fout);
+        return null;
+      }
+    }
+
+    function mockLeerlingData(code) {
+      const leerling = MOCK_LEERLINGEN.filter(function (l) {
+        return l.code.toUpperCase() === code.toUpperCase();
+      })[0] || MOCK_LEERLINGEN[0];
+
+      const taakNaam = {};
+      MOCK_TAKEN.forEach(function (t) { taakNaam[t.id] = t.naam; });
+
+      const registraties = MOCK_REGISTRATIES
+        .filter(function (r) { return r.llnId === leerling.id; })
+        .map(function (r) {
+          return {
+            datumTijd: r.datumTijd,
+            taakId: r.taakId,
+            taakNaam: taakNaam[r.taakId] || r.taakId,
+            status: r.status,
+            opmerking: r.opmerking,
+            uploadUrl: r.uploadUrl
+          };
+        })
+        .sort(function (a, b) {
+          return String(b.datumTijd).localeCompare(String(a.datumTijd));
+        });
+
+      return {
+        code: leerling.code,
+        llnId: leerling.id,
+        klas: leerling.klas,
+        registraties: registraties
+      };
+    }
+
+    function haalLeerlingData() {
+      const payload = leesGasPayload();
+      if (payload && payload.registraties) {
+        toonRegistraties(payload);
+        return;
+      }
+
+      const code = leesUrlCode();
+
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(toonRegistraties)
+          .withFailureHandler(function (fout) {
+            document.getElementById('lijst').innerHTML =
+              '<p class="p-4 text-sm text-rose-700">Kon gegevens niet laden.</p>';
+            console.log('getLeerlingData mislukt', fout);
+          })
+          .getLeerlingData(code);
+        return;
+      }
+
+      console.log('[LOKAAL] getLeerlingData — mockdata voor code', code);
+      toonRegistraties(mockLeerlingData(code));
+    }
+
+    function toonRegistraties(data) {
+      const lijst = document.getElementById('lijst');
+      const regs = (data && data.registraties) ? data.registraties : [];
+
+      const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
+      const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
+      const afwezig = regs.filter(function (r) { return r.status === 'Afwezig'; }).length;
+      const teMaken = regs.filter(function (r) { return r.status === 'Te maken'; }).length;
+      document.getElementById('samenvatting').textContent =
+        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
+
+      if (!regs.length) {
+        lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties.</p>';
+        return;
+      }
+
+      lijst.innerHTML = regs.map(function (reg) {
+        const badge = statusBadge(reg.status);
+        const opmerking = reg.opmerking
+          ? '<p class="text-[12px] text-slate-600 mt-1">' + escapeHtml(reg.opmerking) + '</p>'
+          : '';
+        const upload = reg.uploadUrl
+          ? '<p class="text-[11px] text-indigo-600 mt-1">Ingediend</p>'
+          : '';
+
+        return (
+          '<article class="px-3 py-2.5">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div class="min-w-0">' +
+                '<p class="text-[11px] text-slate-400">' + escapeHtml(reg.datumTijd) + '</p>' +
+                '<p class="text-sm font-medium leading-snug">' + escapeHtml(reg.taakNaam) + '</p>' +
+                opmerking + upload +
+              '</div>' +
+              badge +
+            '</div>' +
+          '</article>'
+        );
+      }).join('');
+    }
+
+    function statusBadge(status) {
+      const stijlen = {
+        'In orde': 'bg-emerald-100 text-emerald-800',
+        'Niet in orde': 'bg-rose-100 text-rose-800',
+        'Afwezig': 'bg-slate-200 text-slate-700',
+        'Te maken': 'bg-yellow-100 text-yellow-900'
+      };
+      const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
+      return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
+        escapeHtml(status || 'Onbekend') + '</span>';
+    }
+
+    function escapeHtml(waarde) {
+      return String(waarde == null ? '' : waarde)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    document.getElementById('knop-indienen').addEventListener('click', function (event) {
+      event.preventDefault();
+      console.log('[ACTIE] Taak / Strafwerk Indienen — link nog niet gekoppeld');
+    });
+
+    if (!isGasOmgeving()) {
+      document.getElementById('omgeving-badge').classList.remove('hidden');
+    }
+
+    haalLeerlingData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Opvolgtool — Docent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    /* Zelfde kolombreedtes voor titelstrook en tabel, anders schuift de eerste titel over de namen. */
+    .kruis-binnen {
+      --naam: 11rem;
+      --vak: 2rem;
+      --n: 1;
+      display: inline-block;
+      min-width: 100%;
+      vertical-align: top;
+    }
+    .kruis-titels {
+      display: grid;
+      grid-template-columns: var(--naam) repeat(var(--n), var(--vak));
+      height: 11rem;
+      position: relative;
+    }
+    .kruis-titels-naam {
+      position: sticky;
+      left: 0;
+      z-index: 4;
+      background: #fff;
+    }
+    .taak-titel {
+      position: relative;
+      overflow: visible;
+    }
+    .taak-titel span {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      transform: rotate(-45deg);
+      transform-origin: left bottom;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      /* Lijn start op de kolomrand; tekst schuift iets mee over de datum. */
+      padding: 0 0 3px 1.1rem;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .taak-titel[data-groep="les"] span { color: #3730a3; border-bottom-color: #818cf8; }
+    .taak-titel[data-groep="thuis"] span { color: #075985; border-bottom-color: #38bdf8; }
+    .taak-titel[data-groep="extra"] span { color: #9a3412; border-bottom-color: #fb923c; }
+    .taak-titel[data-groep="orde"] span { color: #9f1239; border-bottom-color: #fb7185; }
+    .taak-titel[data-groep="optioneel"] span { color: #475569; border-bottom-color: #94a3b8; }
+    table.kruistabel {
+      table-layout: fixed;
+      border-collapse: separate;
+      border-spacing: 0;
+      width: calc(var(--naam) + (var(--n) * var(--vak)));
+    }
+    table.kruistabel col.col-naam { width: var(--naam); }
+    table.kruistabel col.col-vak { width: var(--vak); }
+    table.kruistabel .th-naam,
+    table.kruistabel tbody th {
+      width: var(--naam);
+      min-width: var(--naam);
+      max-width: var(--naam);
+      box-sizing: border-box;
+    }
+    table.kruistabel .th-datum,
+    table.kruistabel td.td-cel {
+      width: var(--vak);
+      min-width: var(--vak);
+      max-width: var(--vak);
+      box-sizing: border-box;
+      padding: 0.15rem;
+    }
+    table.kruistabel .th-datum {
+      font-size: 9px;
+      font-weight: 500;
+      color: #94a3b8;
+      text-align: center;
+      padding-bottom: 0.25rem;
+    }
+    .cel-status {
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 0.3rem;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .cel-status.cel-actief {
+      outline: 2px solid #4f46e5;
+      outline-offset: 1px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 font-sans min-h-screen">
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-[1600px] mx-auto px-4 py-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-indigo-300 font-semibold">Schoolopvolging</p>
+        <h1 class="text-2xl sm:text-3xl font-bold mt-1">Gedragsopvolging</h1>
+        <p class="text-slate-300 text-sm mt-1">Registreer per klas. Kruistabel voor het hele overzicht, of individueel per leerling.</p>
+      </div>
+      <div id="omgeving-badge" class="hidden text-xs font-medium px-3 py-1.5 rounded-full bg-amber-400 text-amber-950">
+        Lokale testdata
+      </div>
+    </div>
+  </header>
+
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-[1600px] mx-auto px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-3">
+      <label class="flex items-center gap-2 shrink-0">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Klas</span>
+        <select id="veld-klas"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[8rem]">
+          <option value="">Kies een klas</option>
+        </select>
+      </label>
+      <div class="flex gap-1 flex-1" role="tablist" aria-label="Weergave">
+        <button id="tab-kruistabel" type="button" role="tab" aria-selected="true"
+          class="tab-knop flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white">
+          Kruistabel (Wat)
+        </button>
+        <button id="tab-individueel" type="button" role="tab" aria-selected="false"
+          class="tab-knop flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">
+          Individueel (Wie)
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-[1600px] mx-auto px-4 py-6 space-y-4">
+    <div id="melding" class="hidden rounded-xl px-4 py-3 text-sm font-medium"></div>
+
+    <section id="scherm-klaskeuze" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-10 text-center">
+      <h2 class="text-lg font-semibold">Met welke klas ga je aan de slag?</h2>
+      <p class="text-sm text-slate-500 mt-1 mb-5">Een registratie gebeurt altijd voor één klas tegelijk.</p>
+      <div id="klas-knoppen" class="flex flex-wrap justify-center gap-2"></div>
+    </section>
+
+    <section id="paneel-kruistabel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
+      <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="font-semibold">Overzicht <span id="kruis-klaslabel"></span></h2>
+        <p class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium">
+          <span class="text-indigo-800">Les</span>
+          <span class="text-sky-800">Thuis</span>
+          <span class="text-orange-800">Extra</span>
+          <span class="text-rose-800">Materiaal</span>
+          <span class="text-slate-500">Optioneel</span>
+        </p>
+      </div>
+      <div class="px-4 py-3 flex flex-wrap gap-2 text-xs text-slate-600">
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="In orde">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">1</kbd>
+          <span class="w-3 h-3 rounded bg-emerald-500"></span> In orde
+        </button>
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Niet in orde">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">2</kbd>
+          <span class="w-3 h-3 rounded bg-rose-500"></span> Niet in orde
+        </button>
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Afwezig">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">3</kbd>
+          <span class="w-3 h-3 rounded bg-slate-400"></span> Afwezig
+        </button>
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Te maken">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">4</kbd>
+          <span class="w-3 h-3 rounded bg-yellow-300"></span> Te maken
+        </button>
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">⌫</kbd>
+          <span class="w-3 h-3 rounded bg-slate-200"></span> Leeg
+        </button>
+      </div>
+      <div id="kruistabel-wrapper" class="overflow-x-auto pb-3">
+        <div class="p-8 text-center text-slate-500 text-sm">Gegevens laden…</div>
+      </div>
+    </section>
+
+    <section id="paneel-individueel" class="hidden">
+      <form id="form-registratie" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">
+        <h2 class="font-semibold text-lg">Individuele registratie — <span id="form-klaslabel"></span></h2>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Leerling</span>
+            <select id="veld-leerling" required
+              class="mt-1 w-full rounded-xl border-slate-300 border px-3 py-2.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Kies een leerling</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Taak</span>
+            <select id="veld-taak" required
+              class="mt-1 w-full rounded-xl border-slate-300 border px-3 py-2.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Kies een taak</option>
+            </select>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-slate-700 mb-2">Status</legend>
+          <div class="flex flex-wrap gap-1 rounded-xl border border-slate-200 p-1 bg-slate-50">
+            <button type="button" data-status="In orde" class="status-keuze px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white">In orde</button>
+            <button type="button" data-status="Niet in orde" class="status-keuze px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Niet in orde</button>
+            <button type="button" data-status="Afwezig" class="status-keuze px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Afwezig</button>
+            <button type="button" data-status="Te maken" class="status-keuze px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Te maken</button>
+          </div>
+        </fieldset>
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Opmerking docent</span>
+          <textarea id="veld-opmerking" rows="3" placeholder="Optionele toelichting voor de leerling…"
+            class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </label>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <button type="submit"
+            class="inline-flex justify-center items-center px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+            Opslaan
+          </button>
+          <p id="form-hulp" class="text-xs text-slate-500">Bij bestaande combinaties wordt de laatste status vooringevuld.</p>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    /**
+     * Docentenscherm — werkt zowel in Google Apps Script als lokaal (Live Server).
+     * Lokaal: mockdata + console.log. Op GAS: google.script.run.
+     */
+
+    const KLAS_OPSLag = 'opvolgtool-klas';
+
+    // --- Mockdata gelijk aan de Sheets-structuur (lokale tests) ---
+    const MOCK_LEERLINGEN = [
+      { id: 'L001', naam: 'Emma Peeters', klas: '3A', code: 'A7X9' },
+      { id: 'L002', naam: 'Noah Janssens', klas: '3A', code: 'B2K4' },
+      { id: 'L004', naam: 'Lucas De Smet', klas: '3A', code: 'D5P8' },
+      { id: 'L006', naam: 'Finn Goossens', klas: '3A', code: 'F8T2' },
+      { id: 'L007', naam: 'Mila Wouters', klas: '3A', code: 'G1Q4' },
+      { id: 'L008', naam: 'Adam Coppens', klas: '3A', code: 'H6R3' },
+      { id: 'L003', naam: 'Sophie Vermeulen', klas: '3B', code: 'C9M1' },
+      { id: 'L005', naam: 'Elise Claes', klas: '3B', code: 'E3W6' },
+      { id: 'L009', naam: 'Jules Maes', klas: '3B', code: 'J4N8' },
+      { id: 'L010', naam: 'Nora Lambert', klas: '3B', code: 'K2S7' },
+      { id: 'L011', naam: 'Vince Hendrickx', klas: '3B', code: 'L8U1' },
+      { id: 'L012', naam: 'Lina Jacobs', klas: '4A', code: 'M5V9' },
+      { id: 'L013', naam: 'Mats Vermeiren', klas: '4A', code: 'N7Y2' },
+      { id: 'L014', naam: 'Amber Smets', klas: '4A', code: 'P3Z6' },
+      { id: 'L015', naam: 'Daan Willems', klas: '4A', code: 'Q9C4' }
+    ];
+
+    const MOCK_TAKEN = [
+      { id: 'T004', naam: 'Schrijfgerief', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
+      { id: 'T001', naam: 'Wiskunde', type: 'Huiswerk', deadline: '2026-08-20' },
+      { id: 'T002', naam: 'Agenda', type: 'Lesopdracht', deadline: '2026-08-22' },
+      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huiswerk', deadline: '2026-08-28' },
+      { id: 'T006', naam: 'Toets geschiedenis', type: 'Schriftelijke voorbereiding', deadline: '2026-08-29' },
+      { id: 'T007', naam: 'Frans', type: 'Huiswerk', deadline: '2026-09-01' },
+      { id: 'T008', naam: 'Labojas', type: 'Materiaal niet in orde', deadline: '2026-09-02' },
+      { id: 'T009', naam: 'Groepswerk WO', type: 'Lesopdracht', deadline: '2026-09-04' },
+      { id: 'T010', naam: 'Wetenschappen', type: 'Bookwidgetsopdracht', deadline: '2026-09-08' },
+      { id: 'T011', naam: 'Spreekbeurt', type: 'Schriftelijke voorbereiding', deadline: '2026-09-11' },
+      { id: 'T012', naam: 'Wiskunde', type: 'Bijles', deadline: '2026-09-12' },
+      { id: 'T013', naam: 'Burgerschap', type: 'Niet-verplichte taak', deadline: '2026-09-15' },
+      { id: 'T014', naam: 'Engels', type: 'Remediëringstaak', deadline: '2026-09-18' }
+    ];
+
+    const MOCK_REGISTRATIES = [
+      { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:14', llnId: 'L001', taakId: 'T004', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.', uploadUrl: 'https://drive.google.com/voorbeeld' },
+      { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:20', llnId: 'L004', taakId: 'T004', status: 'Niet in orde', opmerking: 'Geen schrijfgerief.', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-18 09:01', llnId: 'L002', taakId: 'T004', status: 'In orde', opmerking: 'Vandaag wel in orde.', uploadUrl: '' },
+      { datumTijd: '2026-08-20 08:05', llnId: 'L007', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-20 08:06', llnId: 'L008', taakId: 'T001', status: 'Niet in orde', opmerking: 'Blanco blad.', uploadUrl: '' },
+      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T006', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-08-22 08:11', llnId: 'L006', taakId: 'T006', status: 'Niet in orde', opmerking: 'Niet geleerd.', uploadUrl: '' },
+      { datumTijd: '2026-09-01 08:20', llnId: 'L012', taakId: 'T007', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-09-01 08:21', llnId: 'L013', taakId: 'T007', status: 'Niet in orde', opmerking: 'Vergeten.', uploadUrl: '' },
+      { datumTijd: '2026-09-04 08:30', llnId: 'L009', taakId: 'T009', status: 'In orde', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-09-08 08:15', llnId: 'L010', taakId: 'T010', status: 'Niet in orde', opmerking: 'Onvolledig.', uploadUrl: '' },
+      { datumTijd: '2026-08-20 08:07', llnId: 'L004', taakId: 'T001', status: 'Afwezig', opmerking: 'Ziek.', uploadUrl: '' },
+      { datumTijd: '2026-08-20 08:08', llnId: 'L006', taakId: 'T001', status: 'Te maken', opmerking: 'Inhaalwerk gevraagd.', uploadUrl: '' },
+      { datumTijd: '2026-09-02 08:12', llnId: 'L007', taakId: 'T008', status: 'Afwezig', opmerking: '', uploadUrl: '' },
+      { datumTijd: '2026-09-02 08:13', llnId: 'L008', taakId: 'T008', status: 'Te maken', opmerking: '', uploadUrl: '' }
+    ];
+
+    const TAB_ACTIEF = 'bg-indigo-600 text-white';
+    const TAB_INACTIEF = 'text-slate-600 hover:bg-slate-100';
+    /** Excel-aanpak: vakje selecteren, daarna 1–4 of letter intoetsen. */
+    const STATUS_TOETSEN = {
+      '1': 'In orde', i: 'In orde',
+      '2': 'Niet in orde', n: 'Niet in orde',
+      '3': 'Afwezig', a: 'Afwezig',
+      '4': 'Te maken', t: 'Te maken'
+    };
+    const STATUS_KLEUR_KNOP = {
+      'In orde': 'bg-emerald-600 text-white',
+      'Niet in orde': 'bg-rose-600 text-white',
+      'Afwezig': 'bg-slate-500 text-white',
+      'Te maken': 'bg-yellow-300 text-yellow-950'
+    };
+
+    let staat = {
+      leerlingen: [],
+      taken: [],
+      registraties: [],
+      gekozenKlas: '',
+      actieveTab: 'kruistabel',
+      gekozenStatus: 'In orde',
+      geselecteerd: null
+    };
+
+    /** True in GAS, false bij lokaal openen via Live Server. */
+    function isGasOmgeving() {
+      return typeof google !== 'undefined' && google.script && typeof google.script.run === 'function';
+    }
+
+    function toonMelding(tekst, type) {
+      const el = document.getElementById('melding');
+      el.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'bg-rose-50', 'text-rose-800', 'bg-amber-50', 'text-amber-900');
+      if (type === 'ok') el.classList.add('bg-emerald-50', 'text-emerald-800');
+      else if (type === 'fout') el.classList.add('bg-rose-50', 'text-rose-800');
+      else el.classList.add('bg-amber-50', 'text-amber-900');
+      el.textContent = tekst;
+    }
+
+    function haalDocentData() {
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(verwerkData)
+          .withFailureHandler(function (fout) {
+            toonMelding('Kon gegevens niet laden: ' + (fout.message || fout), 'fout');
+          })
+          .getDocentData();
+        return;
+      }
+
+      console.log('[LOKAAL] getDocentData — mockdata uit Sheets-structuur');
+      verwerkData({
+        leerlingen: MOCK_LEERLINGEN,
+        taken: MOCK_TAKEN,
+        registraties: MOCK_REGISTRATIES.slice()
+      });
+    }
+
+    function slaRegistratieOp(data, naSucces) {
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            staat.registraties.push(antwoord.registratie);
+            if (naSucces) naSucces(antwoord.registratie);
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .saveRegistratie(data);
+        return;
+      }
+
+      const mockRij = {
+        datumTijd: nieuweTijdstempel(),
+        llnId: data.llnId,
+        taakId: data.taakId,
+        status: data.status,
+        opmerking: data.opmerking || '',
+        uploadUrl: data.uploadUrl || ''
+      };
+      console.log('[LOKAAL] saveRegistratie', mockRij);
+      staat.registraties.push(mockRij);
+      if (naSucces) naSucces(mockRij);
+    }
+
+    function nieuweTijdstempel() {
+      const d = new Date();
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+
+    function uniekeKlassen() {
+      const set = {};
+      staat.leerlingen.forEach(function (lln) {
+        if (lln.klas) set[lln.klas] = true;
+      });
+      return Object.keys(set).sort();
+    }
+
+    function leerlingenVanKlas() {
+      return staat.leerlingen.filter(function (lln) {
+        return lln.klas === staat.gekozenKlas;
+      });
+    }
+
+    /** Taken chronologisch, zodat een langere periode van links naar rechts loopt. */
+    function gesorteerdeTaken() {
+      return staat.taken.slice().sort(function (a, b) {
+        return String(a.deadline).localeCompare(String(b.deadline));
+      });
+    }
+
+    function korteDatum(iso) {
+      const m = String(iso || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(iso || '');
+      return m[3] + '/' + m[2];
+    }
+
+    /** Kolomtitel: "Huiswerk: Wiskunde" */
+    function taakTitel(taak) {
+      const type = String(taak && taak.type ? taak.type : '').trim();
+      const naam = String(taak && taak.naam ? taak.naam : '').trim();
+      if (type && naam) return type + ': ' + naam;
+      return type || naam;
+    }
+
+    /** Types groeperen: tien kleuren zou de kruistabel onleesbaar maken. */
+    const TYPE_GROEP = {
+      'Lesopdracht': 'les',
+      'Huiswerk': 'thuis',
+      'Bookwidgetsopdracht': 'thuis',
+      'Schriftelijke voorbereiding': 'thuis',
+      'Remediëringstaak': 'extra',
+      'Bijles': 'extra',
+      'Toets verbeteren': 'extra',
+      'Examen inkijken': 'extra',
+      'Materiaal niet in orde': 'orde',
+      'Niet-verplichte taak': 'optioneel'
+    };
+
+    function taakGroep(taak) {
+      return TYPE_GROEP[taak && taak.type] || 'optioneel';
+    }
+
+    /** Laatste registratie: nieuwste rij wint (niet sorteren op minuut, anders blijft groen hangen). */
+    function laatsteRegistratie(llnId, taakId) {
+      let laatste = null;
+      staat.registraties.forEach(function (r) {
+        if (r.llnId === llnId && r.taakId === taakId) laatste = r;
+      });
+      return laatste;
+    }
+
+    function verwerkData(data) {
+      staat.leerlingen = data.leerlingen || [];
+      staat.taken = data.taken || [];
+      staat.registraties = data.registraties || [];
+      vulKlasKeuze();
+      herstelKlas();
+      tekenScherm();
+    }
+
+    function vulKlasKeuze() {
+      const select = document.getElementById('veld-klas');
+      const knoppen = document.getElementById('klas-knoppen');
+      const klassen = uniekeKlassen();
+      select.innerHTML = '<option value="">Kies een klas</option>';
+      knoppen.innerHTML = '';
+
+      klassen.forEach(function (klas) {
+        const opt = document.createElement('option');
+        opt.value = klas;
+        opt.textContent = klas;
+        select.appendChild(opt);
+
+        const knop = document.createElement('button');
+        knop.type = 'button';
+        knop.className = 'px-5 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-base font-semibold';
+        knop.textContent = klas;
+        knop.addEventListener('click', function () { kiesKlas(klas); });
+        knoppen.appendChild(knop);
+      });
+    }
+
+    function herstelKlas() {
+      var bewaard = '';
+      try { bewaard = sessionStorage.getItem(KLAS_OPSLag) || ''; } catch (e) { bewaard = ''; }
+      if (bewaard && uniekeKlassen().indexOf(bewaard) !== -1) {
+        staat.gekozenKlas = bewaard;
+        document.getElementById('veld-klas').value = bewaard;
+      }
+    }
+
+    function kiesKlas(klas) {
+      staat.gekozenKlas = klas;
+      document.getElementById('veld-klas').value = klas;
+      try { sessionStorage.setItem(KLAS_OPSLag, klas); } catch (e) { /* negeren */ }
+      console.log('[KLAS] actieve klas:', klas);
+      document.getElementById('veld-leerling').value = '';
+      document.getElementById('veld-opmerking').value = '';
+      staat.geselecteerd = null;
+      tekenScherm();
+    }
+
+    function tekenScherm() {
+      const heeftKlas = !!staat.gekozenKlas;
+      document.getElementById('scherm-klaskeuze').classList.toggle('hidden', heeftKlas);
+      document.getElementById('paneel-kruistabel').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'kruistabel');
+      document.getElementById('paneel-individueel').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'individueel');
+      if (!heeftKlas) return;
+      document.getElementById('kruis-klaslabel').textContent = staat.gekozenKlas;
+      document.getElementById('form-klaslabel').textContent = staat.gekozenKlas;
+      tekenKruistabel();
+      vulDropdowns();
+    }
+
+    function tekenKruistabel() {
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      const leerlingen = leerlingenVanKlas();
+      const taken = gesorteerdeTaken();
+
+      if (!leerlingen.length || !taken.length) {
+        wrapper.innerHTML = '<p class="p-6 text-sm text-slate-500">Nog geen leerlingen of taken voor deze klas.</p>';
+        return;
+      }
+
+      let titels = '<div class="kruis-titels-naam"></div>';
+      let datumKop = '<th class="th-naam sticky left-0 z-10 bg-white"></th>';
+      taken.forEach(function (taak) {
+        const titel = taakTitel(taak);
+        titels += '<div class="taak-titel" data-groep="' + escapeAttr(taakGroep(taak)) + '" title="' + escapeAttr(titel) + '"><span>' + escapeHtml(titel) + '</span></div>';
+        datumKop += '<th class="th-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</th>';
+      });
+
+      let lichaam = '';
+      leerlingen.forEach(function (lln) {
+        lichaam += '<tr class="border-t border-slate-100">';
+        lichaam += '<th class="sticky left-0 z-10 bg-white px-3 py-1.5 text-left text-sm font-medium whitespace-nowrap">' +
+          escapeHtml(lln.naam) + '</th>';
+
+        taken.forEach(function (taak) {
+          const reg = laatsteRegistratie(lln.id, taak.id);
+          const status = reg ? reg.status : '';
+          const titelDelen = [taakTitel(taak), status || 'Nog geen registratie'];
+          if (reg && reg.opmerking) titelDelen.push(reg.opmerking);
+          lichaam += '<td class="td-cel text-center">' +
+            '<button type="button" class="cel-status ' + celKlassen(status) + '" ' +
+            'data-lln="' + escapeAttr(lln.id) + '" data-taak="' + escapeAttr(taak.id) + '" ' +
+            'title="' + escapeAttr(titelDelen.join(' — ')) + '" aria-label="' + escapeAttr(lln.naam + ': ' + taakTitel(taak) + ', ' + (status || 'leeg')) + '">' +
+            celTekst(status) + '</button></td>';
+        });
+        lichaam += '</tr>';
+      });
+
+      let kolommen = '<col class="col-naam">';
+      taken.forEach(function () {
+        kolommen += '<col class="col-vak">';
+      });
+
+      wrapper.innerHTML =
+        '<div class="kruis-binnen" style="--n:' + taken.length + '">' +
+          '<div class="kruis-titels">' + titels + '</div>' +
+          '<table class="kruistabel text-sm">' +
+            '<colgroup>' + kolommen + '</colgroup>' +
+            '<thead><tr>' + datumKop + '</tr></thead>' +
+            '<tbody>' + lichaam + '</tbody>' +
+          '</table>' +
+        '</div>';
+
+      wrapper.querySelectorAll('.cel-status').forEach(function (knop) {
+        knop.addEventListener('click', onCelKlik);
+      });
+      herstelSelectie();
+    }
+
+    function celKlassen(status) {
+      if (status === 'In orde') return 'bg-emerald-500 text-white hover:bg-emerald-600';
+      if (status === 'Niet in orde') return 'bg-rose-500 text-white hover:bg-rose-600';
+      if (status === 'Afwezig') return 'bg-slate-400 text-white hover:bg-slate-500';
+      if (status === 'Te maken') return 'bg-yellow-300 text-yellow-950 hover:bg-yellow-400';
+      return 'bg-slate-200 text-slate-400 hover:bg-slate-300';
+    }
+
+    function celTekst(status) {
+      if (status === 'In orde') return '✓';
+      if (status === 'Niet in orde') return '✕';
+      if (status === 'Afwezig') return 'A';
+      if (status === 'Te maken') return '•';
+      return '';
+    }
+
+    function zoekCelKnop(llnId, taakId) {
+      const knoppen = document.querySelectorAll('.cel-status');
+      for (let i = 0; i < knoppen.length; i++) {
+        if (knoppen[i].getAttribute('data-lln') === llnId && knoppen[i].getAttribute('data-taak') === taakId) {
+          return knoppen[i];
+        }
+      }
+      return null;
+    }
+
+    function selecteerCel(knop) {
+      document.querySelectorAll('.cel-status.cel-actief').forEach(function (el) {
+        el.classList.remove('cel-actief');
+      });
+      if (!knop) {
+        staat.geselecteerd = null;
+        return;
+      }
+      knop.classList.add('cel-actief');
+      knop.focus();
+      staat.geselecteerd = {
+        llnId: knop.getAttribute('data-lln'),
+        taakId: knop.getAttribute('data-taak')
+      };
+    }
+
+    function herstelSelectie() {
+      if (!staat.geselecteerd) return;
+      const knop = zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId);
+      if (knop) selecteerCel(knop);
+    }
+
+    function onCelKlik(event) {
+      selecteerCel(event.currentTarget);
+    }
+
+    function pasGeselecteerdeStatus(status) {
+      if (!staat.geselecteerd) {
+        toonMelding('Selecteer eerst een vakje, daarna 1–4.', 'fout');
+        return;
+      }
+      const llnId = staat.geselecteerd.llnId;
+      const taakId = staat.geselecteerd.taakId;
+      const vorige = laatsteRegistratie(llnId, taakId);
+      const leeg = !status;
+      const payload = {
+        llnId: llnId,
+        taakId: taakId,
+        status: status || '',
+        opmerking: leeg ? '' : (vorige ? vorige.opmerking : ''),
+        uploadUrl: leeg ? '' : (vorige ? vorige.uploadUrl : '')
+      };
+      slaRegistratieOp(payload, function () {
+        const knop = zoekCelKnop(llnId, taakId);
+        if (knop) {
+          knop.className = 'cel-status cel-actief ' + celKlassen(status);
+          knop.textContent = celTekst(status);
+          knop.focus();
+        }
+      });
+    }
+
+    function verplaatsSelectie(richting) {
+      const knoppen = Array.prototype.slice.call(document.querySelectorAll('.cel-status'));
+      if (!knoppen.length) return;
+      const kolommen = gesorteerdeTaken().length || 1;
+      let index = knoppen.findIndex(function (k) {
+        return staat.geselecteerd &&
+          k.getAttribute('data-lln') === staat.geselecteerd.llnId &&
+          k.getAttribute('data-taak') === staat.geselecteerd.taakId;
+      });
+      if (index < 0) index = 0;
+      else if (richting === 'arrowleft') index -= 1;
+      else if (richting === 'arrowright') index += 1;
+      else if (richting === 'arrowup') index -= kolommen;
+      else if (richting === 'arrowdown') index += kolommen;
+      if (index < 0 || index >= knoppen.length) return;
+      selecteerCel(knoppen[index]);
+    }
+
+    function onKruisToets(event) {
+      if (staat.actieveTab !== 'kruistabel' || !staat.gekozenKlas) return;
+      const tag = ((event.target && event.target.tagName) || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+      const toets = String(event.key || '').toLowerCase();
+      if (toets === 'backspace' || toets === 'delete') {
+        event.preventDefault();
+        pasGeselecteerdeStatus('');
+        return;
+      }
+      if (STATUS_TOETSEN[toets]) {
+        event.preventDefault();
+        pasGeselecteerdeStatus(STATUS_TOETSEN[toets]);
+        return;
+      }
+      if (toets === 'arrowleft' || toets === 'arrowright' || toets === 'arrowup' || toets === 'arrowdown') {
+        event.preventDefault();
+        verplaatsSelectie(toets);
+      }
+    }
+
+    function vulDropdowns() {
+      const llnSelect = document.getElementById('veld-leerling');
+      const taakSelect = document.getElementById('veld-taak');
+      const vorigeLln = llnSelect.value;
+      llnSelect.innerHTML = '<option value="">Kies een leerling</option>';
+      taakSelect.innerHTML = '<option value="">Kies een taak</option>';
+
+      leerlingenVanKlas().forEach(function (lln) {
+        const opt = document.createElement('option');
+        opt.value = lln.id;
+        opt.textContent = lln.naam;
+        llnSelect.appendChild(opt);
+      });
+      if (vorigeLln && leerlingenVanKlas().some(function (l) { return l.id === vorigeLln; })) {
+        llnSelect.value = vorigeLln;
+      }
+
+      gesorteerdeTaken().forEach(function (taak) {
+        const opt = document.createElement('option');
+        opt.value = taak.id;
+        opt.textContent = taakTitel(taak) + ' — ' + korteDatum(taak.deadline);
+        taakSelect.appendChild(opt);
+      });
+    }
+
+    function vulFormulierVanSelectie() {
+      const llnId = document.getElementById('veld-leerling').value;
+      const taakId = document.getElementById('veld-taak').value;
+      if (!llnId || !taakId) return;
+      const reg = laatsteRegistratie(llnId, taakId);
+      zetStatusKeuze(reg ? reg.status : 'In orde');
+      document.getElementById('veld-opmerking').value = reg ? (reg.opmerking || '') : '';
+    }
+
+    function zetStatusKeuze(status) {
+      staat.gekozenStatus = STATUS_KLEUR_KNOP[status] ? status : 'In orde';
+      document.querySelectorAll('.status-keuze').forEach(function (knop) {
+        const waarde = knop.getAttribute('data-status');
+        const actief = waarde === staat.gekozenStatus;
+        knop.className = 'status-keuze px-3 py-2 rounded-lg text-sm font-semibold ' +
+          (actief ? STATUS_KLEUR_KNOP[waarde] : 'text-slate-600');
+      });
+    }
+
+    function wisselTab(naam) {
+      staat.actieveTab = naam;
+      const kruis = naam === 'kruistabel';
+      document.getElementById('tab-kruistabel').className = 'tab-knop flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-semibold ' + (kruis ? TAB_ACTIEF : TAB_INACTIEF);
+      document.getElementById('tab-individueel').className = 'tab-knop flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-semibold ' + (!kruis ? TAB_ACTIEF : TAB_INACTIEF);
+      document.getElementById('tab-kruistabel').setAttribute('aria-selected', String(kruis));
+      document.getElementById('tab-individueel').setAttribute('aria-selected', String(!kruis));
+      tekenScherm();
+    }
+
+    function escapeHtml(waarde) {
+      return String(waarde == null ? '' : waarde)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(waarde) {
+      return escapeHtml(waarde).replace(/'/g, '&#39;');
+    }
+
+    document.getElementById('veld-klas').addEventListener('change', function (event) {
+      kiesKlas(event.target.value);
+    });
+    document.getElementById('tab-kruistabel').addEventListener('click', function () { wisselTab('kruistabel'); });
+    document.getElementById('tab-individueel').addEventListener('click', function () { wisselTab('individueel'); });
+    document.getElementById('veld-leerling').addEventListener('change', vulFormulierVanSelectie);
+    document.getElementById('veld-taak').addEventListener('change', vulFormulierVanSelectie);
+    document.addEventListener('keydown', onKruisToets);
+
+    document.querySelectorAll('.legende-status').forEach(function (knop) {
+      knop.addEventListener('click', function () {
+        pasGeselecteerdeStatus(knop.getAttribute('data-status'));
+      });
+    });
+
+    document.querySelectorAll('.status-keuze').forEach(function (knop) {
+      knop.addEventListener('click', function () {
+        zetStatusKeuze(knop.getAttribute('data-status'));
+      });
+    });
+
+    document.getElementById('form-registratie').addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!staat.gekozenKlas) {
+        toonMelding('Kies eerst een klas.', 'fout');
+        return;
+      }
+      const payload = {
+        llnId: document.getElementById('veld-leerling').value,
+        taakId: document.getElementById('veld-taak').value,
+        status: staat.gekozenStatus,
+        opmerking: document.getElementById('veld-opmerking').value.trim(),
+        uploadUrl: ''
+      };
+      if (!payload.llnId || !payload.taakId) {
+        toonMelding('Kies een leerling en een taak.', 'fout');
+        return;
+      }
+      slaRegistratieOp(payload, function () {
+        tekenKruistabel();
+        toonMelding('Registratie opgeslagen.', 'ok');
+      });
+    });
+
+    if (!isGasOmgeving()) {
+      document.getElementById('omgeving-badge').classList.remove('hidden');
+    }
+
+    zetStatusKeuze('In orde');
+    haalDocentData();
+  </script>
+</body>
+</html>
