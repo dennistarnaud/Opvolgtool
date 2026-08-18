@@ -23,15 +23,18 @@
     /* Zelfde kolombreedtes voor titelstrook en tabel, anders schuift de eerste titel over de namen. */
     .kruis-binnen {
       --naam: 11rem;
-      --vak: 2rem;
+      --vak: 2.25rem;
       --n: 1;
       display: inline-block;
       min-width: 100%;
       vertical-align: top;
     }
-    .kruis-titels {
+    .kruis-titels,
+    .kruis-datums {
       display: grid;
       grid-template-columns: var(--naam) repeat(var(--n), var(--vak));
+    }
+    .kruis-titels {
       height: 11rem;
       position: relative;
     }
@@ -41,69 +44,107 @@
       z-index: 4;
       background: #fff;
     }
+    .kruis-datum {
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+      text-align: center;
+      padding-bottom: 0.3rem;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
     .taak-titel {
       position: relative;
       overflow: visible;
     }
+    /* Typekleur: klein vakje boven de datum, los van de titel. */
+    .taak-titel::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: 1px;
+      transform: translateX(-50%);
+      width: 1.6rem;
+      height: 4px;
+      border-radius: 2px;
+      background: #cbd5e1;
+    }
+    .taak-titel[data-groep="les"]::before,
+    .taak-titel[data-groep="huiswerk"]::before { background: #38bdf8; }
+    .taak-titel[data-groep="leerkans"]::before { background: #fb923c; }
+    .taak-titel[data-groep="orde"]::before { background: #fb7185; }
+    .taak-titel[data-groep="optioneel"]::before { background: #94a3b8; }
+    .sort-knop.actief,
+    .filter-groep.actief {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
     .taak-titel span {
       position: absolute;
-      left: 0;
-      bottom: 0;
+      left: calc(50% + 0.4rem);
+      bottom: 8px;
       transform: rotate(-45deg);
       transform-origin: left bottom;
       white-space: nowrap;
       font-size: 11px;
       font-weight: 600;
-      /* Lijn start op de kolomrand; tekst schuift iets mee over de datum. */
-      padding: 0 0 3px 1.1rem;
-      border-bottom: 1px solid #cbd5e1;
+      line-height: 1;
+      color: #1e293b;
     }
-    .taak-titel[data-groep="les"] span { color: #3730a3; border-bottom-color: #818cf8; }
-    .taak-titel[data-groep="thuis"] span { color: #075985; border-bottom-color: #38bdf8; }
-    .taak-titel[data-groep="extra"] span { color: #9a3412; border-bottom-color: #fb923c; }
-    .taak-titel[data-groep="orde"] span { color: #9f1239; border-bottom-color: #fb7185; }
-    .taak-titel[data-groep="optioneel"] span { color: #475569; border-bottom-color: #94a3b8; }
     table.kruistabel {
       table-layout: fixed;
       border-collapse: separate;
       border-spacing: 0;
       width: calc(var(--naam) + (var(--n) * var(--vak)));
+      user-select: none;
     }
     table.kruistabel col.col-naam { width: var(--naam); }
     table.kruistabel col.col-vak { width: var(--vak); }
-    table.kruistabel .th-naam,
     table.kruistabel tbody th {
-      width: var(--naam);
-      min-width: var(--naam);
-      max-width: var(--naam);
       box-sizing: border-box;
+      width: var(--naam);
+      white-space: nowrap;
     }
-    table.kruistabel .th-datum,
     table.kruistabel td.td-cel {
       width: var(--vak);
       min-width: var(--vak);
       max-width: var(--vak);
+      height: 2.05rem;
       box-sizing: border-box;
       padding: 0.15rem;
-    }
-    table.kruistabel .th-datum {
-      font-size: 9px;
-      font-weight: 500;
-      color: #94a3b8;
+      cursor: cell;
       text-align: center;
-      padding-bottom: 0.25rem;
+      vertical-align: middle;
     }
     .cel-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
       width: 1.7rem;
       height: 1.7rem;
+      min-width: 1.7rem;
+      min-height: 1.7rem;
+      max-width: 1.7rem;
+      max-height: 1.7rem;
+      margin: 0 auto;
+      padding: 0;
+      border: 0;
+      appearance: none;
+      -webkit-appearance: none;
       border-radius: 0.3rem;
       font-size: 11px;
       font-weight: 700;
       line-height: 1;
+      overflow: hidden;
     }
     .cel-status.cel-actief {
-      outline: 2px solid #4f46e5;
-      outline-offset: 1px;
+      box-shadow: inset 0 0 0 2px #4f46e5;
+      outline: none;
+    }
+    body.kruis-slepen {
+      cursor: cell;
+      user-select: none;
     }
   </style>
 </head>
@@ -153,15 +194,28 @@
     </section>
 
     <section id="paneel-kruistabel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
-      <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <div class="px-4 py-3 border-b border-slate-100 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 class="font-semibold">Overzicht <span id="kruis-klaslabel"></span></h2>
-        <p class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium">
-          <span class="text-indigo-800">Les</span>
-          <span class="text-sky-800">Thuis</span>
-          <span class="text-orange-800">Extra</span>
-          <span class="text-rose-800">Materiaal</span>
-          <span class="text-slate-500">Optioneel</span>
-        </p>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
+            <button type="button" id="sort-datum" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="datum">Datum</button>
+            <button type="button" id="sort-soort" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="soort">Soort</button>
+          </div>
+          <p class="flex flex-wrap gap-x-1 gap-y-1 text-[11px] font-medium text-slate-600" aria-label="Filter op soort">
+            <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="huiswerk">
+              <span class="w-3 h-0.5 rounded bg-sky-400"></span> Les / huiswerk
+            </button>
+            <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="leerkans">
+              <span class="w-3 h-0.5 rounded bg-orange-400"></span> Leerkans
+            </button>
+            <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="orde">
+              <span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal
+            </button>
+            <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="optioneel">
+              <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
+            </button>
+          </p>
+        </div>
       </div>
       <div class="px-4 py-3 flex flex-wrap gap-2 text-xs text-slate-600">
         <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="In orde">
@@ -267,18 +321,18 @@
 
     const MOCK_TAKEN = [
       { id: 'T004', naam: 'Schrijfgerief', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
-      { id: 'T001', naam: 'Wiskunde', type: 'Huiswerk', deadline: '2026-08-20' },
+      { id: 'T001', naam: 'Wiskunde', type: 'Huistaak', deadline: '2026-08-20' },
       { id: 'T002', naam: 'Agenda', type: 'Lesopdracht', deadline: '2026-08-22' },
-      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huiswerk', deadline: '2026-08-28' },
+      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' },
       { id: 'T006', naam: 'Toets geschiedenis', type: 'Schriftelijke voorbereiding', deadline: '2026-08-29' },
-      { id: 'T007', naam: 'Frans', type: 'Huiswerk', deadline: '2026-09-01' },
+      { id: 'T007', naam: 'Frans', type: 'Huistaak', deadline: '2026-09-01' },
       { id: 'T008', naam: 'Labojas', type: 'Materiaal niet in orde', deadline: '2026-09-02' },
       { id: 'T009', naam: 'Groepswerk WO', type: 'Lesopdracht', deadline: '2026-09-04' },
       { id: 'T010', naam: 'Wetenschappen', type: 'Bookwidgetsopdracht', deadline: '2026-09-08' },
       { id: 'T011', naam: 'Spreekbeurt', type: 'Schriftelijke voorbereiding', deadline: '2026-09-11' },
       { id: 'T012', naam: 'Wiskunde', type: 'Bijles', deadline: '2026-09-12' },
       { id: 'T013', naam: 'Burgerschap', type: 'Niet-verplichte taak', deadline: '2026-09-15' },
-      { id: 'T014', naam: 'Engels', type: 'Remediëringstaak', deadline: '2026-09-18' }
+      { id: 'T014', naam: 'Engels', type: 'Remediëringsopdracht', deadline: '2026-09-18' }
     ];
 
     const MOCK_REGISTRATIES = [
@@ -323,6 +377,8 @@
       'Te maken': 'bg-yellow-300 text-yellow-950'
     };
 
+    const GROEP_FILTERS_ALLE = ['huiswerk', 'leerkans', 'orde', 'optioneel'];
+
     let staat = {
       leerlingen: [],
       taken: [],
@@ -330,7 +386,12 @@
       gekozenKlas: '',
       actieveTab: 'kruistabel',
       gekozenStatus: 'In orde',
-      geselecteerd: null
+      geselecteerd: null,
+      selectie: [],
+      slepen: false,
+      sleepStart: null,
+      sortering: 'datum',
+      groepFilters: GROEP_FILTERS_ALLE.slice()
     };
 
     /** True in GAS, false bij lokaal openen via Live Server. */
@@ -414,11 +475,39 @@
       });
     }
 
-    /** Taken chronologisch, zodat een langere periode van links naar rechts loopt. */
-    function gesorteerdeTaken() {
+    /** Taken voor de kruistabel: filter + sortering (datum standaard, of soort). */
+    function zichtbareTaken() {
+      const filters = staat.groepFilters || [];
+      let lijst = staat.taken.filter(function (taak) {
+        return filters.indexOf(taakGroep(taak)) !== -1;
+      });
+      if (staat.sortering === 'soort') {
+        const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
+        lijst.sort(function (a, b) {
+          const ga = volgorde.indexOf(taakGroep(a));
+          const gb = volgorde.indexOf(taakGroep(b));
+          if (ga !== gb) return ga - gb;
+          const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
+          if (typeCmp !== 0) return typeCmp;
+          return String(a.deadline).localeCompare(String(b.deadline));
+        });
+      } else {
+        lijst.sort(function (a, b) {
+          return String(a.deadline).localeCompare(String(b.deadline));
+        });
+      }
+      return lijst;
+    }
+
+    /** Alle taken, op datum — voor het individuele formulier (ongefilterd). */
+    function alleTakenOpDatum() {
       return staat.taken.slice().sort(function (a, b) {
         return String(a.deadline).localeCompare(String(b.deadline));
       });
+    }
+
+    function gesorteerdeTaken() {
+      return zichtbareTaken();
     }
 
     function korteDatum(iso) {
@@ -435,16 +524,18 @@
       return type || naam;
     }
 
-    /** Types groeperen: tien kleuren zou de kruistabel onleesbaar maken. */
+    /** Groeperen op soort, niet op locatie: leerkans vs gewone plicht. */
     const TYPE_GROEP = {
-      'Lesopdracht': 'les',
-      'Huiswerk': 'thuis',
-      'Bookwidgetsopdracht': 'thuis',
-      'Schriftelijke voorbereiding': 'thuis',
-      'Remediëringstaak': 'extra',
-      'Bijles': 'extra',
-      'Toets verbeteren': 'extra',
-      'Examen inkijken': 'extra',
+      'Lesopdracht': 'huiswerk',
+      'Huiswerk': 'huiswerk',
+      'Huistaak': 'huiswerk',
+      'Bookwidgetsopdracht': 'huiswerk',
+      'Schriftelijke voorbereiding': 'leerkans',
+      'Remediëringstaak': 'leerkans',
+      'Remediëringsopdracht': 'leerkans',
+      'Bijles': 'leerkans',
+      'Toets verbeteren': 'leerkans',
+      'Examen inkijken': 'leerkans',
       'Materiaal niet in orde': 'orde',
       'Niet-verplichte taak': 'optioneel'
     };
@@ -510,6 +601,9 @@
       document.getElementById('veld-leerling').value = '';
       document.getElementById('veld-opmerking').value = '';
       staat.geselecteerd = null;
+      staat.selectie = [];
+      staat.slepen = false;
+      staat.sleepStart = null;
       tekenScherm();
     }
 
@@ -525,22 +619,55 @@
       vulDropdowns();
     }
 
+    function tekenSorteerFilterKnoppen() {
+      document.querySelectorAll('.sort-knop').forEach(function (knop) {
+        knop.classList.toggle('actief', knop.getAttribute('data-sort') === staat.sortering);
+      });
+      document.querySelectorAll('.filter-groep').forEach(function (knop) {
+        const groep = knop.getAttribute('data-groep');
+        knop.classList.toggle('actief', staat.groepFilters.indexOf(groep) !== -1);
+      });
+    }
+
+    function zetSortering(naam) {
+      staat.sortering = naam === 'soort' ? 'soort' : 'datum';
+      tekenKruistabel();
+    }
+
+    function wisselGroepFilter(groep) {
+      const lijst = staat.groepFilters.slice();
+      const index = lijst.indexOf(groep);
+      if (index === -1) lijst.push(groep);
+      else lijst.splice(index, 1);
+      staat.groepFilters = lijst;
+      tekenKruistabel();
+    }
+
     function tekenKruistabel() {
       const wrapper = document.getElementById('kruistabel-wrapper');
       const leerlingen = leerlingenVanKlas();
-      const taken = gesorteerdeTaken();
+      const taken = zichtbareTaken();
+      tekenSorteerFilterKnoppen();
 
-      if (!leerlingen.length || !taken.length) {
-        wrapper.innerHTML = '<p class="p-6 text-sm text-slate-500">Nog geen leerlingen of taken voor deze klas.</p>';
+      if (!leerlingen.length) {
+        wrapper.innerHTML = '<p class="p-6 text-sm text-slate-500">Nog geen leerlingen in deze klas.</p>';
+        return;
+      }
+      if (!staat.taken.length) {
+        wrapper.innerHTML = '<p class="p-6 text-sm text-slate-500">Nog geen taken in de spreadsheet.</p>';
+        return;
+      }
+      if (!taken.length) {
+        wrapper.innerHTML = '<p class="p-6 text-sm text-slate-500">Geen taken voor deze filter. Zet minstens één soort weer aan.</p>';
         return;
       }
 
       let titels = '<div class="kruis-titels-naam"></div>';
-      let datumKop = '<th class="th-naam sticky left-0 z-10 bg-white"></th>';
+      let datums = '<div class="kruis-titels-naam"></div>';
       taken.forEach(function (taak) {
         const titel = taakTitel(taak);
         titels += '<div class="taak-titel" data-groep="' + escapeAttr(taakGroep(taak)) + '" title="' + escapeAttr(titel) + '"><span>' + escapeHtml(titel) + '</span></div>';
-        datumKop += '<th class="th-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</th>';
+        datums += '<div class="kruis-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</div>';
       });
 
       let lichaam = '';
@@ -571,17 +698,32 @@
       wrapper.innerHTML =
         '<div class="kruis-binnen" style="--n:' + taken.length + '">' +
           '<div class="kruis-titels">' + titels + '</div>' +
+          '<div class="kruis-datums">' + datums + '</div>' +
           '<table class="kruistabel text-sm">' +
             '<colgroup>' + kolommen + '</colgroup>' +
-            '<thead><tr>' + datumKop + '</tr></thead>' +
             '<tbody>' + lichaam + '</tbody>' +
           '</table>' +
         '</div>';
 
-      wrapper.querySelectorAll('.cel-status').forEach(function (knop) {
-        knop.addEventListener('click', onCelKlik);
+      wrapper.querySelectorAll('td.td-cel').forEach(function (td) {
+        td.addEventListener('pointerdown', onCelPointerDown);
       });
+      lijnKoppenOpTabel(wrapper);
+      requestAnimationFrame(function () { lijnKoppenOpTabel(wrapper); });
       herstelSelectie();
+    }
+
+    /** Naamkolom volgt de langste naam; vakkolommen blijven vast op --vak. */
+    function lijnKoppenOpTabel(wrapper) {
+      const binnen = wrapper.querySelector('.kruis-binnen');
+      const naamCellen = wrapper.querySelectorAll('.kruistabel tbody th');
+      if (!binnen || !naamCellen.length) return;
+      let naamW = 0;
+      naamCellen.forEach(function (th) {
+        naamW = Math.max(naamW, th.scrollWidth);
+      });
+      if (!naamW) return;
+      binnen.style.setProperty('--naam', naamW + 'px');
     }
 
     function celKlassen(status) {
@@ -610,55 +752,182 @@
       return null;
     }
 
-    function selecteerCel(knop) {
-      document.querySelectorAll('.cel-status.cel-actief').forEach(function (el) {
-        el.classList.remove('cel-actief');
-      });
-      if (!knop) {
-        staat.geselecteerd = null;
-        return;
-      }
-      knop.classList.add('cel-actief');
-      knop.focus();
-      staat.geselecteerd = {
+    function celVanKnop(knop) {
+      return {
         llnId: knop.getAttribute('data-lln'),
         taakId: knop.getAttribute('data-taak')
       };
     }
 
-    function herstelSelectie() {
-      if (!staat.geselecteerd) return;
-      const knop = zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId);
-      if (knop) selecteerCel(knop);
+    function celInSelectie(llnId, taakId) {
+      return staat.selectie.some(function (cel) {
+        return cel.llnId === llnId && cel.taakId === taakId;
+      });
     }
 
-    function onCelKlik(event) {
-      selecteerCel(event.currentTarget);
+    function rechthoekSelectie(start, einde) {
+      const leerlingen = leerlingenVanKlas();
+      const taken = zichtbareTaken();
+      let r1 = leerlingen.findIndex(function (l) { return l.id === start.llnId; });
+      let r2 = leerlingen.findIndex(function (l) { return l.id === einde.llnId; });
+      let c1 = taken.findIndex(function (t) { return t.id === start.taakId; });
+      let c2 = taken.findIndex(function (t) { return t.id === einde.taakId; });
+      if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0) return [einde];
+      const rMin = Math.min(r1, r2);
+      const rMax = Math.max(r1, r2);
+      const cMin = Math.min(c1, c2);
+      const cMax = Math.max(c1, c2);
+      const result = [];
+      for (let r = rMin; r <= rMax; r++) {
+        for (let c = cMin; c <= cMax; c++) {
+          result.push({ llnId: leerlingen[r].id, taakId: taken[c].id });
+        }
+      }
+      return result;
+    }
+
+    function tekenSelectie() {
+      document.querySelectorAll('.cel-status').forEach(function (knop) {
+        knop.classList.toggle('cel-actief', celInSelectie(knop.getAttribute('data-lln'), knop.getAttribute('data-taak')));
+      });
+    }
+
+    function selecteerCel(knop) {
+      if (!knop) {
+        staat.geselecteerd = null;
+        staat.selectie = [];
+        tekenSelectie();
+        return;
+      }
+      const cel = celVanKnop(knop);
+      staat.geselecteerd = cel;
+      staat.selectie = [cel];
+      tekenSelectie();
+      knop.focus();
+    }
+
+    function herstelSelectie() {
+      staat.selectie = (staat.selectie || []).filter(function (cel) {
+        return !!zoekCelKnop(cel.llnId, cel.taakId);
+      });
+      if (staat.geselecteerd && !zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId)) {
+        staat.geselecteerd = staat.selectie[0] || null;
+      }
+      tekenSelectie();
+      if (!staat.geselecteerd) return;
+      const knop = zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId);
+      if (knop) knop.focus();
+    }
+
+    function knopOnderPunt(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el || !el.closest) return null;
+      const knop = el.closest('.cel-status');
+      if (knop) return knop;
+      const td = el.closest('td.td-cel');
+      return td ? td.querySelector('.cel-status') : null;
+    }
+
+    function knopVanPointerEvent(event) {
+      if (event.currentTarget && event.currentTarget.classList && event.currentTarget.classList.contains('cel-status')) {
+        return event.currentTarget;
+      }
+      if (event.currentTarget && event.currentTarget.querySelector) {
+        return event.currentTarget.querySelector('.cel-status');
+      }
+      return knopOnderPunt(event.clientX, event.clientY);
+    }
+
+    function onCelPointerDown(event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const knop = knopVanPointerEvent(event);
+      if (!knop) return;
+      if (event.pointerType === 'touch') {
+        selecteerCel(knop);
+        return;
+      }
+      event.preventDefault();
+      const cel = celVanKnop(knop);
+      staat.slepen = true;
+      staat.sleepStart = cel;
+      staat.geselecteerd = cel;
+      staat.selectie = [cel];
+      tekenSelectie();
+      document.body.classList.add('kruis-slepen');
+    }
+
+    function onDocumentPointerMove(event) {
+      if (!staat.slepen || !staat.sleepStart) return;
+      event.preventDefault();
+      const knop = knopOnderPunt(event.clientX, event.clientY);
+      if (!knop) return;
+      const einde = celVanKnop(knop);
+      staat.geselecteerd = einde;
+      staat.selectie = rechthoekSelectie(staat.sleepStart, einde);
+      tekenSelectie();
+    }
+
+    function onDocumentPointerUp() {
+      if (!staat.slepen) return;
+      staat.slepen = false;
+      staat.sleepStart = null;
+      document.body.classList.remove('kruis-slepen');
+    }
+
+    function klikInKruisGrid(event) {
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      const tabel = wrapper && wrapper.querySelector('table.kruistabel');
+      if (!tabel) return false;
+      const x = event.clientX;
+      const y = event.clientY;
+      const tabelRect = tabel.getBoundingClientRect();
+      if (x >= tabelRect.left && x <= tabelRect.right && y >= tabelRect.top && y <= tabelRect.bottom) {
+        return true;
+      }
+      const koppen = wrapper.querySelectorAll('.kruis-titels, .kruis-datums');
+      for (let i = 0; i < koppen.length; i++) {
+        const r = koppen[i].getBoundingClientRect();
+        if (x >= tabelRect.left && x <= tabelRect.right && y >= r.top && y <= r.bottom) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function onDocumentPointerDown(event) {
+      if (staat.slepen) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (!staat.geselecteerd && !(staat.selectie && staat.selectie.length)) return;
+      const doel = event.target;
+      if (doel && doel.closest && doel.closest('.legende-status')) return;
+      if (klikInKruisGrid(event)) return;
+      selecteerCel(null);
     }
 
     function pasGeselecteerdeStatus(status) {
-      if (!staat.geselecteerd) {
+      const cellen = staat.selectie && staat.selectie.length
+        ? staat.selectie
+        : (staat.geselecteerd ? [staat.geselecteerd] : []);
+      if (!cellen.length) {
         toonMelding('Selecteer eerst een vakje, daarna 1–4.', 'fout');
         return;
       }
-      const llnId = staat.geselecteerd.llnId;
-      const taakId = staat.geselecteerd.taakId;
-      const vorige = laatsteRegistratie(llnId, taakId);
       const leeg = !status;
-      const payload = {
-        llnId: llnId,
-        taakId: taakId,
-        status: status || '',
-        opmerking: leeg ? '' : (vorige ? vorige.opmerking : ''),
-        uploadUrl: leeg ? '' : (vorige ? vorige.uploadUrl : '')
-      };
-      slaRegistratieOp(payload, function () {
-        const knop = zoekCelKnop(llnId, taakId);
-        if (knop) {
-          knop.className = 'cel-status cel-actief ' + celKlassen(status);
+      cellen.forEach(function (cel) {
+        const vorige = laatsteRegistratie(cel.llnId, cel.taakId);
+        slaRegistratieOp({
+          llnId: cel.llnId,
+          taakId: cel.taakId,
+          status: status || '',
+          opmerking: leeg ? '' : (vorige ? vorige.opmerking : ''),
+          uploadUrl: leeg ? '' : (vorige ? vorige.uploadUrl : '')
+        }, function () {
+          const knop = zoekCelKnop(cel.llnId, cel.taakId);
+          if (!knop) return;
+          const actief = celInSelectie(cel.llnId, cel.taakId) ? ' cel-actief' : '';
+          knop.className = 'cel-status' + actief + ' ' + celKlassen(status);
           knop.textContent = celTekst(status);
-          knop.focus();
-        }
+        });
       });
     }
 
@@ -719,7 +988,7 @@
         llnSelect.value = vorigeLln;
       }
 
-      gesorteerdeTaken().forEach(function (taak) {
+      alleTakenOpDatum().forEach(function (taak) {
         const opt = document.createElement('option');
         opt.value = taak.id;
         opt.textContent = taakTitel(taak) + ' — ' + korteDatum(taak.deadline);
@@ -770,9 +1039,20 @@
     });
     document.getElementById('tab-kruistabel').addEventListener('click', function () { wisselTab('kruistabel'); });
     document.getElementById('tab-individueel').addEventListener('click', function () { wisselTab('individueel'); });
+    document.getElementById('sort-datum').addEventListener('click', function () { zetSortering('datum'); });
+    document.getElementById('sort-soort').addEventListener('click', function () { zetSortering('soort'); });
+    document.querySelectorAll('.filter-groep').forEach(function (knop) {
+      knop.addEventListener('click', function () {
+        wisselGroepFilter(knop.getAttribute('data-groep'));
+      });
+    });
     document.getElementById('veld-leerling').addEventListener('change', vulFormulierVanSelectie);
     document.getElementById('veld-taak').addEventListener('change', vulFormulierVanSelectie);
     document.addEventListener('keydown', onKruisToets);
+    document.addEventListener('pointerdown', onDocumentPointerDown);
+    document.addEventListener('pointermove', onDocumentPointerMove, { passive: false });
+    document.addEventListener('pointerup', onDocumentPointerUp);
+    document.addEventListener('pointercancel', onDocumentPointerUp);
 
     document.querySelectorAll('.legende-status').forEach(function (knop) {
       knop.addEventListener('click', function () {
