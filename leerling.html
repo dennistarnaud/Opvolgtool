@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Opvolgtool — Leerling</title>
+  <title>Opvolging leerkansen</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,6 +16,14 @@
       }
     };
   </script>
+  <style>
+    .sort-knop.actief,
+    .filter-groep.actief,
+    #knop-filter[aria-expanded="true"] {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
@@ -28,19 +36,48 @@
   <script id="gas-leerling-payload" type="application/json"><?!= typeof leerlingJson !== 'undefined' ? leerlingJson : '' ?></script>
 
   <div class="max-w-lg mx-auto p-3 sm:p-4 space-y-3">
-    <a href="#" id="knop-indienen"
-      class="block w-full text-center rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm sm:text-base px-4 py-3 shadow-sm">
-      Taak / Strafwerk Indienen
-    </a>
-
-    <div id="omgeving-badge" class="hidden text-center text-[11px] font-medium text-amber-900 bg-amber-100 rounded-lg px-3 py-1.5">
-      Lokale testdata — open met ?id=A7X9
-    </div>
-
     <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between gap-2">
-        <h1 class="text-sm font-semibold">Mijn opvolging</h1>
-        <p id="samenvatting" class="text-[11px] text-slate-500"></p>
+      <div class="px-3 py-2.5 border-b border-slate-100">
+        <h1 class="text-sm font-semibold">Opvolging leerkansen</h1>
+        <div class="mt-2 space-y-1 text-[12px] text-slate-600 leading-relaxed">
+          <p>Het onderstaande overzicht geeft weer welke leerkansen er werden aangeboden en in welke mate erop werd ingegaan.
+          Toevoegingen en aanpassingen gebeuren te allen tijde in dit overzicht. Gelieve dit goed mee op te volgen.</p>
+        </div>
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <p id="samenvatting" class="text-[11px] text-slate-500"></p>
+          <button type="button" id="knop-filter"
+            class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18" />
+              <path d="M7 12h10" />
+              <path d="M10 18h4" />
+            </svg>
+            <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+          </button>
+        </div>
+        <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
+              <button type="button" id="sort-datum" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="datum">Datum</button>
+              <button type="button" id="sort-soort" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="soort">Soort</button>
+            </div>
+            <p class="flex flex-wrap gap-x-1 gap-y-1 text-[11px] font-medium text-slate-600" aria-label="Filter op soort">
+              <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="huiswerk">
+                <span class="w-3 h-0.5 rounded bg-sky-400"></span> Les / huiswerk
+              </button>
+              <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="leerkans">
+                <span class="w-3 h-0.5 rounded bg-orange-400"></span> Remediëring
+              </button>
+              <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="orde">
+                <span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal
+              </button>
+              <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="optioneel">
+                <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
       <div id="lijst" class="divide-y divide-slate-100">
         <p class="p-4 text-sm text-slate-500">Gegevens laden…</p>
@@ -57,9 +94,11 @@
 
     const MOCK_TAKEN = [
       { id: 'T001', naam: 'Wiskunde', type: 'Huistaak', deadline: '2026-08-20' },
-      { id: 'T002', naam: 'Agenda', type: 'Gedrag', deadline: '2026-08-22' },
-      { id: 'T004', naam: 'Materiaal in orde', type: 'Gedrag', deadline: '2026-08-18' },
-      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' }
+      { id: 'T002', naam: 'Agenda', type: 'Lesopdracht', deadline: '2026-08-22' },
+      { id: 'T004', naam: 'Materiaal in orde', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
+      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' },
+      { id: 'T006', naam: 'Toets geschiedenis', type: 'Schriftelijke voorbereiding', deadline: '2026-08-29' },
+      { id: 'T013', naam: 'Burgerschap', type: 'Niet-verplichte taak', deadline: '2026-09-15' }
     ];
 
     const MOCK_LEERLINGEN = [
@@ -76,6 +115,8 @@
       { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:14', llnId: 'L001', taakId: 'T004', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te maken', opmerking: 'Nog in te dienen.', uploadUrl: '' },
+      { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.', uploadUrl: '' },
+      { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.', uploadUrl: 'https://drive.google.com/voorbeeld' },
@@ -114,23 +155,23 @@
         return l.code.toUpperCase() === code.toUpperCase();
       })[0] || MOCK_LEERLINGEN[0];
 
-      const taakNaam = {};
-      MOCK_TAKEN.forEach(function (t) { taakNaam[t.id] = t.naam; });
+      const taakById = {};
+      MOCK_TAKEN.forEach(function (t) { taakById[t.id] = t; });
 
       const registraties = MOCK_REGISTRATIES
         .filter(function (r) { return r.llnId === leerling.id; })
         .map(function (r) {
+          const taak = taakById[r.taakId];
           return {
             datumTijd: r.datumTijd,
             taakId: r.taakId,
-            taakNaam: taakNaam[r.taakId] || r.taakId,
+            taakNaam: (taak && taak.naam) ? taak.naam : r.taakId,
+            type: (taak && taak.type) ? taak.type : '',
+            deadline: (taak && taak.deadline) ? taak.deadline : '',
             status: r.status,
             opmerking: r.opmerking,
             uploadUrl: r.uploadUrl
           };
-        })
-        .sort(function (a, b) {
-          return String(b.datumTijd).localeCompare(String(a.datumTijd));
         });
 
       return {
@@ -166,9 +207,110 @@
       toonRegistraties(mockLeerlingData(code));
     }
 
+    const GROEP_FILTERS_ALLE = ['huiswerk', 'leerkans', 'orde', 'optioneel'];
+    const GROEP_KLEUR = {
+      huiswerk: 'bg-sky-400',
+      leerkans: 'bg-orange-400',
+      orde: 'bg-rose-400',
+      optioneel: 'bg-slate-400'
+    };
+    const TYPE_GROEP = {
+      'Lesopdracht': 'huiswerk',
+      'Huiswerk': 'huiswerk',
+      'Huistaak': 'huiswerk',
+      'Bookwidgetsopdracht': 'huiswerk',
+      'Schriftelijke voorbereiding': 'leerkans',
+      'Remediëringstaak': 'leerkans',
+      'Remediëringsopdracht': 'leerkans',
+      'Bijles': 'leerkans',
+      'Toets verbeteren': 'leerkans',
+      'Examen inkijken': 'leerkans',
+      'Materiaal niet in orde': 'orde',
+      'Niet-verplichte taak': 'optioneel'
+    };
+    const staat = {
+      registraties: [],
+      sortering: 'datum',
+      groepFilters: GROEP_FILTERS_ALLE.slice()
+    };
+
+    function taakGroep(reg) {
+      return TYPE_GROEP[reg && reg.type] || 'optioneel';
+    }
+
+    function zichtbareRegistraties() {
+      const filters = staat.groepFilters || [];
+      let lijst = staat.registraties.filter(function (reg) {
+        return filters.indexOf(taakGroep(reg)) !== -1;
+      });
+      if (staat.sortering === 'soort') {
+        const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
+        lijst.sort(function (a, b) {
+          const ga = volgorde.indexOf(taakGroep(a));
+          const gb = volgorde.indexOf(taakGroep(b));
+          if (ga !== gb) return ga - gb;
+          const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
+          if (typeCmp !== 0) return typeCmp;
+          return String(b.datumTijd).localeCompare(String(a.datumTijd));
+        });
+      } else {
+        lijst.sort(function (a, b) {
+          return String(b.datumTijd).localeCompare(String(a.datumTijd));
+        });
+      }
+      return lijst;
+    }
+
+    function tekenSorteerFilterKnoppen() {
+      document.querySelectorAll('.sort-knop').forEach(function (knop) {
+        knop.classList.toggle('actief', knop.getAttribute('data-sort') === staat.sortering);
+      });
+      document.querySelectorAll('.filter-groep').forEach(function (knop) {
+        const groep = knop.getAttribute('data-groep');
+        knop.classList.toggle('actief', staat.groepFilters.indexOf(groep) !== -1);
+      });
+      const filterActief = staat.sortering !== 'datum' ||
+        staat.groepFilters.length !== GROEP_FILTERS_ALLE.length;
+      document.getElementById('filter-indicatie').classList.toggle('hidden', !filterActief);
+    }
+
+    function wisselFilterPaneel() {
+      const paneel = document.getElementById('paneel-filter');
+      const knop = document.getElementById('knop-filter');
+      const open = paneel.classList.contains('hidden');
+      paneel.classList.toggle('hidden', !open);
+      knop.setAttribute('aria-expanded', String(open));
+    }
+
+    function formaatDatum(waarde) {
+      const m = String(waarde || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(waarde || '');
+      return m[3] + '-' + m[2] + '-' + m[1];
+    }
+
+    function zetSortering(naam) {
+      staat.sortering = naam === 'soort' ? 'soort' : 'datum';
+      tekenLijst();
+    }
+
+    function wisselGroepFilter(groep) {
+      const lijst = staat.groepFilters.slice();
+      const index = lijst.indexOf(groep);
+      if (index === -1) lijst.push(groep);
+      else lijst.splice(index, 1);
+      staat.groepFilters = lijst;
+      tekenLijst();
+    }
+
     function toonRegistraties(data) {
+      staat.registraties = (data && data.registraties) ? data.registraties : [];
+      tekenLijst();
+    }
+
+    function tekenLijst() {
       const lijst = document.getElementById('lijst');
-      const regs = (data && data.registraties) ? data.registraties : [];
+      const regs = zichtbareRegistraties();
+      tekenSorteerFilterKnoppen();
 
       const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
       const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
@@ -177,26 +319,34 @@
       document.getElementById('samenvatting').textContent =
         inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
-      if (!regs.length) {
+      if (!staat.registraties.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties.</p>';
+        return;
+      }
+      if (!regs.length) {
+        lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Geen registraties voor deze filter.</p>';
         return;
       }
 
       lijst.innerHTML = regs.map(function (reg) {
         const badge = statusBadge(reg.status);
+        const groep = taakGroep(reg);
+        const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
+        const meta = [formaatDatum(reg.datumTijd), reg.type].filter(Boolean).join(' · ');
         const opmerking = reg.opmerking
-          ? '<p class="text-[12px] text-slate-600 mt-1">' + escapeHtml(reg.opmerking) + '</p>'
+          ? '<p class="text-sm text-slate-600 leading-snug">' + escapeHtml(reg.opmerking) + '</p>'
           : '';
         const upload = reg.uploadUrl
-          ? '<p class="text-[11px] text-indigo-600 mt-1">Ingediend</p>'
+          ? '<p class="text-sm text-slate-600 leading-snug">Ingediend</p>'
           : '';
 
         return (
           '<article class="px-3 py-2.5">' +
-            '<div class="flex items-start justify-between gap-2">' +
-              '<div class="min-w-0">' +
-                '<p class="text-[11px] text-slate-400">' + escapeHtml(reg.datumTijd) + '</p>' +
-                '<p class="text-sm font-medium leading-snug">' + escapeHtml(reg.taakNaam) + '</p>' +
+            '<div class="flex items-start gap-2">' +
+              '<span class="mt-1 w-0.5 self-stretch min-h-[2.5rem] rounded ' + kleur + '" aria-hidden="true"></span>' +
+              '<div class="min-w-0 flex-1 space-y-0.5">' +
+                '<p class="text-xs text-slate-500">' + escapeHtml(meta) + '</p>' +
+                '<p class="text-sm font-semibold text-slate-900 leading-snug">' + escapeHtml(reg.taakNaam) + '</p>' +
                 opmerking + upload +
               '</div>' +
               badge +
@@ -223,14 +373,14 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    document.getElementById('knop-indienen').addEventListener('click', function (event) {
-      event.preventDefault();
-      console.log('[ACTIE] Taak / Strafwerk Indienen — link nog niet gekoppeld');
+    document.getElementById('knop-filter').addEventListener('click', wisselFilterPaneel);
+    document.getElementById('sort-datum').addEventListener('click', function () { zetSortering('datum'); });
+    document.getElementById('sort-soort').addEventListener('click', function () { zetSortering('soort'); });
+    document.querySelectorAll('.filter-groep').forEach(function (knop) {
+      knop.addEventListener('click', function () {
+        wisselGroepFilter(knop.getAttribute('data-groep'));
+      });
     });
-
-    if (!isGasOmgeving()) {
-      document.getElementById('omgeving-badge').classList.remove('hidden');
-    }
 
     haalLeerlingData();
   </script>
