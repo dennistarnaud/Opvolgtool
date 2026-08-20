@@ -51,21 +51,15 @@
       font-weight: 600;
       color: #64748b;
       text-align: center;
-      padding-top: 1.05rem;
+      padding-top: 0.35rem;
       padding-bottom: 0.3rem;
       letter-spacing: -0.02em;
       white-space: nowrap;
     }
-    .kruis-datum .knop-verwijder {
-      position: absolute;
-      left: 50%;
-      top: -2px;
-      transform: translateX(-50%);
-      z-index: 3;
-    }
     .taak-titel {
       position: relative;
       overflow: visible;
+      pointer-events: none;
     }
     /* Typekleur: klein vakje boven de datum, los van de titel. */
     .taak-titel::before {
@@ -78,6 +72,7 @@
       height: 4px;
       border-radius: 2px;
       background: #cbd5e1;
+      pointer-events: none;
     }
     .taak-titel[data-groep="les"]::before,
     .taak-titel[data-groep="huiswerk"]::before { background: #38bdf8; }
@@ -96,6 +91,25 @@
       z-index: 15;
       background: #fff;
     }
+    @media (max-width: 767px) {
+      body.lijst-detail nav {
+        display: none;
+      }
+      body.lijst-detail .lijst-kop {
+        top: 0;
+      }
+      body.lijst-detail main {
+        padding: 0;
+      }
+      body.lijst-detail #paneel-leerling,
+      body.lijst-detail #paneel-taak {
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+        border-top: 0;
+        min-height: 100dvh;
+      }
+    }
     .taak-titel span {
       position: absolute;
       left: calc(50% + 0.4rem);
@@ -107,6 +121,26 @@
       font-weight: 600;
       line-height: 1;
       color: #1e293b;
+      pointer-events: auto;
+      cursor: pointer;
+      z-index: 5;
+      transition: color 0.15s ease;
+    }
+    .taak-titel span:hover {
+      color: #4f46e5;
+      z-index: 6;
+    }
+    .taak-titel:has(span:hover)::before {
+      width: 2rem;
+      height: 5px;
+    }
+    .taak-titel span::after {
+      content: '';
+      position: absolute;
+      left: -0.45rem;
+      right: -0.45rem;
+      top: -0.65rem;
+      bottom: -0.65rem;
     }
     .knop-nieuwe-taak {
       position: absolute;
@@ -150,13 +184,7 @@
       width: var(--naam);
       white-space: nowrap;
     }
-    table.kruistabel tbody th.naam-cel {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
     .naam-tekst {
-      flex: 1;
       min-width: 0;
       background: none;
       border: 0;
@@ -209,31 +237,6 @@
     .veld-nieuwe-leerling::placeholder {
       color: #94a3b8;
       font-weight: 500;
-    }
-    .knop-verwijder {
-      flex-shrink: 0;
-      width: 1.25rem;
-      height: 1.25rem;
-      border: 0;
-      border-radius: 0.25rem;
-      background: transparent;
-      color: #94a3b8;
-      font-size: 1rem;
-      line-height: 1;
-      cursor: pointer;
-      opacity: 0;
-    }
-    tr:hover .knop-verwijder,
-    .kruis-datum:hover .knop-verwijder,
-    .knop-verwijder:focus {
-      opacity: 1;
-    }
-    .knop-verwijder:hover {
-      background: #fee2e2;
-      color: #e11d48;
-    }
-    @media (hover: none) {
-      .knop-verwijder { opacity: 0.55; }
     }
     table.kruistabel td.td-cel,
     table.kruistabel td.td-nieuw {
@@ -305,9 +308,9 @@
         class="relative shrink-0 hidden md:inline-flex md:ml-auto items-center justify-center w-10 h-10 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
         title="Verwijderde leerlingen" aria-label="Verwijderde leerlingen">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 6h18" />
-          <path d="M8 6V4h8v2" />
-          <path d="M19 6l-1 14H6L5 6" />
+          <rect width="20" height="5" x="2" y="3" rx="1" />
+          <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+          <path d="M10 12h4" />
         </svg>
         <span id="prullenbak-aantal" class="hidden absolute -top-0.5 -right-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-slate-800 text-[10px] font-semibold text-white leading-[1.15rem] text-center"></span>
       </button>
@@ -328,11 +331,16 @@
     <section id="paneel-kruistabel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
       <div class="px-4 py-3 border-b border-slate-100">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <h2 class="font-semibold">Overzicht <span id="kruis-klaslabel"></span></h2>
-            <button type="button" data-actie="klas-verwijderen"
-              class="shrink-0 text-[11px] font-medium text-slate-400 hover:text-rose-600">
-              Klas verwijderen
+          <div class="flex items-center gap-1 min-w-0">
+            <h2 class="font-semibold min-w-0 truncate">Overzicht <span id="kruis-klaslabel"></span></h2>
+            <button type="button" id="knop-kruis-klas-verwijderen" data-actie="klas-verwijderen"
+              class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+              title="Klas verwijderen" aria-label="Klas verwijderen">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+              </svg>
             </button>
           </div>
           <div class="filter-wrap contents">
@@ -407,7 +415,35 @@
           aria-label="Sluiten">&times;</button>
 
         <div id="form-fiche" class="hidden">
-          <h3 id="fiche-naam" class="font-semibold text-lg pr-8"></h3>
+          <div class="flex items-center gap-0.5 pr-8">
+            <div id="fiche-naam-weergave" class="min-w-0 flex-1 flex items-center gap-0.5">
+              <h3 id="fiche-naam" class="min-w-0 font-semibold text-lg truncate"></h3>
+              <button type="button" data-actie="fiche-naam-bewerken"
+                class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+                title="Naam wijzigen" aria-label="Naam wijzigen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              <button type="button" id="knop-leerling-verwijderen" data-actie="leerling-verwijderen"
+                class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                title="Leerling verwijderen" aria-label="Leerling verwijderen">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14H6L5 6" />
+                </svg>
+              </button>
+            </div>
+            <div id="fiche-naam-edit" class="hidden min-w-0 flex-1 flex items-center gap-1">
+              <input id="veld-fiche-naam" type="text" maxlength="80" autocomplete="off"
+                class="min-w-0 flex-1 rounded-xl border border-slate-300 px-2.5 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button type="button" data-actie="fiche-naam-annuleren"
+                class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                title="Annuleren" aria-label="Naam wijzigen annuleren">&times;</button>
+            </div>
+          </div>
           <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <div id="fiche-klas-weergave" class="inline-flex items-center gap-0.5 rounded-full bg-slate-100 pl-2.5 pr-1 py-1 font-medium text-slate-700">
               Klas <span id="fiche-klas-tekst" class="font-semibold text-slate-900"></span>
@@ -434,12 +470,55 @@
                 title="Annuleren" aria-label="Klas wijzigen annuleren">&times;</button>
             </div>
             <button type="button" id="fiche-code-knop" data-actie="code-kopieren"
-              class="rounded-full bg-indigo-50 px-2.5 py-1 font-medium text-indigo-800 hover:bg-indigo-100"
+              class="inline-flex items-center rounded-full bg-indigo-50 pl-2.5 pr-2.5 min-h-8 font-medium text-indigo-800 hover:bg-indigo-100"
               title="Code kopiëren">
               Code <span id="fiche-code" class="font-mono"></span>
             </button>
+            <button type="button" id="fiche-iframe-knop" data-actie="iframe-kopieren"
+              class="inline-flex items-center justify-center w-8 min-h-8 rounded-full bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+              title="Iframe voor het LVS kopiëren" aria-label="Iframe voor het LVS kopiëren">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            </button>
           </div>
-          <p id="fiche-samenvatting" class="mt-3 text-[11px] text-slate-500"></p>
+          <div class="filter-wrap mt-3">
+            <div class="flex items-center justify-between gap-2">
+              <p id="fiche-samenvatting" class="text-[11px] text-slate-500"></p>
+              <button type="button" class="knop-filter relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                data-actie="filter-wissel" title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="fiche-paneel-filter">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 6h18" />
+                  <path d="M7 12h10" />
+                  <path d="M10 18h4" />
+                </svg>
+                <span class="filter-indicatie hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+              </button>
+            </div>
+            <div id="fiche-paneel-filter" class="paneel-filter hidden mt-2 pt-2 border-t border-slate-100">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
+                  <button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="datum">Datum</button>
+                  <button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="soort">Soort</button>
+                </div>
+                <p class="flex flex-wrap gap-x-1 gap-y-1 text-[11px] font-medium text-slate-600" aria-label="Filter op soort">
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="huiswerk">
+                    <span class="w-3 h-0.5 rounded bg-sky-400"></span> Les / huiswerk
+                  </button>
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="leerkans">
+                    <span class="w-3 h-0.5 rounded bg-orange-400"></span> Remediëring
+                  </button>
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="orde">
+                    <span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal
+                  </button>
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="optioneel">
+                    <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
           <div id="fiche-lijst" class="mt-3 max-h-[min(24rem,55vh)] overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white"></div>
         </div>
 
@@ -476,9 +555,15 @@
         <form id="form-klas" class="hidden space-y-4">
           <h3 id="modal-titel-klas" class="font-semibold text-lg pr-8">Nieuwe klas</h3>
           <label class="block">
-            <span class="text-sm font-medium text-slate-700">Naam</span>
+            <span class="text-sm font-medium text-slate-700">Klas</span>
             <input id="veld-nieuwe-klas" type="text" maxlength="12" required autocomplete="off"
               placeholder="bijv. 3A"
+              class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Vak</span>
+            <input id="veld-nieuwe-klas-vak" type="text" maxlength="32" required autocomplete="off"
+              placeholder="bijv. Wiskunde"
               class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </label>
           <div class="flex items-center gap-3 pt-1">
@@ -509,7 +594,7 @@
 
         <form id="form-taak" class="hidden space-y-4">
           <h3 id="modal-titel-taak" class="font-semibold text-lg pr-8">Taak toevoegen</h3>
-          <p class="text-sm text-slate-500">De taak wordt toegevoegd aan klas <span id="taak-klaslabel" class="font-medium text-slate-700"></span>.</p>
+          <p id="taak-modal-uitleg" class="text-sm text-slate-500">De taak wordt toegevoegd aan klas <span id="taak-klaslabel" class="font-medium text-slate-700"></span>.</p>
           <label class="block">
             <span class="text-sm font-medium text-slate-700">Naam</span>
             <input id="veld-nieuwe-taak-naam" type="text" required
@@ -518,9 +603,9 @@
           </label>
           <label class="block">
             <span class="text-sm font-medium text-slate-700">Soort</span>
-            <select id="veld-nieuwe-taak-type" required
+            <select id="veld-nieuwe-taak-type"
               class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Kies een soort</option>
+              <option value="">—</option>
               <optgroup label="Les / huiswerk">
                 <option value="Lesopdracht">Lesopdracht</option>
                 <option value="Huistaak">Huistaak</option>
@@ -552,11 +637,20 @@
             <div id="taak-andere-klassen" class="flex flex-wrap gap-2"></div>
           </div>
           <div class="flex items-center gap-3 pt-1">
-            <button type="submit" class="inline-flex justify-center items-center px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+            <button type="submit" id="knop-taak-opslaan" class="inline-flex justify-center items-center px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
               Toevoegen
             </button>
             <button type="button" data-actie="modal-sluiten" class="text-sm font-medium text-slate-500 hover:text-slate-800">
               Annuleren
+            </button>
+            <button type="button" id="knop-taak-verwijderen" data-actie="taak-verwijderen"
+              class="hidden ml-auto inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+              title="Taak verwijderen" aria-label="Taak verwijderen">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+              </svg>
             </button>
           </div>
         </form>
@@ -599,7 +693,11 @@
       { id: 'L015', naam: 'Daan Willems', klas: '4A', code: 'Q9C4Q9C4' }
     ];
 
-    const MOCK_KLASSEN = ['3A', '3B', '4A'];
+    const MOCK_KLASSEN = [
+      { naam: '3A', vak: 'Wiskunde' },
+      { naam: '3B', vak: 'Wiskunde' },
+      { naam: '4A', vak: 'Wiskunde' }
+    ];
 
     const MOCK_TAKEN = [
       { id: 'T004', naam: 'Schrijfgerief', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
@@ -677,15 +775,21 @@
       filterPaneelOpen: false,
       geselecteerd: null,
       selectie: [],
+      selectieAnker: null,
       slepen: false,
       sleepStart: null,
+      sleepModus: '',
+      sleepBasis: [],
+      sleepVerplaatst: false,
       sortering: 'datum',
       groepFilters: GROEP_FILTERS_ALLE.slice(),
       modal: null,
       naLeerling: null,
       bezigLeerling: false,
       bevestigActie: null,
-      nieuweLeerlingTekst: ''
+      taakBewerkenId: '',
+      nieuweLeerlingTekst: '',
+      webAppUrl: ''
     };
 
     /** True in GAS, false bij lokaal openen via Live Server. */
@@ -873,6 +977,36 @@
       if (naSucces) naSucces(gemaakt);
     }
 
+    function slaTaakWijzigingOp(id, data, naSucces) {
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak);
+            if (naSucces) naSucces(antwoord.taak);
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .updateTaak({
+            id: id,
+            naam: data.naam,
+            type: data.type,
+            deadline: data.deadline
+          });
+        return;
+      }
+      const taak = taakOpId(id);
+      if (!taak) {
+        toonMelding('Taak niet gevonden.', 'fout');
+        return;
+      }
+      taak.naam = String(data.naam || '').trim();
+      taak.type = String(data.type || '').trim();
+      taak.deadline = String(data.deadline || '').trim();
+      console.log('[LOKAAL] updateTaak', taak);
+      if (naSucces) naSucces(taak);
+    }
+
     function verwijderLeerlingOp(id, naSucces) {
       if (isGasOmgeving()) {
         google.script.run
@@ -978,6 +1112,15 @@
       }
     }
 
+    function werkTaakBij(taak) {
+      for (let i = 0; i < staat.taken.length; i++) {
+        if (staat.taken[i].id === taak.id) {
+          staat.taken[i] = taak;
+          return;
+        }
+      }
+    }
+
     function wijsOpenRegistratiesToeAanKlas(llnId, klas) {
       const doel = String(klas || '').trim();
       if (!doel) return;
@@ -1025,7 +1168,9 @@
       const doel = String(nieuweKlas || '').trim();
       let lijst = geschraptInVan(leerling).slice();
       if (vorige && vorige !== doel && lijst.indexOf(vorige) === -1) lijst.push(vorige);
-      return lijst.filter(function (klas) { return klas && klas !== doel; });
+      return lijst.filter(function (klas) {
+        return klas && klas !== doel && heeftRegistratiesInKlas(leerling, klas);
+      });
     }
 
     function geschraptInVan(lln) {
@@ -1048,8 +1193,9 @@
 
     function uniekeKlassen() {
       const set = {};
-      (staat.klassen || []).forEach(function (klas) {
-        if (klas) set[klas] = true;
+      (staat.klassen || []).forEach(function (item) {
+        const naam = klasNaamVan(item);
+        if (naam) set[naam] = true;
       });
       actieveLeerlingen().forEach(function (lln) {
         if (lln.klas) set[lln.klas] = true;
@@ -1060,6 +1206,35 @@
       return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'nl'); });
     }
 
+    function klasNaamVan(item) {
+      if (!item) return '';
+      if (typeof item === 'string') return String(item).trim();
+      return String(item.naam || '').trim();
+    }
+
+    function klasVak(naam) {
+      const doel = String(naam || '').trim().toUpperCase();
+      if (!doel) return '';
+      for (let i = 0; i < (staat.klassen || []).length; i++) {
+        const item = staat.klassen[i];
+        if (klasNaamVan(item).toUpperCase() === doel) {
+          return typeof item === 'string' ? '' : String(item.vak || '').trim();
+        }
+      }
+      return '';
+    }
+
+    function klasLabel(naam) {
+      const klas = String(naam || '').trim();
+      if (!klas) return '';
+      const vak = klasVak(klas);
+      return vak ? klas + ' - ' + vak : klas;
+    }
+
+    function normaliseerVaknaam(vak) {
+      return String(vak || '').trim().replace(/\s+/g, ' ').slice(0, 32);
+    }
+
     function leerlingenVanKlas() {
       return actieveLeerlingen().filter(function (lln) {
         return lln.klas === staat.gekozenKlas;
@@ -1068,7 +1243,9 @@
 
     function geschrapteLeerlingenVanKlas() {
       return actieveLeerlingen().filter(function (lln) {
-        return lln.klas !== staat.gekozenKlas && geschraptInVan(lln).indexOf(staat.gekozenKlas) !== -1;
+        return lln.klas !== staat.gekozenKlas
+          && geschraptInVan(lln).indexOf(staat.gekozenKlas) !== -1
+          && heeftRegistratiesInKlas(lln, staat.gekozenKlas);
       });
     }
 
@@ -1091,6 +1268,7 @@
     function zichtbareTaken() {
       const filters = staat.groepFilters || [];
       let lijst = takenVanKlas().filter(function (taak) {
+        if (!String(taak.type || '').trim()) return true;
         return filters.indexOf(taakGroep(taak)) !== -1;
       });
       if (staat.sortering === 'soort') {
@@ -1119,6 +1297,12 @@
       const m = String(iso || '').match(/(\d{4})-(\d{2})-(\d{2})/);
       if (!m) return String(iso || '');
       return m[3] + '/' + m[2];
+    }
+
+    function formaatDatum(waarde) {
+      const m = String(waarde || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(waarde || '');
+      return m[3] + '-' + m[2] + '-' + m[1];
     }
 
     /** Kolomtitel: "Huiswerk: Wiskunde" */
@@ -1181,11 +1365,27 @@
       return laatste;
     }
 
+    function heeftRegistratiesInKlas(lln, klas) {
+      if (!lln || !klas) return false;
+      for (let i = 0; i < staat.registraties.length; i++) {
+        const r = staat.registraties[i];
+        if (r.llnId !== lln.id || !r.status) continue;
+        if (registratieKlas(r, lln) === klas) return true;
+      }
+      return false;
+    }
+
     function verwerkData(data) {
       staat.leerlingen = data.leerlingen || [];
       staat.taken = data.taken || [];
       staat.registraties = data.registraties || [];
-      staat.klassen = data.klassen || [];
+      staat.klassen = (data.klassen || []).map(function (item) {
+        if (item && typeof item === 'object') {
+          return { naam: String(item.naam || '').trim(), vak: String(item.vak || '').trim() };
+        }
+        return { naam: String(item || '').trim(), vak: '' };
+      }).filter(function (item) { return item.naam; });
+      staat.webAppUrl = String(data.webAppUrl || '').trim();
       vulKlasKeuze();
       herstelKlas();
       tekenScherm();
@@ -1205,13 +1405,19 @@
       return '';
     }
 
-    function voegKlasAanStaat(naam) {
+    function voegKlasAanStaat(naam, vak) {
       const klas = bestaandeKlasnaam(naam) || normaliseerKlasnaam(naam);
       if (!klas) return '';
-      const bestaat = (staat.klassen || []).some(function (item) {
-        return String(item).toUpperCase() === klas.toUpperCase();
+      const vakNaam = normaliseerVaknaam(vak);
+      let gevonden = false;
+      (staat.klassen || []).forEach(function (item, i) {
+        if (klasNaamVan(item).toUpperCase() !== klas.toUpperCase()) return;
+        gevonden = true;
+        if (vakNaam && !(item && item.vak)) {
+          staat.klassen[i] = { naam: klas, vak: vakNaam };
+        }
       });
-      if (!bestaat) staat.klassen.push(klas);
+      if (!gevonden) staat.klassen.push({ naam: klas, vak: vakNaam });
       return klas;
     }
 
@@ -1237,7 +1443,7 @@
       klassen.forEach(function (klas) {
         const opt = document.createElement('option');
         opt.value = klas;
-        opt.textContent = klas;
+        opt.textContent = klasLabel(klas);
         select.appendChild(opt);
 
         const groep = document.createElement('div');
@@ -1246,7 +1452,7 @@
         const knop = document.createElement('button');
         knop.type = 'button';
         knop.className = 'px-5 py-3 hover:bg-indigo-50 text-base font-semibold';
-        knop.textContent = klas;
+        knop.textContent = klasLabel(klas);
         knop.addEventListener('click', function () { kiesKlas(klas); });
 
         const wis = document.createElement('button');
@@ -1254,8 +1460,8 @@
         wis.className = 'px-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 text-lg leading-none';
         wis.setAttribute('data-actie', 'klas-verwijderen');
         wis.setAttribute('data-klas', klas);
-        wis.setAttribute('title', 'Klas ' + klas + ' verwijderen');
-        wis.setAttribute('aria-label', 'Klas ' + klas + ' verwijderen');
+        wis.setAttribute('title', 'Klas ' + klasLabel(klas) + ' verwijderen');
+        wis.setAttribute('aria-label', 'Klas ' + klasLabel(klas) + ' verwijderen');
         wis.textContent = '×';
 
         groep.appendChild(knop);
@@ -1301,6 +1507,7 @@
       staat.bulkModus = '';
       staat.geselecteerd = null;
       staat.selectie = [];
+      staat.selectieAnker = null;
       staat.slepen = false;
       staat.sleepStart = null;
       tekenScherm();
@@ -1310,6 +1517,7 @@
       staat.modal = 'klas';
       document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas');
       document.getElementById('veld-nieuwe-klas').value = '';
+      document.getElementById('veld-nieuwe-klas-vak').value = '';
       verbergModalInhoud();
       document.getElementById('form-klas').classList.remove('hidden');
       zetModalKaartBreed(false);
@@ -1320,39 +1528,44 @@
     function voegKlasToe(event) {
       event.preventDefault();
       const naam = normaliseerKlasnaam(document.getElementById('veld-nieuwe-klas').value);
+      const vak = normaliseerVaknaam(document.getElementById('veld-nieuwe-klas-vak').value);
       if (!naam) {
         toonMelding('Vul een klasnaam in.', 'fout');
         return;
       }
+      if (!vak) {
+        toonMelding('Vul een vak in.', 'fout');
+        return;
+      }
       const bestaand = bestaandeKlasnaam(naam);
-      if (bestaand) {
+      if (bestaand && klasVak(bestaand)) {
         sluitModal();
         kiesKlas(bestaand);
-        toonMelding('Klas ' + bestaand + ' bestaat al.', 'ok');
+        toonMelding('Klas ' + klasLabel(bestaand) + ' bestaat al.', 'ok');
         return;
       }
       if (isGasOmgeving()) {
         google.script.run
           .withSuccessHandler(function (antwoord) {
             const klas = (antwoord && antwoord.klas) || naam;
-            voegKlasAanStaat(klas);
+            voegKlasAanStaat(klas, (antwoord && antwoord.vak) || vak);
             sluitModal();
             vulKlasKeuze();
             kiesKlas(klas);
-            toonMelding('Klas ' + klas + ' toegevoegd.', 'ok');
+            toonMelding('Klas ' + klasLabel(klas) + ' toegevoegd.', 'ok');
           })
           .withFailureHandler(function (fout) {
             toonMelding('Klas toevoegen mislukt: ' + (fout.message || fout), 'fout');
           })
-          .saveKlas(naam);
+          .saveKlas({ naam: naam, vak: vak });
         return;
       }
-      voegKlasAanStaat(naam);
+      voegKlasAanStaat(naam, vak);
       sluitModal();
       vulKlasKeuze();
       kiesKlas(naam);
-      console.log('[LOKAAL] saveKlas', naam);
-      toonMelding('Klas ' + naam + ' toegevoegd.', 'ok');
+      console.log('[LOKAAL] saveKlas', { naam: naam, vak: vak });
+      toonMelding('Klas ' + klasLabel(naam) + ' toegevoegd.', 'ok');
     }
 
     function vraagKlasVerwijderen(klas) {
@@ -1367,7 +1580,7 @@
       staat.modal = 'klas-verwijderen';
       document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas-verwijderen');
       document.getElementById('klas-verwijderen-tekst').innerHTML =
-        'Dit verwijdert klas <span class="font-semibold">' + escapeHtml(naam) +
+        'Dit verwijdert klas <span class="font-semibold">' + escapeHtml(klasLabel(naam)) +
         '</span> en de taken en registraties van die klas. Leerlingen blijven bewaard. Typ <span class="font-semibold">' +
         escapeHtml(naam) + '</span> om te bevestigen.';
       const veld = document.getElementById('veld-klas-verwijderen');
@@ -1399,11 +1612,12 @@
         google.script.run
           .withSuccessHandler(function (antwoord) {
             const klas = (antwoord && antwoord.klas) || naam;
+            const label = klasLabel(klas);
             verwijderKlasLokaal(klas);
             sluitModal();
             vulKlasKeuze();
             tekenScherm();
-            toonMelding('Klas ' + klas + ' verwijderd.', 'ok');
+            toonMelding('Klas ' + label + ' verwijderd.', 'ok');
           })
           .withFailureHandler(function (fout) {
             toonMelding('Klas verwijderen mislukt: ' + (fout.message || fout), 'fout');
@@ -1411,18 +1625,19 @@
           .deleteKlas(naam);
         return;
       }
+      const label = klasLabel(naam);
       verwijderKlasLokaal(naam);
       sluitModal();
       vulKlasKeuze();
       tekenScherm();
       console.log('[LOKAAL] deleteKlas', naam);
-      toonMelding('Klas ' + naam + ' verwijderd.', 'ok');
+      toonMelding('Klas ' + label + ' verwijderd.', 'ok');
     }
 
     function verwijderKlasLokaal(klas) {
       const naam = String(klas || '').trim();
       staat.klassen = (staat.klassen || []).filter(function (item) {
-        return String(item).toUpperCase() !== naam.toUpperCase();
+        return klasNaamVan(item).toUpperCase() !== naam.toUpperCase();
       });
       const wegTaken = {};
       staat.taken = staat.taken.filter(function (taak) {
@@ -1456,24 +1671,44 @@
       document.getElementById('paneel-leerling').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'leerling');
       document.getElementById('paneel-taak').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'taak');
       if (!heeftKlas) {
-        zetNavHoogte();
+        zetLijstDetailChrome();
         return;
       }
-      document.getElementById('kruis-klaslabel').textContent = staat.gekozenKlas;
+      document.getElementById('kruis-klaslabel').textContent = klasLabel(staat.gekozenKlas);
+      const wis = document.getElementById('knop-kruis-klas-verwijderen');
+      if (wis) wis.setAttribute('data-klas', staat.gekozenKlas);
       tekenActieveWeergave();
-      zetNavHoogte();
+      zetLijstDetailChrome();
     }
 
     function zetNavHoogte() {
       const nav = document.querySelector('nav');
       if (!nav) return;
-      document.documentElement.style.setProperty('--nav-h', Math.round(nav.getBoundingClientRect().height) + 'px');
+      const hoogte = nav.offsetParent ? Math.round(nav.getBoundingClientRect().height) : 0;
+      document.documentElement.style.setProperty('--nav-h', hoogte + 'px');
+    }
+
+    function lijstDetailOpen() {
+      if (!schermIsSmal()) return false;
+      if (staat.actieveTab === 'leerling') return !!staat.lijstLeerlingId;
+      if (staat.actieveTab === 'taak') return !!staat.lijstTaakId;
+      return false;
+    }
+
+    function zetLijstDetailChrome() {
+      document.body.classList.toggle('lijst-detail', lijstDetailOpen());
+      zetNavHoogte();
     }
 
     function tekenActieveWeergave() {
       if (staat.actieveTab === 'kruistabel') tekenKruistabel();
       else if (staat.actieveTab === 'leerling') tekenLeerlingWeergave();
       else tekenTaakWeergave();
+      if (staat.modal === 'fiche') {
+        const knop = document.getElementById('knop-leerling-verwijderen');
+        const lln = knop ? leerlingOpId(knop.getAttribute('data-id')) : null;
+        if (lln && !leerlingVerwijderd(lln)) tekenLeerlingFiche(lln);
+      }
     }
 
     function schermIsSmal() {
@@ -1527,15 +1762,17 @@
       const open = paneel.classList.contains('hidden');
       paneel.classList.toggle('hidden', !open);
       knop.setAttribute('aria-expanded', String(open));
-      staat.filterPaneelOpen = open;
+      if (!wrap.closest || !wrap.closest('#form-fiche')) staat.filterPaneelOpen = open;
     }
 
     function herstelFilterPaneel() {
       if (!staat.filterPaneelOpen || !schermIsSmal()) return;
       document.querySelectorAll('.paneel-filter').forEach(function (paneel) {
+        if (paneel.closest && paneel.closest('#form-fiche')) return;
         paneel.classList.remove('hidden');
       });
       document.querySelectorAll('.knop-filter').forEach(function (knop) {
+        if (knop.closest && knop.closest('#form-fiche')) return;
         knop.setAttribute('aria-expanded', 'true');
       });
     }
@@ -1567,7 +1804,7 @@
     }
 
     function filterPaneelHtml() {
-      return '<div class="paneel-filter hidden w-full md:flex md:w-auto mt-1 pt-2 border-t border-slate-100 md:mt-0 md:pt-0 md:border-0">' +
+      return '<div class="paneel-filter hidden w-full md:flex md:w-auto mt-1 pt-2 px-2 pb-2 border-t border-slate-100 md:mt-0 md:pt-0 md:px-0 md:pb-0 md:border-0">' +
         '<div class="flex flex-wrap items-center gap-3">' +
           '<div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">' +
             '<button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="datum">Datum</button>' +
@@ -1583,7 +1820,7 @@
     }
 
     function terugKnopHtml() {
-      return '<button type="button" data-actie="lijst-terug" class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="Terug">' +
+      return '<button type="button" data-actie="lijst-terug" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="Terug">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
         '<path d="M15 18l-6-6 6-6" /></svg></button>';
     }
@@ -1656,7 +1893,7 @@
         : htmlLeerlingLijst();
       tekenSorteerFilterKnoppen();
       herstelFilterPaneel();
-      zetNavHoogte();
+      zetLijstDetailChrome();
     }
 
     function htmlLeerlingLijst() {
@@ -1675,7 +1912,7 @@
         '</button>';
       }).join('');
       return '<div class="px-4 py-3 border-b border-slate-100">' +
-          '<h2 class="font-semibold">Leerlingen <span class="text-slate-500 font-medium">' + escapeHtml(staat.gekozenKlas) + '</span></h2>' +
+          '<h2 class="font-semibold">Leerlingen <span class="text-slate-500 font-medium">' + escapeHtml(klasLabel(staat.gekozenKlas)) + '</span></h2>' +
           '<p class="text-[11px] text-slate-500 mt-0.5">Tik een naam om taken af te vinken.</p>' +
         '</div>' +
         '<div class="divide-y divide-slate-100">' +
@@ -1685,33 +1922,30 @@
 
     function htmlLeerlingDetail(leerling) {
       const taken = zichtbareTaken();
-      const t = tellingVoor(leerling, null);
       const artikels = taken.map(function (taak) {
         const reg = laatsteRegistratieVoorKlas(leerling, taak, staat.gekozenKlas);
         const status = reg ? reg.status : '';
         const groep = taakGroep(taak);
         const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
         const meta = korteDatum(taak.deadline);
-        return '<article class="px-4 py-3 flex items-start gap-2.5">' +
-          '<span class="mt-1.5 w-0.5 self-stretch min-h-[2.5rem] rounded ' + kleur + '" aria-hidden="true"></span>' +
+        return '<article class="px-4 py-2 flex items-start gap-2.5">' +
+          '<span class="mt-1.5 w-0.5 self-stretch min-h-[2.25rem] rounded ' + kleur + '" aria-hidden="true"></span>' +
           '<div class="min-w-0 flex-1">' +
             '<p class="text-[11px] text-slate-400">' + escapeHtml(meta) + (taak.type ? ' · ' + escapeHtml(taak.type) : '') + '</p>' +
             '<p class="text-sm font-semibold text-slate-900 leading-snug">' + escapeHtml(taak.naam || taakTitel(taak)) + '</p>' +
             (reg && reg.opmerking ? '<p class="text-[12px] text-slate-600 mt-1">' + escapeHtml(reg.opmerking) + '</p>' : '') +
-            '<div class="mt-2">' + lijstStatusKnoppen(leerling.id, taak.id, status) + '</div>' +
+            '<div class="mt-1.5">' + lijstStatusKnoppen(leerling.id, taak.id, status) + '</div>' +
           '</div></article>';
       }).join('');
-      return '<div class="lijst-kop px-4 py-3 border-b border-slate-100">' +
-          '<div class="flex flex-wrap items-center justify-between gap-2">' +
-            '<div class="flex items-center gap-1.5 min-w-0">' +
-              terugKnopHtml() +
-              '<div class="min-w-0">' +
-                '<h2 class="font-semibold truncate">' + escapeHtml(leerling.naam) + '</h2>' +
-                '<p class="text-[11px] text-slate-500">' + escapeHtml(tellingTekst(t) || 'Nog geen taken') + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<div class="filter-wrap contents">' + filterKnopHtml() + filterPaneelHtml() + '</div>' +
+      return '<div class="lijst-kop filter-wrap border-b border-slate-100">' +
+          '<div class="flex items-center gap-0.5 px-2 py-1">' +
+            terugKnopHtml() +
+            '<h2 class="min-w-0 flex-1 font-semibold text-sm truncate" title="' + escapeAttr(leerling.naam) + '">' +
+              escapeHtml(leerling.naam) +
+            '</h2>' +
+            filterKnopHtml() +
           '</div>' +
+          filterPaneelHtml() +
         '</div>' +
         '<div class="divide-y divide-slate-100">' +
           (artikels || '<p class="px-4 py-6 text-sm text-slate-500">Geen taken voor deze filter.</p>') +
@@ -1730,7 +1964,7 @@
         : htmlTaakLijst();
       tekenSorteerFilterKnoppen();
       herstelFilterPaneel();
-      zetNavHoogte();
+      zetLijstDetailChrome();
     }
 
     function htmlTaakLijst() {
@@ -1752,7 +1986,7 @@
       return '<div class="px-4 py-3 border-b border-slate-100">' +
           '<div class="flex flex-wrap items-center justify-between gap-2">' +
             '<div class="min-w-0">' +
-              '<h2 class="font-semibold">Taken <span class="text-slate-500 font-medium">' + escapeHtml(staat.gekozenKlas) + '</span></h2>' +
+              '<h2 class="font-semibold">Taken <span class="text-slate-500 font-medium">' + escapeHtml(klasLabel(staat.gekozenKlas)) + '</span></h2>' +
               '<p class="text-[11px] text-slate-500 mt-0.5">Tik een taak om de klas af te vinken.</p>' +
             '</div>' +
             '<div class="filter-wrap flex flex-wrap items-center justify-end gap-1 w-full md:w-auto">' +
@@ -1772,23 +2006,28 @@
       const rijen = leerlingen.map(function (lln) {
         const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
         const status = reg ? reg.status : '';
-        return '<article class="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">' +
+        return '<article class="px-4 py-2 flex items-center justify-between gap-2">' +
           '<p class="text-sm font-semibold text-slate-900 min-w-0 truncate">' + escapeHtml(lln.naam) + '</p>' +
           lijstStatusKnoppen(lln.id, taak.id, status) +
         '</article>';
       }).join('');
+      const titel = taakTitel(taak);
+      const meta = korteDatum(taak.deadline) + (t.totaal ? ' · ' + tellingTekst(t) : '');
       return '<div class="lijst-kop border-b border-slate-100">' +
-          '<div class="px-4 py-3">' +
-            '<div class="flex items-start gap-1.5">' +
-              terugKnopHtml() +
-              '<div class="min-w-0 pt-1">' +
-                '<h2 class="font-semibold leading-snug">' + escapeHtml(taakTitel(taak)) + '</h2>' +
-                '<p class="text-[11px] text-slate-500 mt-0.5">' + escapeHtml(korteDatum(taak.deadline)) +
-                  (t.totaal ? ' · ' + escapeHtml(tellingTekst(t)) : '') + '</p>' +
-              '</div>' +
+          '<div class="flex items-center gap-1 px-2 py-1.5">' +
+            terugKnopHtml() +
+            '<div class="min-w-0 flex-1">' +
+              '<h2 class="font-semibold text-sm truncate leading-tight" title="' + escapeAttr(titel) + '">' + escapeHtml(titel) + '</h2>' +
+              '<p class="text-[10px] text-slate-500 truncate">' + escapeHtml(meta) + '</p>' +
             '</div>' +
-            htmlBulkBalk(taak) +
+            '<button type="button" data-actie="taak-bewerken" data-id="' + escapeAttr(taak.id) + '" ' +
+              'class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800" ' +
+              'title="Taak bewerken" aria-label="Taak bewerken">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                '<path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />' +
+              '</svg></button>' +
           '</div>' +
+          htmlBulkBalk(taak) +
         '</div>' +
         '<div class="divide-y divide-slate-100">' +
           (rijen || '<p class="px-4 py-6 text-sm text-slate-500">Nog geen leerlingen in deze klas.</p>') +
@@ -1797,13 +2036,15 @@
 
     function htmlBulkBalk(taak) {
       const open = !!staat.bulkModus;
-      let html = '<div class="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2.5">';
+      let html = '<div class="mx-2 mb-1.5 rounded-lg border border-indigo-100 bg-indigo-50">';
       html += '<button type="button" data-actie="bulk-wissel" aria-expanded="' + String(open) + '" ' +
-        'class="w-full flex items-center justify-between gap-2 text-xs font-semibold text-indigo-800">';
+        'class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-xs font-semibold text-indigo-800">';
       html += '<span>Lege vakjes</span>';
       html += '<span aria-hidden="true">' + (open ? '▴' : '▾') + '</span></button>';
       if (open) {
-        html += '<div class="mt-2">' + lijstStatusKnoppen('', taak.id, '', 'bulk-openstaand') + '</div>';
+        html += '<div class="px-2 pb-1.5 flex items-center justify-end">' +
+          lijstStatusKnoppen('', taak.id, '', 'bulk-openstaand') +
+          '</div>';
       }
       html += '</div>';
       return html;
@@ -1905,6 +2146,7 @@
       staat.modal = null;
       staat.bevestigActie = null;
       staat.klasTeVerwijderen = '';
+      staat.taakBewerkenId = '';
       document.getElementById('modal-toevoegen').classList.add('hidden');
       verbergModalInhoud();
       document.getElementById('modal-kaart').classList.remove('max-w-lg');
@@ -1949,11 +2191,18 @@
         return;
       }
       staat.modal = 'taak';
-      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-taak');
+      staat.taakBewerkenId = '';
+      document.getElementById('modal-titel-taak').textContent = 'Taak toevoegen';
+      document.getElementById('taak-modal-uitleg').innerHTML =
+        'De taak wordt toegevoegd aan klas <span id="taak-klaslabel" class="font-medium text-slate-700"></span>.';
+      document.getElementById('knop-taak-opslaan').textContent = 'Toevoegen';
+      document.getElementById('knop-taak-verwijderen').classList.add('hidden');
+      document.getElementById('knop-taak-verwijderen').removeAttribute('data-id');
       document.getElementById('veld-nieuwe-taak-naam').value = '';
       document.getElementById('veld-nieuwe-taak-type').value = '';
       document.getElementById('veld-nieuwe-taak-deadline').value = isoVandaag();
       vulTaakAndereKlassen();
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-taak');
       verbergModalInhoud();
       document.getElementById('form-taak').classList.remove('hidden');
       zetModalKaartBreed(false);
@@ -1961,8 +2210,80 @@
       document.getElementById('veld-nieuwe-taak-naam').focus();
     }
 
+    function openTaakBewerken(id) {
+      const taak = taakOpId(id);
+      if (!taak) return;
+      staat.modal = 'taak';
+      staat.taakBewerkenId = taak.id;
+      document.getElementById('modal-titel-taak').textContent = 'Taak bewerken';
+      document.getElementById('taak-modal-uitleg').textContent = 'Wijzigingen gelden voor klas ' + klasLabel(taak.klas || staat.gekozenKlas) + '.';
+      document.getElementById('knop-taak-opslaan').textContent = 'Opslaan';
+      const wis = document.getElementById('knop-taak-verwijderen');
+      wis.classList.remove('hidden');
+      wis.setAttribute('data-id', taak.id);
+      document.getElementById('veld-nieuwe-taak-naam').value = taak.naam || '';
+      document.getElementById('veld-nieuwe-taak-type').value = taak.type || '';
+      document.getElementById('veld-nieuwe-taak-deadline').value = String(taak.deadline || '').slice(0, 10);
+      document.getElementById('taak-andere-klassen-wrap').classList.add('hidden');
+      document.getElementById('taak-andere-klassen').innerHTML = '';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-taak');
+      verbergModalInhoud();
+      document.getElementById('form-taak').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      document.getElementById('veld-nieuwe-taak-naam').focus();
+    }
+
+    function slaTaakForm(event) {
+      event.preventDefault();
+      const naam = document.getElementById('veld-nieuwe-taak-naam').value.trim();
+      const type = document.getElementById('veld-nieuwe-taak-type').value;
+      const deadline = document.getElementById('veld-nieuwe-taak-deadline').value;
+      if (!naam || !deadline) {
+        toonMelding('Vul naam en datum van de taak in.', 'fout');
+        return;
+      }
+      if (staat.taakBewerkenId) {
+        slaTaakWijzigingOp(staat.taakBewerkenId, { naam: naam, type: type, deadline: deadline }, function (taak) {
+          sluitModal();
+          if (taak) {
+            const groep = taakGroep(taak);
+            if (groep !== 'optioneel' && String(taak.type || '').trim() && staat.groepFilters.indexOf(groep) === -1) {
+              staat.groepFilters = staat.groepFilters.concat([groep]);
+            }
+          }
+          tekenScherm();
+          toonMelding('Taak opgeslagen.', 'ok');
+        });
+        return;
+      }
+      voegNieuweTaakToe(naam, type, deadline);
+    }
+
+    function voegNieuweTaakToe(naam, type, deadline) {
+      const klassen = [staat.gekozenKlas].concat(gekozenExtraKlassen());
+      slaTaakOp({ naam: naam, type: type, deadline: deadline, klassen: klassen }, function (taken) {
+        const eerste = taken && taken[0];
+        if (eerste) {
+          const groep = taakGroep(eerste);
+          if (staat.groepFilters.indexOf(groep) === -1) {
+            staat.groepFilters = staat.groepFilters.concat([groep]);
+          }
+        }
+        sluitModal();
+        if (eerste && staat.actieveTab === 'taak') {
+          staat.lijstTaakId = eerste.id;
+          tekenScherm();
+          window.scrollTo(0, 0);
+        } else {
+          tekenScherm();
+        }
+        toonMelding('Taak toegevoegd aan ' + klassen.join(', ') + '.', 'ok');
+      });
+    }
+
     function vulTaakAndereKlassen() {
-      document.getElementById('taak-klaslabel').textContent = staat.gekozenKlas;
+      document.getElementById('taak-klaslabel').textContent = klasLabel(staat.gekozenKlas);
       const wrap = document.getElementById('taak-andere-klassen-wrap');
       const box = document.getElementById('taak-andere-klassen');
       const andere = uniekeKlassen().filter(function (klas) {
@@ -1977,7 +2298,7 @@
       box.innerHTML = andere.map(function (klas) {
         return '<label class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">' +
           '<input type="checkbox" value="' + escapeAttr(klas) + '" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">' +
-          escapeHtml(klas) + '</label>';
+          escapeHtml(klasLabel(klas)) + '</label>';
       }).join('');
     }
 
@@ -2014,12 +2335,16 @@
     }
 
     function tekenLeerlingFiche(leerling) {
-      document.getElementById('fiche-naam').textContent = leerling.naam;
       document.getElementById('fiche-code').textContent = leerling.code || '—';
       document.getElementById('fiche-code-knop').setAttribute('data-code', leerling.code || '');
+      document.getElementById('fiche-iframe-knop').setAttribute('data-code', leerling.code || '');
+      document.getElementById('knop-leerling-verwijderen').setAttribute('data-id', leerling.id);
+      zetFicheNaamWeergave(leerling);
       zetFicheKlasWeergave(leerling);
 
       const klassen = klassenVanLeerling(leerling);
+      let alleItems = 0;
+      let zichtbaarTotaal = 0;
       let inOrde = 0;
       let nietOk = 0;
       let afwezig = 0;
@@ -2027,67 +2352,111 @@
       const delen = [];
 
       klassen.forEach(function (klas) {
-        const artikels = [];
+        const items = [];
         takenVoorKlas(klas).forEach(function (taak) {
           const reg = laatsteRegistratieVoorKlas(leerling, taak, klas);
           if (!reg || !reg.status) return;
-          const status = reg.status;
+          items.push({ taak: taak, reg: reg });
+        });
+        alleItems += items.length;
+        const zichtbaar = zichtbareFicheItems(items);
+        zichtbaar.forEach(function (item) {
+          const status = item.reg.status;
           if (status === 'In orde') inOrde += 1;
           else if (status === 'Niet in orde') nietOk += 1;
           else if (status === 'Afwezig') afwezig += 1;
           else if (status === 'Te maken') teMaken += 1;
-          else return;
+        });
+        zichtbaarTotaal += zichtbaar.length;
 
-          const opmerking = reg.opmerking
-            ? '<p class="text-[12px] text-slate-600 mt-1">' + escapeHtml(reg.opmerking) + '</p>'
-            : '';
-          const upload = reg.uploadUrl
-            ? '<p class="text-[11px] text-indigo-600 mt-1">Ingediend</p>'
-            : '';
-
-          artikels.push(
-            '<article class="px-3 py-2.5">' +
-              '<div class="flex items-start justify-between gap-2">' +
-                '<div class="min-w-0">' +
-                  '<p class="text-[11px] text-slate-400">' + escapeHtml(reg.datumTijd || korteDatum(taak.deadline)) + '</p>' +
-                  '<p class="text-sm font-medium leading-snug">' + escapeHtml(taakTitel(taak)) + '</p>' +
-                  opmerking + upload +
-                '</div>' +
-                ficheStatusBadge(status) +
-              '</div>' +
-            '</article>'
-          );
+        const artikels = zichtbaar.map(function (item) {
+          return ficheTaakArtikel(item.taak, item.reg);
         });
 
         const huidig = klas === leerling.klas;
         const kop = klassen.length > 1
           ? '<h4 class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ' +
             (huidig ? 'bg-indigo-50 text-indigo-800' : 'bg-slate-50 text-slate-500') + '">' +
-            escapeHtml(klas) + (huidig ? ' · huidige klas' : '') + '</h4>'
+            escapeHtml(klasLabel(klas)) + (huidig ? ' · huidige klas' : '') + '</h4>'
           : '';
-        const inhoud = artikels.length
-          ? artikels.join('')
-          : '<p class="px-3 py-2.5 text-sm text-slate-500">Nog geen registraties in deze klas.</p>';
+        let inhoud;
+        if (artikels.length) inhoud = artikels.join('');
+        else if (items.length) inhoud = '<p class="px-3 py-2.5 text-sm text-slate-500">Geen registraties voor deze filter.</p>';
+        else inhoud = '<p class="px-3 py-2.5 text-sm text-slate-500">Nog geen registraties in deze klas.</p>';
         delen.push(kop + inhoud);
       });
 
-      const totaal = inOrde + nietOk + afwezig + teMaken;
-      document.getElementById('fiche-samenvatting').textContent = totaal
-        ? inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig'
-        : '';
-      document.getElementById('fiche-samenvatting').classList.toggle('hidden', !totaal);
+      document.getElementById('fiche-samenvatting').textContent =
+        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       const lijst = document.getElementById('fiche-lijst');
-      lijst.innerHTML = delen.length
-        ? delen.join('')
-        : '<p class="p-4 text-sm text-slate-500">Nog geen registraties voor deze leerling.</p>';
+      if (!alleItems) {
+        lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties voor deze leerling.</p>';
+      } else if (!zichtbaarTotaal) {
+        lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Geen registraties voor deze filter.</p>';
+      } else {
+        lijst.innerHTML = delen.join('');
+      }
+      tekenSorteerFilterKnoppen();
+    }
+
+    function zichtbareFicheItems(items) {
+      const filters = staat.groepFilters || [];
+      let lijst = items.filter(function (item) {
+        return filters.indexOf(taakGroep(item.taak)) !== -1;
+      });
+      if (staat.sortering === 'soort') {
+        const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
+        lijst.sort(function (a, b) {
+          const ga = volgorde.indexOf(taakGroep(a.taak));
+          const gb = volgorde.indexOf(taakGroep(b.taak));
+          if (ga !== gb) return ga - gb;
+          const typeCmp = String(a.taak.type || '').localeCompare(String(b.taak.type || ''), 'nl');
+          if (typeCmp !== 0) return typeCmp;
+          return String(b.reg.datumTijd || '').localeCompare(String(a.reg.datumTijd || ''));
+        });
+      } else {
+        lijst.sort(function (a, b) {
+          return String(b.reg.datumTijd || '').localeCompare(String(a.reg.datumTijd || ''));
+        });
+      }
+      return lijst;
+    }
+
+    function ficheTaakArtikel(taak, reg) {
+      const groep = taakGroep(taak);
+      const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
+      const meta = [formaatDatum(reg && reg.datumTijd || (taak && taak.deadline)), taak && taak.type]
+        .filter(Boolean).join(' · ');
+      const opmerking = reg && reg.opmerking
+        ? '<p class="text-sm text-slate-600 leading-snug">' + escapeHtml(reg.opmerking) + '</p>'
+        : '';
+      const upload = reg && reg.uploadUrl
+        ? '<p class="text-sm text-slate-600 leading-snug">Ingediend</p>'
+        : '';
+      return (
+        '<article class="px-3 py-2.5">' +
+          '<div class="flex items-start gap-2">' +
+            '<span class="mt-1 w-0.5 self-stretch min-h-[2.5rem] rounded ' + kleur + '" aria-hidden="true"></span>' +
+            '<div class="min-w-0 flex-1 space-y-0.5">' +
+              '<p class="text-xs text-slate-500">' + escapeHtml(meta) + '</p>' +
+              '<p class="text-sm font-semibold text-slate-900 leading-snug">' +
+                escapeHtml((taak && taak.naam) || taakTitel(taak)) +
+              '</p>' +
+              opmerking + upload +
+            '</div>' +
+            ficheStatusBadge(reg && reg.status) +
+          '</div>' +
+        '</article>'
+      );
     }
 
     function klassenVanLeerling(leerling) {
       const lijst = [];
       if (leerling.klas) lijst.push(leerling.klas);
       geschraptInVan(leerling).forEach(function (klas) {
-        if (lijst.indexOf(klas) === -1) lijst.push(klas);
+        if (lijst.indexOf(klas) !== -1) return;
+        if (heeftRegistratiesInKlas(leerling, klas)) lijst.push(klas);
       });
       return lijst;
     }
@@ -2100,8 +2469,88 @@
       });
     }
 
+    function zetFicheNaamWeergave(leerling) {
+      document.getElementById('fiche-naam').textContent = leerling.naam;
+      document.getElementById('fiche-naam-weergave').classList.remove('hidden');
+      document.getElementById('fiche-naam-edit').classList.add('hidden');
+      const veld = document.getElementById('veld-fiche-naam');
+      veld.value = leerling.naam || '';
+      veld.setAttribute('data-lln', leerling.id);
+    }
+
+    function openFicheNaamBewerken() {
+      const veld = document.getElementById('veld-fiche-naam');
+      const leerling = leerlingOpId(veld.getAttribute('data-lln'));
+      if (!leerling) return;
+      document.getElementById('fiche-naam-weergave').classList.add('hidden');
+      document.getElementById('fiche-naam-edit').classList.remove('hidden');
+      veld.value = leerling.naam || '';
+      veld.focus();
+      veld.select();
+    }
+
+    function sluitFicheNaamBewerken() {
+      const veld = document.getElementById('veld-fiche-naam');
+      const leerling = leerlingOpId(veld.getAttribute('data-lln'));
+      if (leerling) zetFicheNaamWeergave(leerling);
+      else {
+        document.getElementById('fiche-naam-weergave').classList.remove('hidden');
+        document.getElementById('fiche-naam-edit').classList.add('hidden');
+      }
+    }
+
+    function onFicheNaamOpslaan(event) {
+      if (event.type === 'keydown' && String(event.key || '').toLowerCase() !== 'enter') return;
+      event.preventDefault();
+      const veld = document.getElementById('veld-fiche-naam');
+      const id = veld.getAttribute('data-lln');
+      const naam = String(veld.value || '').trim();
+      const leerling = leerlingOpId(id);
+      if (!naam) {
+        toonMelding('Vul een naam in.', 'fout');
+        veld.focus();
+        return;
+      }
+      if (leerling && naam === leerling.naam) {
+        sluitFicheNaamBewerken();
+        return;
+      }
+      pasLeerlingNaamAan(id, naam);
+    }
+
+    function pasLeerlingNaamAan(id, naam) {
+      const leerling = leerlingOpId(id);
+      if (!leerling || !naam || naam === leerling.naam) return;
+      slaLeerlingNaamOp(id, naam, function (bijgewerkt) {
+        tekenScherm();
+        tekenLeerlingFiche(bijgewerkt);
+        toonMelding('Naam opgeslagen.', 'ok');
+      });
+    }
+
+    function slaLeerlingNaamOp(id, naam, naSucces) {
+      const data = { id: id, naam: naam };
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            werkLeerlingBij(antwoord.leerling);
+            if (naSucces) naSucces(antwoord.leerling);
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Naam wijzigen mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .updateLeerling(data);
+        return;
+      }
+      const leerling = leerlingOpId(id);
+      if (!leerling) return;
+      leerling.naam = naam;
+      console.log('[LOKAAL] updateLeerling', leerling);
+      if (naSucces) naSucces(leerling);
+    }
+
     function zetFicheKlasWeergave(leerling) {
-      document.getElementById('fiche-klas-tekst').textContent = leerling.klas || '—';
+      document.getElementById('fiche-klas-tekst').textContent = klasLabel(leerling.klas) || '—';
       document.getElementById('fiche-klas-weergave').classList.remove('hidden');
       document.getElementById('fiche-klas-edit').classList.add('hidden');
       document.getElementById('veld-fiche-klas-nieuw').classList.add('hidden');
@@ -2139,7 +2588,7 @@
       klassen.forEach(function (klas) {
         const opt = document.createElement('option');
         opt.value = klas;
-        opt.textContent = klas;
+        opt.textContent = klasLabel(klas);
         select.appendChild(opt);
       });
       const nieuw = document.createElement('option');
@@ -2196,7 +2645,7 @@
     function kopieerLeerlingCode(knop) {
       const code = (knop && knop.getAttribute('data-code')) || '';
       if (!code) return;
-      const klaar = function () {
+      kopieerTekst(code, function () {
         const span = document.getElementById('fiche-code');
         if (!span) return;
         span.textContent = 'gekopieerd';
@@ -2204,9 +2653,48 @@
           const huidig = document.getElementById('fiche-code');
           if (huidig) huidig.textContent = code;
         }, 1200);
-      };
+      });
+    }
+
+    function kopieerLeerlingIframe(knop) {
+      const code = (knop && knop.getAttribute('data-code')) || '';
+      if (!code) return;
+      const html = leerlingIframeHtml(code);
+      if (!html) {
+        toonMelding('Kon de web-app-URL niet bepalen. Deploy de app opnieuw.', 'fout');
+        return;
+      }
+      const icoon = knop.innerHTML;
+      kopieerTekst(html, function () {
+        knop.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>';
+        setTimeout(function () {
+          knop.innerHTML = icoon;
+        }, 1200);
+      });
+    }
+
+    function leerlingIframeHtml(code) {
+      const basis = webAppBasisUrl();
+      if (!basis) return '';
+      const scheiding = basis.indexOf('?') === -1 ? '?' : '&';
+      const src = basis + scheiding + 'id=' + encodeURIComponent(code);
+      return '<iframe src="' + src + '" width="100%" height="720" style="border:0;" title="Opvolging leerkansen"></iframe>';
+    }
+
+    function webAppBasisUrl() {
+      const bewaard = String(staat.webAppUrl || '').trim().replace(/\/+$/, '');
+      if (bewaard) return bewaard;
+      if (isGasOmgeving()) return '';
+      try {
+        return window.location.origin + window.location.pathname.replace(/docent\.html$/i, 'leerling.html');
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function kopieerTekst(tekst, klaar) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).then(klaar).catch(function () { klaar(); });
+        navigator.clipboard.writeText(tekst).then(klaar).catch(function () { klaar(); });
         return;
       }
       klaar();
@@ -2404,49 +2892,22 @@
       if (!taak) return;
       openBevestig(
         'Taak verwijderen?',
-        '“' + taakTitel(taak) + '” verdwijnt als kolom uit de kruistabel.',
+        '“' + taakTitel(taak) + '” verdwijnt, inclusief de registraties van deze taak.',
         function () {
           verwijderTaakOp(id, function () {
             if (staat.geselecteerd && staat.geselecteerd.taakId === id) {
               staat.geselecteerd = null;
               staat.selectie = [];
             }
+            if (staat.lijstTaakId === id) {
+              staat.lijstTaakId = null;
+              staat.bulkModus = '';
+            }
             tekenScherm();
             toonMelding('Taak verwijderd.', 'ok');
           });
         }
       );
-    }
-
-    function voegTaakToe(event) {
-      event.preventDefault();
-      const naam = document.getElementById('veld-nieuwe-taak-naam').value.trim();
-      const type = document.getElementById('veld-nieuwe-taak-type').value;
-      const deadline = document.getElementById('veld-nieuwe-taak-deadline').value;
-      if (!naam || !type || !deadline) {
-        toonMelding('Vul naam, soort en datum van de taak in.', 'fout');
-        return;
-      }
-      const klassen = [staat.gekozenKlas].concat(gekozenExtraKlassen());
-      slaTaakOp({ naam: naam, type: type, deadline: deadline, klassen: klassen }, function (taken) {
-        const eerste = taken && taken[0];
-        if (eerste) {
-          const groep = taakGroep(eerste);
-          if (staat.groepFilters.indexOf(groep) === -1) {
-            staat.groepFilters = staat.groepFilters.concat([groep]);
-          }
-        }
-        sluitModal();
-        if (eerste && staat.actieveTab === 'taak') {
-          staat.lijstTaakId = eerste.id;
-          tekenScherm();
-          window.scrollTo(0, 0);
-        } else {
-          tekenScherm();
-        }
-        const klasNamen = klassen.join(', ');
-        toonMelding('Taak toegevoegd aan ' + klasNamen + '.', 'ok');
-      });
     }
 
     function kruisLeerlingRij(lln, taken, geschrapt) {
@@ -2459,7 +2920,6 @@
       html += '<th class="naam-cel sticky left-0 z-10 ' + thBg + ' px-3 py-1.5 text-left text-sm font-medium">' +
         '<button type="button" class="' + naamKlasse + '" data-actie="leerling-fiche" data-id="' + escapeAttr(lln.id) + '" aria-label="' + escapeAttr('Fiche van ' + lln.naam) + '">' +
         escapeHtml(lln.naam) + '</button>' +
-        '<button type="button" class="knop-verwijder" data-actie="leerling-verwijderen" data-id="' + escapeAttr(lln.id) + '" title="Leerling verwijderen" aria-label="' + escapeAttr(lln.naam + ' verwijderen') + '">&times;</button>' +
         '</th>';
       taken.forEach(function (taak) {
         const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
@@ -2486,11 +2946,8 @@
       let datums = '<div class="kruis-titels-naam"></div>';
       taken.forEach(function (taak) {
         const titel = taakTitel(taak);
-        titels += '<div class="taak-titel" data-groep="' + escapeAttr(taakGroep(taak)) + '" data-taak="' + escapeAttr(taak.id) + '" title="' + escapeAttr(titel) + '"><span>' + escapeHtml(titel) + '</span></div>';
-        datums += '<div class="kruis-datum">' +
-          '<button type="button" class="knop-verwijder" data-actie="taak-verwijderen" data-id="' + escapeAttr(taak.id) + '" title="Taak verwijderen" aria-label="' + escapeAttr(titel + ' verwijderen') + '">&times;</button>' +
-          escapeHtml(korteDatum(taak.deadline)) +
-          '</div>';
+        titels += '<div class="taak-titel" data-actie="taak-bewerken" data-id="' + escapeAttr(taak.id) + '" data-groep="' + escapeAttr(taakGroep(taak)) + '" data-taak="' + escapeAttr(taak.id) + '" title="' + escapeAttr(titel + ' — bewerken') + '"><span>' + escapeHtml(titel) + '</span></div>';
+        datums += '<div class="kruis-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</div>';
       });
 
       let lichaam = '';
@@ -2538,6 +2995,9 @@
 
       wrapper.querySelectorAll('td.td-cel').forEach(function (td) {
         td.addEventListener('pointerdown', onCelPointerDown);
+        td.addEventListener('contextmenu', function (event) {
+          if (event.ctrlKey || event.metaKey) event.preventDefault();
+        });
       });
       const veldNieuw = wrapper.querySelector('.veld-nieuwe-leerling');
       if (veldNieuw) {
@@ -2633,15 +3093,41 @@
       });
     }
 
+    function voegSelectiesSamen(a, b) {
+      const gezien = {};
+      const result = [];
+      function voeg(cel) {
+        const sleutel = cel.llnId + '\t' + cel.taakId;
+        if (gezien[sleutel]) return;
+        gezien[sleutel] = true;
+        result.push({ llnId: cel.llnId, taakId: cel.taakId });
+      }
+      (a || []).forEach(voeg);
+      (b || []).forEach(voeg);
+      return result;
+    }
+
+    function wisselCelInSelectie(cel) {
+      if (celInSelectie(cel.llnId, cel.taakId)) {
+        staat.selectie = staat.selectie.filter(function (item) {
+          return !(item.llnId === cel.llnId && item.taakId === cel.taakId);
+        });
+      } else {
+        staat.selectie = staat.selectie.concat([cel]);
+      }
+    }
+
     function selecteerCel(knop) {
       if (!knop) {
         staat.geselecteerd = null;
         staat.selectie = [];
+        staat.selectieAnker = null;
         tekenSelectie();
         return;
       }
       const cel = celVanKnop(knop);
       staat.geselecteerd = cel;
+      staat.selectieAnker = cel;
       staat.selectie = [cel];
       tekenSelectie();
       knop.focus();
@@ -2653,6 +3139,9 @@
       });
       if (staat.geselecteerd && !zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId)) {
         staat.geselecteerd = staat.selectie[0] || null;
+      }
+      if (staat.selectieAnker && !zoekCelKnop(staat.selectieAnker.llnId, staat.selectieAnker.taakId)) {
+        staat.selectieAnker = staat.geselecteerd;
       }
       tekenSelectie();
       if (!staat.geselecteerd) return;
@@ -2689,7 +3178,44 @@
       }
       event.preventDefault();
       const cel = celVanKnop(knop);
+      const toevoegen = !!(event.ctrlKey || event.metaKey);
+      const bereik = !!event.shiftKey;
+
+      if (toevoegen && !bereik) {
+        staat.slepen = true;
+        staat.sleepModus = 'toevoegen';
+        staat.sleepStart = cel;
+        staat.sleepBasis = (staat.selectie || []).slice();
+        staat.sleepVerplaatst = false;
+        staat.geselecteerd = cel;
+        if (!staat.selectieAnker) staat.selectieAnker = cel;
+        staat.selectie = voegSelectiesSamen(staat.sleepBasis, [cel]);
+        tekenSelectie();
+        document.body.classList.add('kruis-slepen');
+        knop.focus();
+        return;
+      }
+
+      if (bereik && (staat.selectieAnker || staat.geselecteerd)) {
+        const anker = staat.selectieAnker || staat.geselecteerd;
+        staat.sleepModus = '';
+        staat.sleepBasis = [];
+        staat.sleepVerplaatst = false;
+        staat.geselecteerd = cel;
+        staat.selectie = rechthoekSelectie(anker, cel);
+        staat.slepen = true;
+        staat.sleepStart = anker;
+        tekenSelectie();
+        document.body.classList.add('kruis-slepen');
+        knop.focus();
+        return;
+      }
+
+      staat.selectieAnker = cel;
       staat.slepen = true;
+      staat.sleepModus = '';
+      staat.sleepBasis = [];
+      staat.sleepVerplaatst = false;
       staat.sleepStart = cel;
       staat.geselecteerd = cel;
       staat.selectie = [cel];
@@ -2703,15 +3229,32 @@
       const knop = knopOnderPunt(event.clientX, event.clientY);
       if (!knop) return;
       const einde = celVanKnop(knop);
+      if (einde.llnId !== staat.sleepStart.llnId || einde.taakId !== staat.sleepStart.taakId) {
+        staat.sleepVerplaatst = true;
+      }
       staat.geselecteerd = einde;
-      staat.selectie = rechthoekSelectie(staat.sleepStart, einde);
+      const blok = rechthoekSelectie(staat.sleepStart, einde);
+      staat.selectie = staat.sleepModus === 'toevoegen'
+        ? voegSelectiesSamen(staat.sleepBasis, blok)
+        : blok;
       tekenSelectie();
     }
 
     function onDocumentPointerUp() {
       if (!staat.slepen) return;
+      if (staat.sleepModus === 'toevoegen' && !staat.sleepVerplaatst && staat.sleepStart) {
+        staat.selectie = (staat.sleepBasis || []).slice();
+        wisselCelInSelectie(staat.sleepStart);
+        staat.geselecteerd = celInSelectie(staat.sleepStart.llnId, staat.sleepStart.taakId)
+          ? staat.sleepStart
+          : (staat.selectie[staat.selectie.length - 1] || null);
+        tekenSelectie();
+      }
       staat.slepen = false;
       staat.sleepStart = null;
+      staat.sleepModus = '';
+      staat.sleepBasis = [];
+      staat.sleepVerplaatst = false;
       document.body.classList.remove('kruis-slepen');
     }
 
@@ -2856,7 +3399,7 @@
       return escapeHtml(waarde).replace(/'/g, '&#39;');
     }
 
-    document.getElementById('form-taak').addEventListener('submit', voegTaakToe);
+    document.getElementById('form-taak').addEventListener('submit', slaTaakForm);
     document.getElementById('form-klas').addEventListener('submit', voegKlasToe);
     document.getElementById('veld-prullenbak-legen').addEventListener('input', zetPrullenbakLegenKnop);
     document.getElementById('veld-prullenbak-legen').addEventListener('keydown', function (event) {
@@ -2873,6 +3416,12 @@
     document.getElementById('veld-fiche-klas').addEventListener('change', onFicheKlasChange);
     document.getElementById('veld-fiche-klas-nieuw').addEventListener('keydown', onFicheNieuweKlas);
     document.getElementById('veld-fiche-klas-nieuw').addEventListener('blur', onFicheNieuweKlas);
+    document.getElementById('veld-fiche-naam').addEventListener('keydown', onFicheNaamOpslaan);
+    document.getElementById('veld-fiche-naam').addEventListener('blur', onFicheNaamOpslaan);
+    document.getElementById('fiche-naam-edit').addEventListener('mousedown', function (event) {
+      const knop = event.target && event.target.closest ? event.target.closest('[data-actie="fiche-naam-annuleren"]') : null;
+      if (knop) event.preventDefault();
+    });
     document.getElementById('bevestig-ok').addEventListener('click', function () {
       const actie = staat.bevestigActie;
       sluitModal();
@@ -2894,10 +3443,14 @@
       else if (actie === 'bulk-openstaand') zetBulkOpenstaand(doel.getAttribute('data-taak'), doel.getAttribute('data-status'));
       else if (actie === 'leerling-fiche') openLeerlingFiche(doel.getAttribute('data-id'));
       else if (actie === 'code-kopieren') kopieerLeerlingCode(doel);
+      else if (actie === 'iframe-kopieren') kopieerLeerlingIframe(doel);
       else if (actie === 'leerling-verwijderen') vraagLeerlingVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-verwijderen') vraagTaakVerwijderen(doel.getAttribute('data-id'));
+      else if (actie === 'taak-bewerken') openTaakBewerken(doel.getAttribute('data-id'));
       else if (actie === 'fiche-klas-bewerken') openFicheKlasBewerken();
       else if (actie === 'fiche-klas-annuleren') sluitFicheKlasBewerken();
+      else if (actie === 'fiche-naam-bewerken') openFicheNaamBewerken();
+      else if (actie === 'fiche-naam-annuleren') sluitFicheNaamBewerken();
       else if (actie === 'prullenbak-openen') openPrullenbak();
       else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
@@ -2908,6 +3461,12 @@
     });
     document.addEventListener('keydown', function (event) {
       if (!modalOpen() || String(event.key || '').toLowerCase() !== 'escape') return;
+      if (!document.getElementById('fiche-naam-edit').classList.contains('hidden')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        sluitFicheNaamBewerken();
+        return;
+      }
       if (!document.getElementById('fiche-klas-edit').classList.contains('hidden')) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -2941,7 +3500,7 @@
     });
 
     window.addEventListener('resize', function () {
-      zetNavHoogte();
+      zetLijstDetailChrome();
       pasTabAanScherm();
     });
 

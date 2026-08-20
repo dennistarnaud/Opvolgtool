@@ -21,7 +21,7 @@ const TOEGANG_EMAIL_DOCENT = 'jouw.email@school.be';
 const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp
 const TAB_TAKEN = 'Taken_Lijst'; // kolommen: id | naam | type | deadline | klas
 const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | uploadUrl | klas
-const TAB_KLASSEN = 'Klassen'; // kolommen: naam
+const TAB_KLASSEN = 'Klassen'; // kolommen: naam | vak
 
 /**
  * Leeg laten als dit script aan de spreadsheet gekoppeld is (gebonden script).
@@ -34,6 +34,12 @@ const STATUS_NIET_IN_ORDE = 'Niet in orde';
 const STATUS_AFWEZIG = 'Afwezig';
 const STATUS_TE_MAKEN = 'Te maken';
 const TOEGESTANE_STATUSSEN = [STATUS_IN_ORDE, STATUS_NIET_IN_ORDE, STATUS_AFWEZIG, STATUS_TE_MAKEN];
+const TOEGESTANE_TAAKTYPES = [
+  'Lesopdracht', 'Huistaak', 'Huiswerk', 'Bookwidgetsopdracht',
+  'Schriftelijke voorbereiding', 'Remediëringstaak', 'Remediëringsopdracht',
+  'Bijles', 'Toets verbeteren', 'Examen inkijken',
+  'Materiaal niet in orde', 'Niet-verplichte taak'
+];
 
 /** Letter-cijfer × 4 (8 tekens). Geen I/O/1/0, om verwarring te vermijden. */
 const LEERLING_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -115,7 +121,7 @@ function serveerLeerlingPagina_(code) {
 
 /**
  * Volledige dataset voor het docentenscherm.
- * @return {{leerlingen: Object[], taken: Object[], registraties: Object[]}}
+ * @return {{leerlingen: Object[], taken: Object[], registraties: Object[], klassen: Object[], webAppUrl: string}}
  */
 function getDocentData() {
   return metScriptLock_(function () {
@@ -125,7 +131,8 @@ function getDocentData() {
       leerlingen: leesLeerlingen_(),
       taken: leesTaken_(),
       registraties: leesRegistraties_(),
-      klassen: leesKlassen_()
+      klassen: leesKlassen_(),
+      webAppUrl: ScriptApp.getService().getUrl() || ''
     };
   });
 }
@@ -253,34 +260,45 @@ function saveLeerling(data) {
 }
 
 /**
- * Wijzigt de klas van een bestaande leerling.
- * @param {{id: string, klas: string, geschraptIn?: string[]|string, klasSinds?: string}} data
+ * Wijzigt de klas en/of naam van een bestaande leerling.
+ * @param {{id: string, klas?: string, naam?: string, geschraptIn?: string[]|string, klasSinds?: string}} data
  * @return {{ok: boolean, leerling: Object}}
  */
 function updateLeerling(data) {
   const id = String(data && data.id ? data.id : '').trim();
-  const klas = voegKlasToeAlsNieuw_(data && data.klas);
-  if (!id || !klas) {
-    throw new Error('Id en klas zijn verplicht.');
+  const heeftNaam = data && data.naam !== undefined;
+  const klas = data && data.klas !== undefined ? voegKlasToeAlsNieuw_(data.klas) : '';
+  if (!id || (!heeftNaam && !klas)) {
+    throw new Error('Id en klas of naam zijn verplicht.');
+  }
+  const naam = heeftNaam ? String(data.naam || '').trim() : '';
+  if (heeftNaam && !naam) {
+    throw new Error('Naam is verplicht.');
   }
 
-  const geschraptIn = normaliseerGeschraptIn_(data.geschraptIn);
-  const klasSinds = String(data && data.klasSinds ? data.klasSinds : '').trim() || formatDatumTijd_(new Date());
   const sheet = getSheet_(TAB_LEERLINGEN);
   const rijen = sheet.getDataRange().getValues();
   for (let i = 1; i < rijen.length; i++) {
     if (String(rijen[i][0]).trim() !== id) continue;
-    const vorigeKlas = String(rijen[i][2] || '').trim();
-    sheet.getRange(i + 1, 3).setValue(klas);
-    sheet.getRange(i + 1, 5).setValue(geschraptIn.join(', '));
-    sheet.getRange(i + 1, 6).setValue(klasSinds);
-    if (vorigeKlas && vorigeKlas !== klas) {
-      wijsOpenRegistratiesToeAanKlas_(id, vorigeKlas);
-    }
     const leerling = leerlingVanRij_(rijen[i]);
-    leerling.klas = klas;
-    leerling.geschraptIn = geschraptIn;
-    leerling.klasSinds = klasSinds;
+    if (heeftNaam) {
+      sheet.getRange(i + 1, 2).setValue(naam);
+      leerling.naam = naam;
+    }
+    if (klas) {
+      const vorigeKlas = String(rijen[i][2] || '').trim();
+      const geschraptIn = normaliseerGeschraptIn_(data.geschraptIn);
+      const klasSinds = String(data && data.klasSinds ? data.klasSinds : '').trim() || formatDatumTijd_(new Date());
+      sheet.getRange(i + 1, 3).setValue(klas);
+      sheet.getRange(i + 1, 5).setValue(geschraptIn.join(', '));
+      sheet.getRange(i + 1, 6).setValue(klasSinds);
+      if (vorigeKlas && vorigeKlas !== klas) {
+        wijsOpenRegistratiesToeAanKlas_(id, vorigeKlas);
+      }
+      leerling.klas = klas;
+      leerling.geschraptIn = geschraptIn;
+      leerling.klasSinds = klasSinds;
+    }
     return { ok: true, leerling: leerling };
   }
   throw new Error('Leerling niet gevonden.');
@@ -288,24 +306,16 @@ function updateLeerling(data) {
 
 /**
  * Voegt een taak toe aan tabblad Taken_Lijst.
- * @param {{naam: string, type: string, deadline: string}} data
- * @return {{ok: boolean, taak: Object}}
+ * Soort mag leeg blijven en later via updateTaak worden aangevuld.
+ * @param {{naam: string, type?: string, deadline: string, klas?: string, klassen?: string[]}} data
+ * @return {{ok: boolean, taak: Object, taken: Object[]}}
  */
 function saveTaak(data) {
-  if (!data || !String(data.naam || '').trim() || !String(data.type || '').trim()) {
-    throw new Error('Naam en type zijn verplicht.');
+  if (!data || !String(data.naam || '').trim()) {
+    throw new Error('Naam is verplicht.');
   }
 
-  const toegestaneTypes = [
-    'Lesopdracht', 'Huistaak', 'Huiswerk', 'Bookwidgetsopdracht',
-    'Schriftelijke voorbereiding', 'Remediëringstaak', 'Remediëringsopdracht',
-    'Bijles', 'Toets verbeteren', 'Examen inkijken',
-    'Materiaal niet in orde', 'Niet-verplichte taak'
-  ];
-  const type = String(data.type).trim();
-  if (toegestaneTypes.indexOf(type) === -1) {
-    throw new Error('Ongeldig taaktype.');
-  }
+  const type = normaliseerTaakType_(data.type);
 
   let klassen = [];
   if (data.klassen && data.klassen.length) {
@@ -342,6 +352,50 @@ function saveTaak(data) {
   sheet.getRange(start, 1, rijen.length, 5).setValues(rijen);
 
   return { ok: true, taken: gemaakt, taak: gemaakt[0] };
+}
+
+/**
+ * Wijzigt naam, soort en/of datum van een bestaande taak.
+ * Soort mag leeg zijn (later aanvullen).
+ * @param {{id: string, naam?: string, type?: string, deadline?: string}} data
+ * @return {{ok: boolean, taak: Object}}
+ */
+function updateTaak(data) {
+  const id = String(data && data.id ? data.id : '').trim();
+  if (!id) throw new Error('Id is verplicht.');
+
+  const sheet = getSheet_(TAB_TAKEN);
+  const rijen = sheet.getDataRange().getValues();
+  for (let i = 1; i < rijen.length; i++) {
+    if (String(rijen[i][0]).trim() !== id) continue;
+    let naam = String(rijen[i][1] || '').trim();
+    let type = String(rijen[i][2] || '').trim();
+    let deadline = rijen[i][3];
+    if (data.naam !== undefined) {
+      naam = String(data.naam || '').trim();
+      if (!naam) throw new Error('Naam is verplicht.');
+      sheet.getRange(i + 1, 2).setValue(naam);
+    }
+    if (data.type !== undefined) {
+      type = normaliseerTaakType_(data.type);
+      sheet.getRange(i + 1, 3).setValue(type);
+    }
+    if (data.deadline !== undefined && String(data.deadline || '').trim()) {
+      deadline = parseIsoDatum_(data.deadline);
+      sheet.getRange(i + 1, 4).setValue(deadline);
+    }
+    return {
+      ok: true,
+      taak: {
+        id: id,
+        naam: naam,
+        type: type,
+        deadline: formatDatum_(deadline),
+        klas: String(rijen[i][4] || '').trim()
+      }
+    };
+  }
+  throw new Error('Taak niet gevonden.');
 }
 
 /**
@@ -395,15 +449,21 @@ function deleteTaak(id) {
 }
 
 /**
- * Voegt een klas toe. Bestaande namen (hoofdletterongevoelig) blijven ongewijzigd.
- * @param {string} naam
- * @return {{ok: boolean, klas: string}}
+ * Voegt een klas toe, altijd gekoppeld aan een vak.
+ * Bestaande namen (hoofdletterongevoelig) blijven ongewijzigd; leeg vak wordt aangevuld.
+ * @param {{naam: string, vak: string}|string} data
+ * @return {{ok: boolean, klas: string, vak: string}}
  */
-function saveKlas(naam) {
+function saveKlas(data) {
   return metScriptLock_(function () {
-    const klas = voegKlasToeAlsNieuw_(naam);
+    const naam = typeof data === 'string' ? data : (data && data.naam);
+    const vak = typeof data === 'string' ? '' : (data && data.vak);
+    const klas = normaliseerKlasnaam_(naam);
+    const vakNaam = normaliseerVaknaam_(vak);
     if (!klas) throw new Error('Klasnaam is verplicht.');
-    return { ok: true, klas: klas };
+    if (!vakNaam) throw new Error('Vak is verplicht.');
+    voegKlasToeAlsNieuw_(klas, vakNaam);
+    return { ok: true, klas: bestaandeKlasnaam_(klas) || klas, vak: vakNaam };
   });
 }
 
@@ -503,15 +563,39 @@ function normaliseerKlasnaam_(naam) {
   return String(naam || '').trim().replace(/\s+/g, ' ').slice(0, 12);
 }
 
+function normaliseerVaknaam_(vak) {
+  return String(vak || '').trim().replace(/\s+/g, ' ').slice(0, 32);
+}
+
+function klasNaamVan_(item) {
+  if (!item) return '';
+  if (typeof item === 'string') return normaliseerKlasnaam_(item);
+  return normaliseerKlasnaam_(item.naam);
+}
+
+function normaliseerTaakType_(waarde) {
+  const type = String(waarde || '').trim();
+  if (!type) return '';
+  if (TOEGESTANE_TAAKTYPES.indexOf(type) === -1) {
+    throw new Error('Ongeldig taaktype.');
+  }
+  return type;
+}
+
 function zorgVoorKlassenTab_() {
   const ss = getSpreadsheet_();
   let sheet = ss.getSheetByName(TAB_KLASSEN);
-  if (sheet) return sheet;
-  sheet = ss.insertSheet(TAB_KLASSEN, ss.getNumSheets());
-  sheet.getRange(1, 1).setValue('naam');
-  const namen = verzamelKlasnamenUitLeerlingen_();
-  if (namen.length) {
-    sheet.getRange(2, 1, namen.length, 1).setValues(namen.map(function (klas) { return [klas]; }));
+  if (!sheet) {
+    sheet = ss.insertSheet(TAB_KLASSEN, ss.getNumSheets());
+    sheet.getRange(1, 1, 1, 2).setValues([['naam', 'vak']]);
+    const namen = verzamelKlasnamenUitLeerlingen_();
+    if (namen.length) {
+      sheet.getRange(2, 1, namen.length, 2).setValues(namen.map(function (klas) { return [klas, '']; }));
+    }
+    return sheet;
+  }
+  if (String(sheet.getRange(1, 2).getValue() || '').trim().toLowerCase() !== 'vak') {
+    sheet.getRange(1, 2).setValue('vak');
   }
   return sheet;
 }
@@ -533,7 +617,7 @@ function verzamelKlasnamenUitLeerlingen_() {
 function leesKlassen_() {
   zorgVoorKlassenTab_();
   const rijen = getSheet_(TAB_KLASSEN).getDataRange().getValues();
-  const namen = [];
+  const lijst = [];
   const gezien = {};
   for (let i = 1; i < rijen.length; i++) {
     const klas = normaliseerKlasnaam_(rijen[i][0]);
@@ -541,51 +625,56 @@ function leesKlassen_() {
     const sleutel = klas.toUpperCase();
     if (gezien[sleutel]) continue;
     gezien[sleutel] = true;
-    namen.push(klas);
+    lijst.push({ naam: klas, vak: normaliseerVaknaam_(rijen[i][1]) });
   }
-  return namen.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+  return lijst.sort(function (a, b) { return a.naam.localeCompare(b.naam, 'nl'); });
 }
 
-function schrijfKlassen_(namen) {
+function schrijfKlassen_(klassen) {
   zorgVoorKlassenTab_();
   const uniek = [];
   const gezien = {};
-  namen.forEach(function (naam) {
-    const klas = normaliseerKlasnaam_(naam);
+  (klassen || []).forEach(function (item) {
+    const klas = klasNaamVan_(item);
     if (!klas) return;
     const sleutel = klas.toUpperCase();
     if (gezien[sleutel]) return;
     gezien[sleutel] = true;
-    uniek.push(klas);
+    const vak = typeof item === 'string' ? '' : normaliseerVaknaam_(item.vak);
+    uniek.push({ naam: klas, vak: vak });
   });
-  uniek.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+  uniek.sort(function (a, b) { return a.naam.localeCompare(b.naam, 'nl'); });
   const sheet = getSheet_(TAB_KLASSEN);
   const laatste = Math.max(sheet.getLastRow(), 1);
-  if (laatste > 1) sheet.getRange(2, 1, laatste - 1, 1).clearContent();
-  if (uniek.length) sheet.getRange(2, 1, uniek.length, 1).setValues(uniek.map(function (klas) { return [klas]; }));
+  if (laatste > 1) sheet.getRange(2, 1, laatste - 1, 2).clearContent();
+  if (uniek.length) {
+    sheet.getRange(2, 1, uniek.length, 2).setValues(uniek.map(function (item) {
+      return [item.naam, item.vak];
+    }));
+  }
   return uniek;
 }
 
 function synchroniseerKlassen_() {
-  const namen = leesKlassen_();
+  const lijst = leesKlassen_();
   const gezien = {};
-  namen.forEach(function (klas) { gezien[klas.toUpperCase()] = true; });
+  lijst.forEach(function (item) { gezien[item.naam.toUpperCase()] = true; });
   let extra = false;
   verzamelKlasnamenUitLeerlingen_().forEach(function (klas) {
     if (gezien[klas.toUpperCase()]) return;
-    namen.push(klas);
+    lijst.push({ naam: klas, vak: '' });
     gezien[klas.toUpperCase()] = true;
     extra = true;
   });
-  if (extra) schrijfKlassen_(namen);
+  if (extra) schrijfKlassen_(lijst);
 }
 
 function bestaandeKlasnaam_(naam) {
   const gezocht = normaliseerKlasnaam_(naam).toUpperCase();
   if (!gezocht) return '';
-  const namen = leesKlassen_();
-  for (let i = 0; i < namen.length; i++) {
-    if (namen[i].toUpperCase() === gezocht) return namen[i];
+  const klassen = leesKlassen_();
+  for (let i = 0; i < klassen.length; i++) {
+    if (klassen[i].naam.toUpperCase() === gezocht) return klassen[i].naam;
   }
   const uitLeerlingen = verzamelKlasnamenUitLeerlingen_();
   for (let j = 0; j < uitLeerlingen.length; j++) {
@@ -594,22 +683,31 @@ function bestaandeKlasnaam_(naam) {
   return '';
 }
 
-function voegKlasToeAlsNieuw_(naam) {
+function voegKlasToeAlsNieuw_(naam, vak) {
   const klas = normaliseerKlasnaam_(naam);
   if (!klas) return '';
+  const vakNaam = normaliseerVaknaam_(vak);
+  const lijst = leesKlassen_();
+  for (let i = 0; i < lijst.length; i++) {
+    if (lijst[i].naam.toUpperCase() === klas.toUpperCase()) {
+      if (vakNaam && !lijst[i].vak) {
+        lijst[i].vak = vakNaam;
+        schrijfKlassen_(lijst);
+      }
+      return lijst[i].naam;
+    }
+  }
   const bestaand = bestaandeKlasnaam_(klas);
-  if (bestaand) return bestaand;
-  const namen = leesKlassen_();
-  namen.push(klas);
-  schrijfKlassen_(namen);
-  return klas;
+  lijst.push({ naam: bestaand || klas, vak: vakNaam });
+  schrijfKlassen_(lijst);
+  return bestaand || klas;
 }
 
 function verwijderKlasnaam_(naam) {
   const klas = bestaandeKlasnaam_(naam);
   if (!klas) return;
   schrijfKlassen_(leesKlassen_().filter(function (item) {
-    return item.toUpperCase() !== klas.toUpperCase();
+    return item.naam.toUpperCase() !== klas.toUpperCase();
   }));
 }
 
