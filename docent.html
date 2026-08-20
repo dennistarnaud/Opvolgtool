@@ -403,9 +403,13 @@
           <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">3</kbd>
           <span class="w-3 h-3 rounded bg-slate-400"></span> Afwezig
         </button>
-        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Te maken">
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Te laat">
           <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">4</kbd>
-          <span class="w-3 h-3 rounded bg-yellow-300"></span> Te maken
+          <span class="w-3 h-3 rounded bg-yellow-400"></span> Te laat
+        </button>
+        <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Te maken">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">5</kbd>
+          <span class="w-3 h-3 rounded bg-yellow-100 ring-1 ring-yellow-300"></span> Te maken
         </button>
         <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="">
           <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">⌫</kbd>
@@ -757,19 +761,20 @@
       { datumTijd: '2026-08-20 08:07', llnId: 'L004', taakId: 'T001', status: 'Afwezig', opmerking: 'Ziek.', uploadUrl: '' },
       { datumTijd: '2026-08-20 08:08', llnId: 'L006', taakId: 'T001', status: 'Te maken', opmerking: 'Inhaalwerk gevraagd.', uploadUrl: '' },
       { datumTijd: '2026-09-02 08:12', llnId: 'L007', taakId: 'T008', status: 'Afwezig', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-09-02 08:13', llnId: 'L008', taakId: 'T008', status: 'Te maken', opmerking: '', uploadUrl: '' }
+      { datumTijd: '2026-09-02 08:13', llnId: 'L008', taakId: 'T008', status: 'Te laat', opmerking: '', uploadUrl: '' }
     ];
 
     const TAB_ACTIEF = 'bg-indigo-600 text-white';
     const TAB_INACTIEF = 'text-slate-600 hover:bg-slate-100';
-    /** Excel-aanpak: vakje selecteren, daarna 1–4 of letter intoetsen. */
+    /** Excel-aanpak: vakje selecteren, daarna 1–5 of letter intoetsen. */
     const STATUS_TOETSEN = {
       '1': 'In orde', i: 'In orde',
       '2': 'Niet in orde', n: 'Niet in orde',
       '3': 'Afwezig', a: 'Afwezig',
-      '4': 'Te maken', t: 'Te maken'
+      '4': 'Te laat', l: 'Te laat',
+      '5': 'Te maken', t: 'Te maken'
     };
-    const STATUS_OPTIES = ['In orde', 'Niet in orde', 'Afwezig', 'Te maken'];
+    const STATUS_OPTIES = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
     const GROEP_KLEUR = {
       huiswerk: 'bg-sky-400',
       leerkans: 'bg-orange-400',
@@ -1869,16 +1874,17 @@
       if (status === 'In orde') return actief ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-800';
       if (status === 'Niet in orde') return actief ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-800';
       if (status === 'Afwezig') return actief ? 'bg-slate-500 text-white' : 'bg-slate-100 text-slate-600';
-      if (status === 'Te maken') return actief ? 'bg-yellow-300 text-yellow-950' : 'bg-yellow-50 text-yellow-900';
+      if (status === 'Te laat') return actief ? 'bg-yellow-400 text-yellow-950' : 'bg-yellow-100 text-yellow-900';
+      if (status === 'Te maken') return actief ? 'bg-yellow-100 text-yellow-900 ring-1 ring-yellow-300' : 'bg-yellow-50 text-yellow-800';
       return 'bg-slate-100 text-slate-500';
     }
 
     function lijstStatusKnoppen(llnId, taakId, huidige, actie) {
       const knopActie = actie || 'lijst-status';
-      return '<div class="flex gap-1" role="group" aria-label="Status">' +
+      return '<div class="flex flex-wrap gap-1" role="group" aria-label="Status">' +
         STATUS_OPTIES.map(function (status) {
           const actief = status === huidige;
-          return '<button type="button" class="lijst-status inline-flex items-center justify-center w-10 h-10 rounded-lg text-sm font-bold ' +
+          return '<button type="button" class="lijst-status inline-flex items-center justify-center w-9 h-9 rounded-lg text-sm font-bold ' +
             lijstStatusKlasse(status, actief) + '" data-actie="' + knopActie + '" data-lln="' + escapeAttr(llnId || '') +
             '" data-taak="' + escapeAttr(taakId || '') + '" data-status="' + escapeAttr(status) +
             '" title="' + escapeAttr(status) + '" aria-label="' + escapeAttr(status) + '" aria-pressed="' + actief + '">' +
@@ -1887,7 +1893,7 @@
     }
 
     function tellingVoor(lln, taak) {
-      const result = { inOrde: 0, nietOk: 0, afwezig: 0, teMaken: 0, leeg: 0, totaal: 0 };
+      const result = { inOrde: 0, nietOk: 0, afwezig: 0, teLaat: 0, teMaken: 0, leeg: 0, totaal: 0 };
       const leerlingen = lln ? [lln] : leerlingenVanKlas();
       const taken = taak ? [taak] : zichtbareTaken();
       leerlingen.forEach(function (leerling) {
@@ -1898,6 +1904,7 @@
           if (status === 'In orde') result.inOrde += 1;
           else if (status === 'Niet in orde') result.nietOk += 1;
           else if (status === 'Afwezig') result.afwezig += 1;
+          else if (status === 'Te laat') result.teLaat += 1;
           else if (status === 'Te maken') result.teMaken += 1;
           else result.leeg += 1;
         });
@@ -1910,6 +1917,7 @@
       const delen = [];
       if (t.inOrde) delen.push(t.inOrde + ' in orde');
       if (t.nietOk) delen.push(t.nietOk + ' niet OK');
+      if (t.teLaat) delen.push(t.teLaat + ' te laat');
       if (t.teMaken) delen.push(t.teMaken + ' te maken');
       if (t.afwezig) delen.push(t.afwezig + ' afwezig');
       if (t.leeg) delen.push(t.leeg + ' open');
@@ -1956,8 +1964,8 @@
       const leerlingen = leerlingenVanKlas();
       const rijen = leerlingen.map(function (lln) {
         const t = tellingVoor(lln, null);
-        const extra = t.nietOk || t.teMaken || t.leeg
-          ? tellingTekst({ inOrde: 0, nietOk: t.nietOk, teMaken: t.teMaken, afwezig: 0, leeg: t.leeg, totaal: t.totaal })
+        const extra = t.nietOk || t.teLaat || t.teMaken || t.leeg
+          ? tellingTekst({ inOrde: 0, nietOk: t.nietOk, teLaat: t.teLaat, teMaken: t.teMaken, afwezig: 0, leeg: t.leeg, totaal: t.totaal })
           : (t.totaal ? 'Alles in orde' : 'Nog geen taken');
         return '<button type="button" data-actie="lijst-leerling" data-id="' + escapeAttr(lln.id) + '" class="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50 min-h-[3rem]">' +
           '<span class="min-w-0">' +
@@ -2394,7 +2402,8 @@
         'In orde': 'bg-emerald-100 text-emerald-800',
         'Niet in orde': 'bg-rose-100 text-rose-800',
         'Afwezig': 'bg-slate-200 text-slate-700',
-        'Te maken': 'bg-yellow-100 text-yellow-900'
+        'Te laat': 'bg-yellow-200 text-yellow-900',
+        'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
@@ -2415,6 +2424,7 @@
       let inOrde = 0;
       let nietOk = 0;
       let afwezig = 0;
+      let teLaat = 0;
       let teMaken = 0;
       const delen = [];
 
@@ -2432,6 +2442,7 @@
           if (status === 'In orde') inOrde += 1;
           else if (status === 'Niet in orde') nietOk += 1;
           else if (status === 'Afwezig') afwezig += 1;
+          else if (status === 'Te laat') teLaat += 1;
           else if (status === 'Te maken') teMaken += 1;
         });
         zichtbaarTotaal += zichtbaar.length;
@@ -2454,7 +2465,7 @@
       });
 
       document.getElementById('fiche-samenvatting').textContent =
-        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
+        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       const lijst = document.getElementById('fiche-lijst');
       lijst.style.minHeight = '';
@@ -3098,7 +3109,8 @@
       if (status === 'In orde') return 'bg-emerald-500 text-white hover:bg-emerald-600';
       if (status === 'Niet in orde') return 'bg-rose-500 text-white hover:bg-rose-600';
       if (status === 'Afwezig') return 'bg-slate-400 text-white hover:bg-slate-500';
-      if (status === 'Te maken') return 'bg-yellow-300 text-yellow-950 hover:bg-yellow-400';
+      if (status === 'Te laat') return 'bg-yellow-400 text-yellow-950 hover:bg-yellow-500';
+      if (status === 'Te maken') return 'bg-yellow-100 text-yellow-900 hover:bg-yellow-200';
       return 'bg-slate-200 text-slate-400 hover:bg-slate-300';
     }
 
@@ -3106,6 +3118,7 @@
       if (status === 'In orde') return '✓';
       if (status === 'Niet in orde') return '✕';
       if (status === 'Afwezig') return 'A';
+      if (status === 'Te laat') return 'L';
       if (status === 'Te maken') return '•';
       return '';
     }
@@ -3361,7 +3374,7 @@
         ? staat.selectie
         : (staat.geselecteerd ? [staat.geselecteerd] : []);
       if (!cellen.length) {
-        toonMelding('Selecteer eerst een vakje, daarna 1–4.', 'fout');
+        toonMelding('Selecteer eerst een vakje, daarna 1–5.', 'fout');
         return;
       }
       const leeg = !status;

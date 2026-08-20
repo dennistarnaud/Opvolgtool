@@ -120,7 +120,7 @@
       { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:14', llnId: 'L001', taakId: 'T004', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te maken', opmerking: 'Nog in te dienen.', uploadUrl: '' },
+      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te laat', opmerking: 'Na de deadline ingediend.', uploadUrl: '' },
       { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.', uploadUrl: '' },
       { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.', uploadUrl: '' },
@@ -346,9 +346,10 @@
       const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
       const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
       const afwezig = regs.filter(function (r) { return r.status === 'Afwezig'; }).length;
+      const teLaat = regs.filter(function (r) { return r.status === 'Te laat'; }).length;
       const teMaken = regs.filter(function (r) { return r.status === 'Te maken'; }).length;
       document.getElementById('samenvatting').textContent =
-        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
+        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       if (!staat.registraties.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties.</p>';
@@ -395,7 +396,8 @@
         'In orde': 'bg-emerald-100 text-emerald-800',
         'Niet in orde': 'bg-rose-100 text-rose-800',
         'Afwezig': 'bg-slate-200 text-slate-700',
-        'Te maken': 'bg-yellow-100 text-yellow-900'
+        'Te laat': 'bg-yellow-200 text-yellow-900',
+        'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
