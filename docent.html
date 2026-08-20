@@ -91,6 +91,10 @@
       z-index: 15;
       background: #fff;
     }
+    #modal-toevoegen.modal-boven #modal-scroll {
+      align-items: flex-start;
+      padding-top: max(1.25rem, 5vh);
+    }
     @media (max-width: 767px) {
       body.lijst-detail nav {
         display: none;
@@ -362,19 +366,25 @@
                   <button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="soort">Soort</button>
                 </div>
                 <p class="flex flex-wrap gap-x-1 gap-y-1 text-[11px] font-medium text-slate-600" aria-label="Filter op soort">
-                  <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="huiswerk">
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="huiswerk">
                     <span class="w-3 h-0.5 rounded bg-sky-400"></span> Les / huiswerk
                   </button>
-                  <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="leerkans">
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="leerkans">
                     <span class="w-3 h-0.5 rounded bg-orange-400"></span> Remediëring
                   </button>
-                  <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="orde">
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="orde">
                     <span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal
                   </button>
-                  <button type="button" class="filter-groep actief inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="optioneel">
+                  <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="optioneel">
                     <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
                   </button>
                 </p>
+                <button type="button" class="knop-filter-wissen shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:cursor-not-allowed" data-actie="filter-wissen" title="Filters wissen" aria-label="Filters wissen" disabled>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -407,9 +417,19 @@
       </div>
     </section>
 
-    <div id="modal-toevoegen" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-titel">
+    <section id="paneel-leerling" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
+      <div id="leerling-weergave"></div>
+    </section>
+
+    <section id="paneel-taak" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
+      <div id="taak-weergave"></div>
+    </section>
+  </main>
+
+    <div id="modal-toevoegen" class="hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="modal-titel">
       <div class="absolute inset-0 bg-slate-900/40" data-actie="modal-sluiten"></div>
-      <div id="modal-kaart" class="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5 sm:p-6">
+      <div id="modal-scroll" class="relative z-10 h-full overflow-y-auto flex items-center justify-center p-4 pointer-events-none">
+      <div id="modal-kaart" class="pointer-events-auto relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5 sm:p-6">
         <button type="button" data-actie="modal-sluiten"
           class="absolute top-3 right-3 w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 text-lg leading-none"
           aria-label="Sluiten">&times;</button>
@@ -516,10 +536,16 @@
                     <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
                   </button>
                 </p>
+                <button type="button" class="knop-filter-wissen shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:cursor-not-allowed" data-actie="filter-wissen" title="Filters wissen" aria-label="Filters wissen" disabled>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-          <div id="fiche-lijst" class="mt-3 max-h-[min(24rem,55vh)] overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white"></div>
+          <div id="fiche-lijst" class="mt-3 max-h-[min(32rem,65vh)] overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white"></div>
         </div>
 
         <div id="form-prullenbak" class="hidden">
@@ -655,16 +681,9 @@
           </div>
         </form>
       </div>
+      </div>
     </div>
 
-    <section id="paneel-leerling" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
-      <div id="leerling-weergave"></div>
-    </section>
-
-    <section id="paneel-taak" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
-      <div id="taak-weergave"></div>
-    </section>
-  </main>
 
   <script>
     /**
@@ -758,8 +777,6 @@
       optioneel: 'bg-slate-400'
     };
 
-    const GROEP_FILTERS_ALLE = ['huiswerk', 'leerkans', 'orde', 'optioneel'];
-
     let staat = {
       leerlingen: [],
       taken: [],
@@ -773,6 +790,7 @@
       lijstTaakId: null,
       bulkModus: '',
       filterPaneelOpen: false,
+      leerlingLijstMinHoogte: 0,
       geselecteerd: null,
       selectie: [],
       selectieAnker: null,
@@ -782,7 +800,8 @@
       sleepBasis: [],
       sleepVerplaatst: false,
       sortering: 'datum',
-      groepFilters: GROEP_FILTERS_ALLE.slice(),
+      groepFilters: [],
+      modalTopVast: false,
       modal: null,
       naLeerling: null,
       bezigLeerling: false,
@@ -1266,10 +1285,8 @@
 
     /** Taken voor de kruistabel: filter + sortering (datum standaard, of soort). */
     function zichtbareTaken() {
-      const filters = staat.groepFilters || [];
       let lijst = takenVanKlas().filter(function (taak) {
-        if (!String(taak.type || '').trim()) return true;
-        return filters.indexOf(taakGroep(taak)) !== -1;
+        return groepZitInFilter(taakGroep(taak));
       });
       if (staat.sortering === 'soort') {
         const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
@@ -1287,6 +1304,18 @@
         });
       }
       return lijst;
+    }
+
+    function groepZitInFilter(groep) {
+      const filters = staat.groepFilters || [];
+      if (!filters.length) return true;
+      return filters.indexOf(groep) !== -1;
+    }
+
+    function voegGroepToeAanFilter(groep) {
+      if (!groep || !staat.groepFilters.length) return;
+      if (staat.groepFilters.indexOf(groep) !== -1) return;
+      staat.groepFilters = staat.groepFilters.concat([groep]);
     }
 
     function gesorteerdeTaken() {
@@ -1748,10 +1777,12 @@
         const groep = knop.getAttribute('data-groep');
         knop.classList.toggle('actief', staat.groepFilters.indexOf(groep) !== -1);
       });
-      const filterActief = staat.sortering !== 'datum' ||
-        staat.groepFilters.length !== GROEP_FILTERS_ALLE.length;
+      const filterActief = staat.sortering !== 'datum' || !!(staat.groepFilters && staat.groepFilters.length);
       document.querySelectorAll('.filter-indicatie').forEach(function (punt) {
         punt.classList.toggle('hidden', !filterActief);
+      });
+      document.querySelectorAll('.knop-filter-wissen').forEach(function (knop) {
+        knop.disabled = !filterActief;
       });
     }
 
@@ -1791,6 +1822,12 @@
       tekenActieveWeergave();
     }
 
+    function wisFilters() {
+      staat.sortering = 'datum';
+      staat.groepFilters = [];
+      tekenActieveWeergave();
+    }
+
     function filterIcoonHtml() {
       return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
         '<path d="M3 6h18" /><path d="M7 12h10" /><path d="M10 18h4" /></svg>';
@@ -1816,6 +1853,9 @@
             '<button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="orde"><span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal</button>' +
             '<button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-actie="filter-groep" data-groep="optioneel"><span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel</button>' +
           '</p>' +
+          '<button type="button" class="knop-filter-wissen shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:cursor-not-allowed" data-actie="filter-wissen" title="Filters wissen" aria-label="Filters wissen" disabled>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>' +
+          '</button>' +
         '</div></div>';
     }
 
@@ -1888,9 +1928,25 @@
       if (staat.lijstLeerlingId && (!leerling || leerlingVerwijderd(leerling) || leerling.klas !== staat.gekozenKlas)) {
         staat.lijstLeerlingId = null;
       }
+      const vorigeLijst = doel.querySelector('[data-takenlijst]');
+      if (vorigeLijst) {
+        const hoogte = vorigeLijst.offsetHeight;
+        if (hoogte > (staat.leerlingLijstMinHoogte || 0)) staat.leerlingLijstMinHoogte = hoogte;
+      }
+      if (!staat.lijstLeerlingId) staat.leerlingLijstMinHoogte = 0;
       doel.innerHTML = staat.lijstLeerlingId
         ? htmlLeerlingDetail(leerlingOpId(staat.lijstLeerlingId))
         : htmlLeerlingLijst();
+      const nieuweLijst = doel.querySelector('[data-takenlijst]');
+      if (nieuweLijst) {
+        if (staat.leerlingLijstMinHoogte) {
+          nieuweLijst.style.minHeight = staat.leerlingLijstMinHoogte + 'px';
+        }
+        if (nieuweLijst.offsetHeight > (staat.leerlingLijstMinHoogte || 0)) {
+          staat.leerlingLijstMinHoogte = nieuweLijst.offsetHeight;
+          nieuweLijst.style.minHeight = staat.leerlingLijstMinHoogte + 'px';
+        }
+      }
       tekenSorteerFilterKnoppen();
       herstelFilterPaneel();
       zetLijstDetailChrome();
@@ -1947,7 +2003,7 @@
           '</div>' +
           filterPaneelHtml() +
         '</div>' +
-        '<div class="divide-y divide-slate-100">' +
+        '<div data-takenlijst class="divide-y divide-slate-100">' +
           (artikels || '<p class="px-4 py-6 text-sm text-slate-500">Geen taken voor deze filter.</p>') +
         '</div>';
     }
@@ -2052,6 +2108,7 @@
 
     function openLijstLeerling(id) {
       staat.lijstLeerlingId = id;
+      staat.leerlingLijstMinHoogte = 0;
       tekenLeerlingWeergave();
       window.scrollTo(0, 0);
     }
@@ -2147,6 +2204,7 @@
       staat.bevestigActie = null;
       staat.klasTeVerwijderen = '';
       staat.taakBewerkenId = '';
+      zetModalTopVast(false);
       document.getElementById('modal-toevoegen').classList.add('hidden');
       verbergModalInhoud();
       document.getElementById('modal-kaart').classList.remove('max-w-lg');
@@ -2166,6 +2224,18 @@
       const kaart = document.getElementById('modal-kaart');
       kaart.classList.toggle('max-w-lg', !!breed);
       kaart.classList.toggle('max-w-md', !breed);
+      if (!breed) zetModalTopVast(false);
+    }
+
+    function zetModalTopVast(vast) {
+      const overlay = document.getElementById('modal-toevoegen');
+      const scroll = document.getElementById('modal-scroll');
+      overlay.classList.toggle('modal-boven', !!vast);
+      if (scroll) {
+        scroll.classList.toggle('items-center', !vast);
+        scroll.classList.toggle('items-start', !!vast);
+      }
+      staat.modalTopVast = !!vast;
     }
 
     function openBevestig(titel, tekst, onOk, knopTekst, knopKlasse) {
@@ -2247,10 +2317,7 @@
         slaTaakWijzigingOp(staat.taakBewerkenId, { naam: naam, type: type, deadline: deadline }, function (taak) {
           sluitModal();
           if (taak) {
-            const groep = taakGroep(taak);
-            if (groep !== 'optioneel' && String(taak.type || '').trim() && staat.groepFilters.indexOf(groep) === -1) {
-              staat.groepFilters = staat.groepFilters.concat([groep]);
-            }
+            if (taak) voegGroepToeAanFilter(taakGroep(taak));
           }
           tekenScherm();
           toonMelding('Taak opgeslagen.', 'ok');
@@ -2265,10 +2332,7 @@
       slaTaakOp({ naam: naam, type: type, deadline: deadline, klassen: klassen }, function (taken) {
         const eerste = taken && taken[0];
         if (eerste) {
-          const groep = taakGroep(eerste);
-          if (staat.groepFilters.indexOf(groep) === -1) {
-            staat.groepFilters = staat.groepFilters.concat([groep]);
-          }
+          voegGroepToeAanFilter(taakGroep(eerste));
         }
         sluitModal();
         if (eerste && staat.actieveTab === 'taak') {
@@ -2313,11 +2377,14 @@
     function openLeerlingFiche(id) {
       const leerling = staat.leerlingen.filter(function (lln) { return lln.id === id; })[0];
       if (!leerling || leerlingVerwijderd(leerling)) return;
+      const ficheLijst = document.getElementById('fiche-lijst');
+      if (ficheLijst) ficheLijst.style.minHeight = '';
       staat.modal = 'fiche';
       document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'fiche-naam');
       verbergModalInhoud();
       document.getElementById('form-fiche').classList.remove('hidden');
       zetModalKaartBreed(true);
+      zetModalTopVast(true);
       tekenLeerlingFiche(leerling);
       document.getElementById('modal-toevoegen').classList.remove('hidden');
     }
@@ -2390,6 +2457,7 @@
         inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       const lijst = document.getElementById('fiche-lijst');
+      lijst.style.minHeight = '';
       if (!alleItems) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties voor deze leerling.</p>';
       } else if (!zichtbaarTotaal) {
@@ -2401,9 +2469,8 @@
     }
 
     function zichtbareFicheItems(items) {
-      const filters = staat.groepFilters || [];
       let lijst = items.filter(function (item) {
-        return filters.indexOf(taakGroep(item.taak)) !== -1;
+        return groepZitInFilter(taakGroep(item.taak));
       });
       if (staat.sortering === 'soort') {
         const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
@@ -3435,6 +3502,7 @@
       else if (actie === 'filter-wissel') wisselFilterPaneel(doel);
       else if (actie === 'sort-zetten') zetSortering(doel.getAttribute('data-sort'));
       else if (actie === 'filter-groep') wisselGroepFilter(doel.getAttribute('data-groep'));
+      else if (actie === 'filter-wissen') wisFilters();
       else if (actie === 'lijst-leerling') openLijstLeerling(doel.getAttribute('data-id'));
       else if (actie === 'lijst-taak') openLijstTaak(doel.getAttribute('data-id'));
       else if (actie === 'lijst-terug') sluitLijstDetail();
