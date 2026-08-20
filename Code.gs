@@ -1,6 +1,6 @@
 /**
  * Opvolgtool — Google Apps Script backend
- * Spreadsheet-tabbladen: Leerlingen | Taken_Lijst | Registraties
+ * Spreadsheet-tabbladen: Leerlingen | Taken_Lijst | Registraties | Klassen
  *
  * Deployen als web-app:
  *  - Execute as: User accessing the web app  (nodig voor e-mailcheck docent)
@@ -8,7 +8,7 @@
  *
  * URL's:
  *  - Docent:   .../exec?view=docent
- *  - Leerling: .../exec?id=A7X9
+ *  - Leerling: .../exec?id=A7X9A7X9
  */
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ const TOEGANG_EMAIL_DOCENT = 'jouw.email@school.be';
 const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp
 const TAB_TAKEN = 'Taken_Lijst'; // kolommen: id | naam | type | deadline | klas
 const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | uploadUrl | klas
+const TAB_KLASSEN = 'Klassen'; // kolommen: naam
 
 /**
  * Leeg laten als dit script aan de spreadsheet gekoppeld is (gebonden script).
@@ -33,6 +34,11 @@ const STATUS_NIET_IN_ORDE = 'Niet in orde';
 const STATUS_AFWEZIG = 'Afwezig';
 const STATUS_TE_MAKEN = 'Te maken';
 const TOEGESTANE_STATUSSEN = [STATUS_IN_ORDE, STATUS_NIET_IN_ORDE, STATUS_AFWEZIG, STATUS_TE_MAKEN];
+
+/** Letter-cijfer × 4 (8 tekens). Geen I/O/1/0, om verwarring te vermijden. */
+const LEERLING_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const LEERLING_CODE_CIJFERS = '23456789';
+const LEERLING_CODE_PAREN = 4;
 
 // ---------------------------------------------------------------------------
 // Web-app entry
@@ -112,11 +118,16 @@ function serveerLeerlingPagina_(code) {
  * @return {{leerlingen: Object[], taken: Object[], registraties: Object[]}}
  */
 function getDocentData() {
-  return {
-    leerlingen: leesLeerlingen_(),
-    taken: leesTaken_(),
-    registraties: leesRegistraties_()
-  };
+  return metScriptLock_(function () {
+    normaliseerLeerlingCodes_();
+    synchroniseerKlassen_();
+    return {
+      leerlingen: leesLeerlingen_(),
+      taken: leesTaken_(),
+      registraties: leesRegistraties_(),
+      klassen: leesKlassen_()
+    };
+  });
 }
 
 /**
@@ -222,20 +233,23 @@ function saveLeerling(data) {
     throw new Error('Naam en klas zijn verplicht.');
   }
 
-  const leerlingen = leesLeerlingen_();
-  const leerling = {
-    id: volgendeId_(leerlingen, 'L'),
-    naam: String(data.naam).trim(),
-    klas: String(data.klas).trim(),
-    code: uniekeLeerlingCode_(leerlingen),
-    geschraptIn: [],
-    klasSinds: '',
-    verwijderdOp: ''
-  };
+  return metScriptLock_(function () {
+    normaliseerLeerlingCodes_();
+    const leerlingen = leesLeerlingen_();
+    const leerling = {
+      id: volgendeId_(leerlingen, 'L'),
+      naam: String(data.naam).trim(),
+      klas: voegKlasToeAlsNieuw_(data.klas),
+      code: uniekeLeerlingCode_(leerlingen),
+      geschraptIn: [],
+      klasSinds: '',
+      verwijderdOp: ''
+    };
 
-  getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '']);
+    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '']);
 
-  return { ok: true, leerling: leerling };
+    return { ok: true, leerling: leerling };
+  });
 }
 
 /**
@@ -245,7 +259,7 @@ function saveLeerling(data) {
  */
 function updateLeerling(data) {
   const id = String(data && data.id ? data.id : '').trim();
-  const klas = String(data && data.klas ? data.klas : '').trim();
+  const klas = voegKlasToeAlsNieuw_(data && data.klas);
   if (!id || !klas) {
     throw new Error('Id en klas zijn verplicht.');
   }
@@ -349,6 +363,23 @@ function herstelLeerling(id) {
 }
 
 /**
+ * Verwijdert alle leerlingen in de prullenbak, inclusief hun registraties.
+ * @return {{ok: boolean, aantal: number}}
+ */
+function leegPrullenbak() {
+  const weg = {};
+  leesLeerlingen_().forEach(function (lln) {
+    if (String(lln.verwijderdOp || '').trim()) weg[lln.id] = true;
+  });
+  const ids = Object.keys(weg);
+  if (!ids.length) return { ok: true, aantal: 0 };
+
+  vervangSheetZonderIds_(TAB_REGISTRATIES, 1, weg);
+  vervangSheetZonderIds_(TAB_LEERLINGEN, 0, weg);
+  return { ok: true, aantal: ids.length };
+}
+
+/**
  * Verwijdert een taak en bijhorende registraties.
  * @param {string} id
  * @return {{ok: boolean, id: string}}
@@ -361,6 +392,54 @@ function deleteTaak(id) {
   }
   verwijderRegistratiesOpKolom_(2, taakId);
   return { ok: true, id: taakId };
+}
+
+/**
+ * Voegt een klas toe. Bestaande namen (hoofdletterongevoelig) blijven ongewijzigd.
+ * @param {string} naam
+ * @return {{ok: boolean, klas: string}}
+ */
+function saveKlas(naam) {
+  return metScriptLock_(function () {
+    const klas = voegKlasToeAlsNieuw_(naam);
+    if (!klas) throw new Error('Klasnaam is verplicht.');
+    return { ok: true, klas: klas };
+  });
+}
+
+/**
+ * Verwijdert een klas, inclusief taken en registraties van die klas.
+ * Weigert als er nog leerlingen (ook in de prullenbak) in die klas zitten.
+ * @param {string} naam
+ * @return {{ok: boolean, klas: string, taken: number}}
+ */
+function deleteKlas(naam) {
+  return metScriptLock_(function () {
+    const klas = bestaandeKlasnaam_(naam);
+    if (!klas) throw new Error('Klas niet gevonden.');
+
+    const bezet = [];
+    leesLeerlingen_().forEach(function (lln) {
+      if (String(lln.klas || '').trim() === klas) bezet.push(lln);
+    });
+    if (bezet.length) {
+      throw new Error('Verplaats of verwijder eerst alle leerlingen van ' + klas + ' (ook in de prullenbak).');
+    }
+
+    const taakIds = {};
+    let aantalTaken = 0;
+    leesTaken_().forEach(function (taak) {
+      if (String(taak.klas || '').trim() === klas) {
+        taakIds[taak.id] = true;
+        aantalTaken += 1;
+      }
+    });
+    if (aantalTaken) vervangSheetZonderIds_(TAB_TAKEN, 0, taakIds);
+    verwijderRegistratiesVoorKlas_(klas, taakIds);
+    verwijderKlasUitGeschraptIn_(klas);
+    verwijderKlasnaam_(klas);
+    return { ok: true, klas: klas, taken: aantalTaken };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -418,6 +497,156 @@ function getSheet_(naam) {
     throw new Error('Tabblad "' + naam + '" ontbreekt in de spreadsheet.');
   }
   return sheet;
+}
+
+function normaliseerKlasnaam_(naam) {
+  return String(naam || '').trim().replace(/\s+/g, ' ').slice(0, 12);
+}
+
+function zorgVoorKlassenTab_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(TAB_KLASSEN);
+  if (sheet) return sheet;
+  sheet = ss.insertSheet(TAB_KLASSEN, ss.getNumSheets());
+  sheet.getRange(1, 1).setValue('naam');
+  const namen = verzamelKlasnamenUitLeerlingen_();
+  if (namen.length) {
+    sheet.getRange(2, 1, namen.length, 1).setValues(namen.map(function (klas) { return [klas]; }));
+  }
+  return sheet;
+}
+
+function verzamelKlasnamenUitLeerlingen_() {
+  const set = {};
+  leesLeerlingen_().forEach(function (lln) {
+    const klas = normaliseerKlasnaam_(lln.klas);
+    if (klas) set[klas] = true;
+    const vorige = lln.geschraptIn || [];
+    vorige.forEach(function (naam) {
+      const item = normaliseerKlasnaam_(naam);
+      if (item) set[item] = true;
+    });
+  });
+  return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+}
+
+function leesKlassen_() {
+  zorgVoorKlassenTab_();
+  const rijen = getSheet_(TAB_KLASSEN).getDataRange().getValues();
+  const namen = [];
+  const gezien = {};
+  for (let i = 1; i < rijen.length; i++) {
+    const klas = normaliseerKlasnaam_(rijen[i][0]);
+    if (!klas) continue;
+    const sleutel = klas.toUpperCase();
+    if (gezien[sleutel]) continue;
+    gezien[sleutel] = true;
+    namen.push(klas);
+  }
+  return namen.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+}
+
+function schrijfKlassen_(namen) {
+  zorgVoorKlassenTab_();
+  const uniek = [];
+  const gezien = {};
+  namen.forEach(function (naam) {
+    const klas = normaliseerKlasnaam_(naam);
+    if (!klas) return;
+    const sleutel = klas.toUpperCase();
+    if (gezien[sleutel]) return;
+    gezien[sleutel] = true;
+    uniek.push(klas);
+  });
+  uniek.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+  const sheet = getSheet_(TAB_KLASSEN);
+  const laatste = Math.max(sheet.getLastRow(), 1);
+  if (laatste > 1) sheet.getRange(2, 1, laatste - 1, 1).clearContent();
+  if (uniek.length) sheet.getRange(2, 1, uniek.length, 1).setValues(uniek.map(function (klas) { return [klas]; }));
+  return uniek;
+}
+
+function synchroniseerKlassen_() {
+  const namen = leesKlassen_();
+  const gezien = {};
+  namen.forEach(function (klas) { gezien[klas.toUpperCase()] = true; });
+  let extra = false;
+  verzamelKlasnamenUitLeerlingen_().forEach(function (klas) {
+    if (gezien[klas.toUpperCase()]) return;
+    namen.push(klas);
+    gezien[klas.toUpperCase()] = true;
+    extra = true;
+  });
+  if (extra) schrijfKlassen_(namen);
+}
+
+function bestaandeKlasnaam_(naam) {
+  const gezocht = normaliseerKlasnaam_(naam).toUpperCase();
+  if (!gezocht) return '';
+  const namen = leesKlassen_();
+  for (let i = 0; i < namen.length; i++) {
+    if (namen[i].toUpperCase() === gezocht) return namen[i];
+  }
+  const uitLeerlingen = verzamelKlasnamenUitLeerlingen_();
+  for (let j = 0; j < uitLeerlingen.length; j++) {
+    if (uitLeerlingen[j].toUpperCase() === gezocht) return uitLeerlingen[j];
+  }
+  return '';
+}
+
+function voegKlasToeAlsNieuw_(naam) {
+  const klas = normaliseerKlasnaam_(naam);
+  if (!klas) return '';
+  const bestaand = bestaandeKlasnaam_(klas);
+  if (bestaand) return bestaand;
+  const namen = leesKlassen_();
+  namen.push(klas);
+  schrijfKlassen_(namen);
+  return klas;
+}
+
+function verwijderKlasnaam_(naam) {
+  const klas = bestaandeKlasnaam_(naam);
+  if (!klas) return;
+  schrijfKlassen_(leesKlassen_().filter(function (item) {
+    return item.toUpperCase() !== klas.toUpperCase();
+  }));
+}
+
+function verwijderKlasUitGeschraptIn_(klas) {
+  const doel = String(klas || '').trim();
+  if (!doel) return;
+  const sheet = getSheet_(TAB_LEERLINGEN);
+  const bereik = sheet.getDataRange();
+  const rijen = bereik.getValues();
+  let gewijzigd = false;
+  for (let i = 1; i < rijen.length; i++) {
+    const lijst = parseLijst_(rijen[i][4]).filter(function (item) { return item !== doel; });
+    const nieuw = lijst.join(', ');
+    if (nieuw !== String(rijen[i][4] || '').trim()) {
+      rijen[i][4] = nieuw;
+      gewijzigd = true;
+    }
+  }
+  if (gewijzigd) bereik.setValues(rijen);
+}
+
+function verwijderRegistratiesVoorKlas_(klas, taakIds) {
+  const sheet = getSheet_(TAB_REGISTRATIES);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const ids = taakIds || {};
+  const over = [rijen[0]];
+  for (let i = 1; i < rijen.length; i++) {
+    const taakId = String(rijen[i][2] || '').trim();
+    const regKlas = String(rijen[i][6] || '').trim();
+    if (ids[taakId] || regKlas === klas) continue;
+    over.push(rijen[i]);
+  }
+  if (over.length === rijen.length) return;
+  const kolommen = rijen[0].length;
+  sheet.getRange(1, 1, rijen.length, kolommen).clearContent();
+  sheet.getRange(1, 1, over.length, over[0].length).setValues(over);
 }
 
 function leesLeerlingen_() {
@@ -550,21 +779,105 @@ function volgendeId_(lijst, prefix) {
   return prefix + String(max + 1).padStart(3, '0');
 }
 
+function metScriptLock_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function leerlingCodeIsGeldig_(code) {
+  const tekst = String(code || '').trim().toUpperCase();
+  if (tekst.length !== LEERLING_CODE_PAREN * 2) return false;
+  for (let i = 0; i < LEERLING_CODE_PAREN; i++) {
+    if (LEERLING_CODE_LETTERS.indexOf(tekst.charAt(i * 2)) === -1) return false;
+    if (LEERLING_CODE_CIJFERS.indexOf(tekst.charAt(i * 2 + 1)) === -1) return false;
+  }
+  return true;
+}
+
+function maakWillekeurigeLeerlingCode_() {
+  let code = '';
+  for (let i = 0; i < LEERLING_CODE_PAREN; i++) {
+    code += LEERLING_CODE_LETTERS.charAt(Math.floor(Math.random() * LEERLING_CODE_LETTERS.length));
+    code += LEERLING_CODE_CIJFERS.charAt(Math.floor(Math.random() * LEERLING_CODE_CIJFERS.length));
+  }
+  return code;
+}
+
+function uniekeLeerlingCodeVanSet_(bestaande) {
+  for (let n = 0; n < 10000; n++) {
+    const code = maakWillekeurigeLeerlingCode_();
+    if (!bestaande[code]) {
+      bestaande[code] = true;
+      return code;
+    }
+  }
+  throw new Error('Kon geen unieke leerlingcode genereren.');
+}
+
 function uniekeLeerlingCode_(leerlingen) {
   const bestaande = {};
   leerlingen.forEach(function (lln) {
-    bestaande[String(lln.code || '').toUpperCase()] = true;
+    const code = String(lln.code || '').trim().toUpperCase();
+    if (code) bestaande[code] = true;
   });
-  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const cijfers = '23456789';
-  for (let i = 0; i < 80; i++) {
-    const code = letters.charAt(Math.floor(Math.random() * letters.length)) +
-      cijfers.charAt(Math.floor(Math.random() * cijfers.length)) +
-      letters.charAt(Math.floor(Math.random() * letters.length)) +
-      cijfers.charAt(Math.floor(Math.random() * cijfers.length));
-    if (!bestaande[code]) return code;
+  return uniekeLeerlingCodeVanSet_(bestaande);
+}
+
+/**
+ * Zet korte of ongeldige codes om naar unieke 8-teken-codes.
+ * Geldige unieke codes blijven staan. Dubbele geldige codes: de eerste blijft, de rest krijgt een nieuwe.
+ */
+function normaliseerLeerlingCodes_() {
+  const sheet = getSheet_(TAB_LEERLINGEN);
+  const bereik = sheet.getDataRange();
+  const rijen = bereik.getValues();
+  if (rijen.length < 2) return;
+
+  const bestaande = {};
+  const teVervangen = [];
+  let gewijzigd = false;
+
+  for (let i = 1; i < rijen.length; i++) {
+    if (!rijen[i][0]) continue;
+    const origineel = String(rijen[i][3] || '').trim();
+    const code = origineel.toUpperCase();
+    if (leerlingCodeIsGeldig_(code) && !bestaande[code]) {
+      bestaande[code] = true;
+      if (origineel !== code) {
+        rijen[i][3] = code;
+        gewijzigd = true;
+      }
+    } else {
+      teVervangen.push(i);
+    }
   }
-  throw new Error('Kon geen unieke leerlingcode genereren.');
+
+  teVervangen.forEach(function (i) {
+    rijen[i][3] = uniekeLeerlingCodeVanSet_(bestaande);
+    gewijzigd = true;
+  });
+
+  if (gewijzigd) bereik.setValues(rijen);
+}
+
+function vervangSheetZonderIds_(sheetNaam, idKolom, idSet) {
+  const sheet = getSheet_(sheetNaam);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const over = [rijen[0]];
+  for (let i = 1; i < rijen.length; i++) {
+    const id = String(rijen[i][idKolom] || '').trim();
+    if (!idSet[id]) over.push(rijen[i]);
+  }
+  if (over.length === rijen.length) return;
+  const kolommen = rijen[0].length;
+  sheet.getRange(1, 1, rijen.length, kolommen).clearContent();
+  sheet.getRange(1, 1, over.length, over[0].length).setValues(over);
 }
 
 function verwijderRijOpId_(sheetNaam, id) {

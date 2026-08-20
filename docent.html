@@ -322,12 +322,19 @@
       <h2 class="text-lg font-semibold">Met welke klas ga je aan de slag?</h2>
       <p class="text-sm text-slate-500 mt-1 mb-5">Een registratie gebeurt altijd voor één klas tegelijk.</p>
       <div id="klas-knoppen" class="flex flex-wrap justify-center gap-2"></div>
+      <p id="klas-leeg" class="hidden text-sm text-slate-500 mt-4">Nog geen klassen. Maak er een aan om te starten.</p>
     </section>
 
     <section id="paneel-kruistabel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200">
       <div class="px-4 py-3 border-b border-slate-100">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="font-semibold">Overzicht <span id="kruis-klaslabel"></span></h2>
+          <div class="flex items-center gap-2 min-w-0">
+            <h2 class="font-semibold">Overzicht <span id="kruis-klaslabel"></span></h2>
+            <button type="button" data-actie="klas-verwijderen"
+              class="shrink-0 text-[11px] font-medium text-slate-400 hover:text-rose-600">
+              Klas verwijderen
+            </button>
+          </div>
           <div class="filter-wrap contents">
             <button type="button"
               class="knop-filter relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 md:hidden"
@@ -440,15 +447,59 @@
           <h3 id="modal-titel-prullenbak" class="font-semibold text-lg pr-8">Verwijderde leerlingen</h3>
           <p class="text-sm text-slate-500 mt-1">Terugzetten herstelt de leerling met de oude voortgang.</p>
           <div id="prullenbak-lijst" class="mt-4 max-h-[min(24rem,55vh)] overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100"></div>
+          <div id="prullenbak-legen" class="hidden mt-4 pt-3 border-t border-slate-100 space-y-2">
+            <p class="text-sm text-slate-600">Dit verwijdert deze leerlingen en hun registraties definitief. Typ <span class="font-semibold">Leegmaken</span> om te bevestigen.</p>
+            <input id="veld-prullenbak-legen" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Leegmaken"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            <button type="button" id="knop-prullenbak-legen" data-actie="prullenbak-legen" disabled
+              class="inline-flex justify-center items-center px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-700">
+              Prullenbak legen
+            </button>
+          </div>
         </div>
 
         <div id="form-bevestig" class="hidden space-y-4">
           <h3 id="modal-titel-bevestig" class="font-semibold text-lg pr-8">Verwijderen?</h3>
           <p id="bevestig-tekst" class="text-sm text-slate-600"></p>
           <div class="flex items-center gap-3 pt-1">
-            '<button type="button" id="bevestig-ok"
+            <button type="button" id="bevestig-ok"
               class="inline-flex justify-center items-center px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700">
               Verwijderen
+            </button>
+            <button type="button" data-actie="modal-sluiten" class="text-sm font-medium text-slate-500 hover:text-slate-800">
+              Annuleren
+            </button>
+          </div>
+        </div>
+
+        <form id="form-klas" class="hidden space-y-4">
+          <h3 id="modal-titel-klas" class="font-semibold text-lg pr-8">Nieuwe klas</h3>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Naam</span>
+            <input id="veld-nieuwe-klas" type="text" maxlength="12" required autocomplete="off"
+              placeholder="bijv. 3A"
+              class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </label>
+          <div class="flex items-center gap-3 pt-1">
+            <button type="submit" class="inline-flex justify-center items-center px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+              Toevoegen
+            </button>
+            <button type="button" data-actie="modal-sluiten" class="text-sm font-medium text-slate-500 hover:text-slate-800">
+              Annuleren
+            </button>
+          </div>
+        </form>
+
+        <div id="form-klas-verwijderen" class="hidden space-y-4">
+          <h3 id="modal-titel-klas-verwijderen" class="font-semibold text-lg pr-8">Klas verwijderen</h3>
+          <p id="klas-verwijderen-tekst" class="text-sm text-slate-600"></p>
+          <input id="veld-klas-verwijderen" type="text" autocomplete="off" spellcheck="false"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500" />
+          <div class="flex items-center gap-3">
+            <button type="button" id="knop-klas-verwijderen" data-actie="klas-verwijderen-bevestigen" disabled
+              class="inline-flex justify-center items-center px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-700">
+              Klas verwijderen
             </button>
             <button type="button" data-actie="modal-sluiten" class="text-sm font-medium text-slate-500 hover:text-slate-800">
               Annuleren
@@ -531,22 +582,24 @@
 
     // --- Mockdata gelijk aan de Sheets-structuur (lokale tests) ---
     const MOCK_LEERLINGEN = [
-      { id: 'L001', naam: 'Emma Peeters', klas: '3A', code: 'A7X9' },
-      { id: 'L002', naam: 'Noah Janssens', klas: '3A', code: 'B2K4' },
-      { id: 'L004', naam: 'Lucas De Smet', klas: '3A', code: 'D5P8' },
-      { id: 'L006', naam: 'Finn Goossens', klas: '3A', code: 'F8T2' },
-      { id: 'L007', naam: 'Mila Wouters', klas: '3A', code: 'G1Q4' },
-      { id: 'L008', naam: 'Adam Coppens', klas: '3A', code: 'H6R3' },
-      { id: 'L003', naam: 'Sophie Vermeulen', klas: '3B', code: 'C9M1' },
-      { id: 'L005', naam: 'Elise Claes', klas: '3B', code: 'E3W6' },
-      { id: 'L009', naam: 'Jules Maes', klas: '3B', code: 'J4N8' },
-      { id: 'L010', naam: 'Nora Lambert', klas: '3B', code: 'K2S7' },
-      { id: 'L011', naam: 'Vince Hendrickx', klas: '3B', code: 'L8U1' },
-      { id: 'L012', naam: 'Lina Jacobs', klas: '4A', code: 'M5V9' },
-      { id: 'L013', naam: 'Mats Vermeiren', klas: '4A', code: 'N7Y2' },
-      { id: 'L014', naam: 'Amber Smets', klas: '4A', code: 'P3Z6' },
-      { id: 'L015', naam: 'Daan Willems', klas: '4A', code: 'Q9C4' }
+      { id: 'L001', naam: 'Emma Peeters', klas: '3A', code: 'A7X9A7X9' },
+      { id: 'L002', naam: 'Noah Janssens', klas: '3A', code: 'B2K4B2K4' },
+      { id: 'L004', naam: 'Lucas De Smet', klas: '3A', code: 'D5P8D5P8' },
+      { id: 'L006', naam: 'Finn Goossens', klas: '3A', code: 'F8T2F8T2' },
+      { id: 'L007', naam: 'Mila Wouters', klas: '3A', code: 'G3Q4G3Q4' },
+      { id: 'L008', naam: 'Adam Coppens', klas: '3A', code: 'H6R3H6R3' },
+      { id: 'L003', naam: 'Sophie Vermeulen', klas: '3B', code: 'C9M3C9M3' },
+      { id: 'L005', naam: 'Elise Claes', klas: '3B', code: 'E3W6E3W6' },
+      { id: 'L009', naam: 'Jules Maes', klas: '3B', code: 'J4N8J4N8' },
+      { id: 'L010', naam: 'Nora Lambert', klas: '3B', code: 'K2S7K2S7' },
+      { id: 'L011', naam: 'Vince Hendrickx', klas: '3B', code: 'L8U3L8U3' },
+      { id: 'L012', naam: 'Lina Jacobs', klas: '4A', code: 'M5V9M5V9' },
+      { id: 'L013', naam: 'Mats Vermeiren', klas: '4A', code: 'N7Y2N7Y2' },
+      { id: 'L014', naam: 'Amber Smets', klas: '4A', code: 'P3Z6P3Z6' },
+      { id: 'L015', naam: 'Daan Willems', klas: '4A', code: 'Q9C4Q9C4' }
     ];
+
+    const MOCK_KLASSEN = ['3A', '3B', '4A'];
 
     const MOCK_TAKEN = [
       { id: 'T004', naam: 'Schrijfgerief', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
@@ -613,7 +666,9 @@
       leerlingen: [],
       taken: [],
       registraties: [],
+      klassen: [],
       gekozenKlas: '',
+      klasTeVerwijderen: '',
       actieveTab: 'kruistabel',
       mobieleTab: 'leerling',
       lijstLeerlingId: null,
@@ -669,7 +724,8 @@
       verwerkData({
         leerlingen: MOCK_LEERLINGEN,
         taken: MOCK_TAKEN,
-        registraties: MOCK_REGISTRATIES.slice()
+        registraties: MOCK_REGISTRATIES.slice(),
+        klassen: MOCK_KLASSEN.slice()
       });
     }
 
@@ -734,20 +790,23 @@
     function uniekeLeerlingCode(leerlingen) {
       const bestaande = {};
       leerlingen.forEach(function (lln) {
-        bestaande[String(lln.code || '').toUpperCase()] = true;
+        const code = String(lln.code || '').trim().toUpperCase();
+        if (code) bestaande[code] = true;
       });
       const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
       const cijfers = '23456789';
       let poging = 0;
-      while (poging < 80) {
-        const code = letters.charAt(Math.floor(Math.random() * letters.length)) +
-          cijfers.charAt(Math.floor(Math.random() * cijfers.length)) +
-          letters.charAt(Math.floor(Math.random() * letters.length)) +
-          cijfers.charAt(Math.floor(Math.random() * cijfers.length));
+      while (poging < 10000) {
+        let code = '';
+        let i = 0;
+        for (i = 0; i < 4; i++) {
+          code += letters.charAt(Math.floor(Math.random() * letters.length));
+          code += cijfers.charAt(Math.floor(Math.random() * cijfers.length));
+        }
         if (!bestaande[code]) return code;
         poging += 1;
       }
-      return 'X' + String(Date.now()).slice(-3);
+      throw new Error('Kon geen unieke leerlingcode genereren.');
     }
 
     function slaLeerlingOp(data, naSucces) {
@@ -755,6 +814,7 @@
         google.script.run
           .withSuccessHandler(function (antwoord) {
             staat.leerlingen.push(antwoord.leerling);
+            voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
             if (naSucces) naSucces(antwoord.leerling);
           })
           .withFailureHandler(function (fout) {
@@ -774,6 +834,7 @@
         verwijderdOp: ''
       };
       console.log('[LOKAAL] saveLeerling', leerling);
+      voegKlasAanStaat(leerling.klas);
       staat.leerlingen.push(leerling);
       if (naSucces) naSucces(leerling);
     }
@@ -850,6 +911,39 @@
       leerling.verwijderdOp = '';
       console.log('[LOKAAL] herstelLeerling', leerling);
       if (naSucces) naSucces(leerling);
+    }
+
+    function leegPrullenbakOp(naSucces) {
+      const ids = {};
+      verwijderdeLeerlingen().forEach(function (lln) {
+        ids[lln.id] = true;
+      });
+      const aantal = Object.keys(ids).length;
+      if (!aantal) {
+        if (naSucces) naSucces(0);
+        return;
+      }
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            const n = antwoord && antwoord.aantal ? antwoord.aantal : aantal;
+            haalPrullenbakWeg(ids);
+            if (naSucces) naSucces(n);
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Prullenbak legen mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .leegPrullenbak();
+        return;
+      }
+      console.log('[LOKAAL] leegPrullenbak', Object.keys(ids));
+      haalPrullenbakWeg(ids);
+      if (naSucces) naSucces(aantal);
+    }
+
+    function haalPrullenbakWeg(ids) {
+      staat.leerlingen = staat.leerlingen.filter(function (lln) { return !ids[lln.id]; });
+      staat.registraties = staat.registraties.filter(function (r) { return !ids[r.llnId]; });
     }
 
     function verwijderTaakOp(id, naSucces) {
@@ -954,13 +1048,16 @@
 
     function uniekeKlassen() {
       const set = {};
+      (staat.klassen || []).forEach(function (klas) {
+        if (klas) set[klas] = true;
+      });
       actieveLeerlingen().forEach(function (lln) {
         if (lln.klas) set[lln.klas] = true;
         geschraptInVan(lln).forEach(function (klas) {
           if (klas) set[klas] = true;
         });
       });
-      return Object.keys(set).sort();
+      return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'nl'); });
     }
 
     function leerlingenVanKlas() {
@@ -1088,18 +1185,51 @@
       staat.leerlingen = data.leerlingen || [];
       staat.taken = data.taken || [];
       staat.registraties = data.registraties || [];
+      staat.klassen = data.klassen || [];
       vulKlasKeuze();
       herstelKlas();
       tekenScherm();
     }
 
+    function normaliseerKlasnaam(naam) {
+      return String(naam || '').trim().replace(/\s+/g, ' ').slice(0, 12);
+    }
+
+    function bestaandeKlasnaam(naam) {
+      const gezocht = normaliseerKlasnaam(naam).toUpperCase();
+      if (!gezocht) return '';
+      const klassen = uniekeKlassen();
+      for (let i = 0; i < klassen.length; i++) {
+        if (klassen[i].toUpperCase() === gezocht) return klassen[i];
+      }
+      return '';
+    }
+
+    function voegKlasAanStaat(naam) {
+      const klas = bestaandeKlasnaam(naam) || normaliseerKlasnaam(naam);
+      if (!klas) return '';
+      const bestaat = (staat.klassen || []).some(function (item) {
+        return String(item).toUpperCase() === klas.toUpperCase();
+      });
+      if (!bestaat) staat.klassen.push(klas);
+      return klas;
+    }
+
+    function leerlingenVanKlasnaam(klas) {
+      const doel = String(klas || '').trim();
+      return staat.leerlingen.filter(function (lln) {
+        return String(lln.klas || '').trim() === doel;
+      });
+    }
+
     function vulKlasKeuze() {
       const select = document.getElementById('veld-klas');
       const knoppen = document.getElementById('klas-knoppen');
+      const leeg = document.getElementById('klas-leeg');
       const klassen = uniekeKlassen();
       if (staat.gekozenKlas && klassen.indexOf(staat.gekozenKlas) === -1) {
         klassen.push(staat.gekozenKlas);
-        klassen.sort();
+        klassen.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
       }
       select.innerHTML = '<option value="">Kies een klas</option>';
       knoppen.innerHTML = '';
@@ -1110,13 +1240,43 @@
         opt.textContent = klas;
         select.appendChild(opt);
 
+        const groep = document.createElement('div');
+        groep.className = 'inline-flex items-stretch rounded-xl border border-slate-200 bg-slate-50 overflow-hidden';
+
         const knop = document.createElement('button');
         knop.type = 'button';
-        knop.className = 'px-5 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-base font-semibold';
+        knop.className = 'px-5 py-3 hover:bg-indigo-50 text-base font-semibold';
         knop.textContent = klas;
         knop.addEventListener('click', function () { kiesKlas(klas); });
-        knoppen.appendChild(knop);
+
+        const wis = document.createElement('button');
+        wis.type = 'button';
+        wis.className = 'px-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 text-lg leading-none';
+        wis.setAttribute('data-actie', 'klas-verwijderen');
+        wis.setAttribute('data-klas', klas);
+        wis.setAttribute('title', 'Klas ' + klas + ' verwijderen');
+        wis.setAttribute('aria-label', 'Klas ' + klas + ' verwijderen');
+        wis.textContent = '×';
+
+        groep.appendChild(knop);
+        groep.appendChild(wis);
+        knoppen.appendChild(groep);
       });
+
+      const nieuw = document.createElement('button');
+      nieuw.type = 'button';
+      nieuw.className = 'px-5 py-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-base font-semibold text-slate-600';
+      nieuw.setAttribute('data-actie', 'klas-nieuw');
+      nieuw.textContent = 'Nieuwe klas';
+      knoppen.appendChild(nieuw);
+
+      const optNieuw = document.createElement('option');
+      optNieuw.value = '__nieuw__';
+      optNieuw.textContent = 'Nieuwe klas…';
+      select.appendChild(optNieuw);
+
+      if (leeg) leeg.classList.toggle('hidden', klassen.length > 0);
+      if (staat.gekozenKlas) select.value = staat.gekozenKlas;
     }
 
     function herstelKlas() {
@@ -1131,7 +1291,10 @@
     function kiesKlas(klas) {
       staat.gekozenKlas = klas;
       document.getElementById('veld-klas').value = klas;
-      try { sessionStorage.setItem(KLAS_OPSLag, klas); } catch (e) { /* negeren */ }
+      try {
+        if (klas) sessionStorage.setItem(KLAS_OPSLag, klas);
+        else sessionStorage.removeItem(KLAS_OPSLag);
+      } catch (e) { /* negeren */ }
       console.log('[KLAS] actieve klas:', klas);
       staat.lijstLeerlingId = null;
       staat.lijstTaakId = null;
@@ -1141,6 +1304,147 @@
       staat.slepen = false;
       staat.sleepStart = null;
       tekenScherm();
+    }
+
+    function openNieuweKlasModal() {
+      staat.modal = 'klas';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas');
+      document.getElementById('veld-nieuwe-klas').value = '';
+      verbergModalInhoud();
+      document.getElementById('form-klas').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      document.getElementById('veld-nieuwe-klas').focus();
+    }
+
+    function voegKlasToe(event) {
+      event.preventDefault();
+      const naam = normaliseerKlasnaam(document.getElementById('veld-nieuwe-klas').value);
+      if (!naam) {
+        toonMelding('Vul een klasnaam in.', 'fout');
+        return;
+      }
+      const bestaand = bestaandeKlasnaam(naam);
+      if (bestaand) {
+        sluitModal();
+        kiesKlas(bestaand);
+        toonMelding('Klas ' + bestaand + ' bestaat al.', 'ok');
+        return;
+      }
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            const klas = (antwoord && antwoord.klas) || naam;
+            voegKlasAanStaat(klas);
+            sluitModal();
+            vulKlasKeuze();
+            kiesKlas(klas);
+            toonMelding('Klas ' + klas + ' toegevoegd.', 'ok');
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Klas toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .saveKlas(naam);
+        return;
+      }
+      voegKlasAanStaat(naam);
+      sluitModal();
+      vulKlasKeuze();
+      kiesKlas(naam);
+      console.log('[LOKAAL] saveKlas', naam);
+      toonMelding('Klas ' + naam + ' toegevoegd.', 'ok');
+    }
+
+    function vraagKlasVerwijderen(klas) {
+      const naam = bestaandeKlasnaam(klas) || normaliseerKlasnaam(klas) || staat.gekozenKlas;
+      if (!naam) return;
+      const bezet = leerlingenVanKlasnaam(naam);
+      if (bezet.length) {
+        toonMelding('Verplaats of verwijder eerst alle leerlingen van ' + naam + ' (ook in de prullenbak).', 'fout');
+        return;
+      }
+      staat.klasTeVerwijderen = naam;
+      staat.modal = 'klas-verwijderen';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas-verwijderen');
+      document.getElementById('klas-verwijderen-tekst').innerHTML =
+        'Dit verwijdert klas <span class="font-semibold">' + escapeHtml(naam) +
+        '</span> en de taken en registraties van die klas. Leerlingen blijven bewaard. Typ <span class="font-semibold">' +
+        escapeHtml(naam) + '</span> om te bevestigen.';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      veld.value = '';
+      veld.setAttribute('placeholder', naam);
+      zetKlasVerwijderKnop();
+      verbergModalInhoud();
+      document.getElementById('form-klas-verwijderen').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      veld.focus();
+    }
+
+    function zetKlasVerwijderKnop() {
+      const naam = staat.klasTeVerwijderen || '';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      const knop = document.getElementById('knop-klas-verwijderen');
+      knop.disabled = !naam || veld.value.trim() !== naam;
+    }
+
+    function bevestigKlasVerwijderen() {
+      const naam = staat.klasTeVerwijderen || '';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      if (!naam || veld.value.trim() !== naam) {
+        toonMelding('Typ ' + naam + ' om te bevestigen.', 'fout');
+        return;
+      }
+      if (isGasOmgeving()) {
+        google.script.run
+          .withSuccessHandler(function (antwoord) {
+            const klas = (antwoord && antwoord.klas) || naam;
+            verwijderKlasLokaal(klas);
+            sluitModal();
+            vulKlasKeuze();
+            tekenScherm();
+            toonMelding('Klas ' + klas + ' verwijderd.', 'ok');
+          })
+          .withFailureHandler(function (fout) {
+            toonMelding('Klas verwijderen mislukt: ' + (fout.message || fout), 'fout');
+          })
+          .deleteKlas(naam);
+        return;
+      }
+      verwijderKlasLokaal(naam);
+      sluitModal();
+      vulKlasKeuze();
+      tekenScherm();
+      console.log('[LOKAAL] deleteKlas', naam);
+      toonMelding('Klas ' + naam + ' verwijderd.', 'ok');
+    }
+
+    function verwijderKlasLokaal(klas) {
+      const naam = String(klas || '').trim();
+      staat.klassen = (staat.klassen || []).filter(function (item) {
+        return String(item).toUpperCase() !== naam.toUpperCase();
+      });
+      const wegTaken = {};
+      staat.taken = staat.taken.filter(function (taak) {
+        if (String(taak.klas || '').trim() === naam) {
+          wegTaken[taak.id] = true;
+          return false;
+        }
+        return true;
+      });
+      staat.registraties = staat.registraties.filter(function (reg) {
+        if (wegTaken[reg.taakId]) return false;
+        if (String(reg.klas || '').trim() === naam) return false;
+        return true;
+      });
+      staat.leerlingen.forEach(function (lln) {
+        lln.geschraptIn = geschraptInVan(lln).filter(function (item) { return item !== naam; });
+      });
+      if (staat.gekozenKlas === naam) {
+        staat.gekozenKlas = '';
+        try { sessionStorage.removeItem(KLAS_OPSLag); } catch (e) { /* negeren */ }
+        document.getElementById('veld-klas').value = '';
+      }
     }
 
     function tekenScherm() {
@@ -1600,6 +1904,7 @@
     function sluitModal() {
       staat.modal = null;
       staat.bevestigActie = null;
+      staat.klasTeVerwijderen = '';
       document.getElementById('modal-toevoegen').classList.add('hidden');
       verbergModalInhoud();
       document.getElementById('modal-kaart').classList.remove('max-w-lg');
@@ -1611,6 +1916,8 @@
       document.getElementById('form-taak').classList.add('hidden');
       document.getElementById('form-fiche').classList.add('hidden');
       document.getElementById('form-prullenbak').classList.add('hidden');
+      document.getElementById('form-klas').classList.add('hidden');
+      document.getElementById('form-klas-verwijderen').classList.add('hidden');
     }
 
     function zetModalKaartBreed(breed) {
@@ -1877,6 +2184,7 @@
       const leerling = staat.leerlingen.filter(function (lln) { return lln.id === id; })[0];
       if (!leerling || !klas || klas === leerling.klas) return;
       slaLeerlingKlasOp(id, klas, function (bijgewerkt) {
+        voegKlasAanStaat(bijgewerkt.klas);
         vulKlasKeuze();
         document.getElementById('veld-klas').value = staat.gekozenKlas;
         tekenScherm();
@@ -2010,7 +2318,12 @@
 
     function tekenPrullenbakLijst() {
       const lijst = document.getElementById('prullenbak-lijst');
+      const legen = document.getElementById('prullenbak-legen');
+      const veld = document.getElementById('veld-prullenbak-legen');
       const leerlingen = verwijderdeLeerlingen();
+      veld.value = '';
+      zetPrullenbakLegenKnop();
+      legen.classList.toggle('hidden', !leerlingen.length);
       if (!leerlingen.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Niemand in de prullenbak.</p>';
         return;
@@ -2028,6 +2341,29 @@
           'Terugzetten</button>' +
         '</article>';
       }).join('');
+    }
+
+    function zetPrullenbakLegenKnop() {
+      const veld = document.getElementById('veld-prullenbak-legen');
+      const knop = document.getElementById('knop-prullenbak-legen');
+      knop.disabled = String(veld.value || '').trim() !== 'Leegmaken';
+    }
+
+    function bevestigPrullenbakLegen() {
+      const veld = document.getElementById('veld-prullenbak-legen');
+      if (String(veld.value || '').trim() !== 'Leegmaken') {
+        toonMelding('Typ Leegmaken om te bevestigen.', 'fout');
+        return;
+      }
+      const aantal = verwijderdeLeerlingen().length;
+      if (!aantal) return;
+      leegPrullenbakOp(function (n) {
+        vulKlasKeuze();
+        document.getElementById('veld-klas').value = staat.gekozenKlas;
+        tekenScherm();
+        tekenPrullenbakLijst();
+        toonMelding(n === 1 ? '1 leerling definitief verwijderd.' : n + ' leerlingen definitief verwijderd.', 'ok');
+      });
     }
 
     function zetLeerlingTerug(id) {
@@ -2521,6 +2857,19 @@
     }
 
     document.getElementById('form-taak').addEventListener('submit', voegTaakToe);
+    document.getElementById('form-klas').addEventListener('submit', voegKlasToe);
+    document.getElementById('veld-prullenbak-legen').addEventListener('input', zetPrullenbakLegenKnop);
+    document.getElementById('veld-prullenbak-legen').addEventListener('keydown', function (event) {
+      if (String(event.key || '').toLowerCase() !== 'enter') return;
+      event.preventDefault();
+      bevestigPrullenbakLegen();
+    });
+    document.getElementById('veld-klas-verwijderen').addEventListener('input', zetKlasVerwijderKnop);
+    document.getElementById('veld-klas-verwijderen').addEventListener('keydown', function (event) {
+      if (String(event.key || '').toLowerCase() !== 'enter') return;
+      event.preventDefault();
+      bevestigKlasVerwijderen();
+    });
     document.getElementById('veld-fiche-klas').addEventListener('change', onFicheKlasChange);
     document.getElementById('veld-fiche-klas-nieuw').addEventListener('keydown', onFicheNieuweKlas);
     document.getElementById('veld-fiche-klas-nieuw').addEventListener('blur', onFicheNieuweKlas);
@@ -2550,7 +2899,11 @@
       else if (actie === 'fiche-klas-bewerken') openFicheKlasBewerken();
       else if (actie === 'fiche-klas-annuleren') sluitFicheKlasBewerken();
       else if (actie === 'prullenbak-openen') openPrullenbak();
+      else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
+      else if (actie === 'klas-nieuw') openNieuweKlasModal();
+      else if (actie === 'klas-verwijderen') vraagKlasVerwijderen(doel.getAttribute('data-klas'));
+      else if (actie === 'klas-verwijderen-bevestigen') bevestigKlasVerwijderen();
       else if (actie === 'modal-sluiten') sluitModal();
     });
     document.addEventListener('keydown', function (event) {
@@ -2565,7 +2918,13 @@
     });
 
     document.getElementById('veld-klas').addEventListener('change', function (event) {
-      kiesKlas(event.target.value);
+      const waarde = event.target.value;
+      if (waarde === '__nieuw__') {
+        event.target.value = staat.gekozenKlas || '';
+        openNieuweKlasModal();
+        return;
+      }
+      kiesKlas(waarde);
     });
     document.getElementById('tab-leerling').addEventListener('click', function () { wisselTab('leerling'); });
     document.getElementById('tab-taak').addEventListener('click', function () { wisselTab('taak'); });

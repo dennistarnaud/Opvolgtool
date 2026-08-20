@@ -102,12 +102,12 @@
     ];
 
     const MOCK_LEERLINGEN = [
-      { id: 'L001', klas: '3A', code: 'A7X9' },
-      { id: 'L002', klas: '3A', code: 'B2K4' },
-      { id: 'L003', klas: '3B', code: 'C9M1' },
-      { id: 'L004', klas: '3A', code: 'D5P8' },
-      { id: 'L005', klas: '3B', code: 'E3W6' },
-      { id: 'L006', klas: '3A', code: 'F8T2' }
+      { id: 'L001', klas: '3A', code: 'A7X9A7X9' },
+      { id: 'L002', klas: '3A', code: 'B2K4B2K4' },
+      { id: 'L003', klas: '3B', code: 'C9M3C9M3' },
+      { id: 'L004', klas: '3A', code: 'D5P8D5P8' },
+      { id: 'L005', klas: '3B', code: 'E3W6E3W6' },
+      { id: 'L006', klas: '3A', code: 'F8T2F8T2' }
     ];
 
     const MOCK_REGISTRATIES = [
@@ -133,7 +133,7 @@
 
     function leesUrlCode() {
       const params = new URLSearchParams(window.location.search);
-      return (params.get('id') || 'A7X9').trim();
+      return (params.get('id') || 'A7X9A7X9').trim();
     }
 
     /** Probeert de GAS-scriplet-JSON te parsen. Lokaal is dit geen geldige JSON. */
