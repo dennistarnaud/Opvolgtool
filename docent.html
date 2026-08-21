@@ -297,6 +297,15 @@
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 font-sans min-h-screen">
+
+  <!-- Laadoverlay: zichtbaar tot verwerkData() de eerste keer klaar is -->
+  <div id="laad-overlay" class="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-slate-100">
+    <svg class="animate-spin text-indigo-500" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    <p class="text-sm font-medium text-slate-500">Gegevens laden…</p>
+  </div>
+
   <nav class="bg-white border-b border-slate-200 sticky top-0 z-20">
     <div class="max-w-[1600px] mx-auto px-4 py-2 flex flex-col gap-3">
       <div class="flex items-center gap-3">
@@ -993,20 +1002,34 @@
       webAppUrl: ''
     };
 
-    /** True in GAS, false bij lokaal openen via Live Server. */
+    /**
+     * True als de pagina geserveerd wordt door Google Apps Script.
+     * Detectie via URL — betrouwbaarder dan de google.script.run check,
+     * die asynchroon beschikbaar komt en dus te vroeg false kan teruggeven.
+     */
     function isGasOmgeving() {
-      return typeof google !== 'undefined' && google.script && typeof google.script.run === 'function';
+      var url = window.location.href;
+      return url.indexOf('script.google.com') !== -1 ||
+             url.indexOf('googleusercontent.com') !== -1 ||
+             url.indexOf('/macros/') !== -1;
     }
 
-    /** Voor debuggen: logt GAS-status naar console. */
+    /**
+     * Geeft google.script.run terug als het beschikbaar is, anders null.
+     * Let op: google.script.run is een object, geen function —
+     * typeof check op 'function' was fout en blokkeerde de GAS-koppeling.
+     */
+    function gasRun() {
+      try {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          return google.script.run;
+        }
+      } catch (e) { /* defensief */ }
+      return null;
+    }
+
     (function debugGasStatus() {
-      var heeft = isGasOmgeving();
-      var url   = window.location.href;
-      var isExec = url.indexOf('/exec') !== -1 || url.indexOf('/dev') !== -1;
-      console.log('[GAS-check] isGasOmgeving=' + heeft + ' | isExecUrl=' + isExec + ' | url=' + url);
-      if (isExec && !heeft) {
-        console.warn('[GAS-check] LET OP: exec-URL maar google.script.run nog niet klaar – wordt opnieuw geprobeerd via startNaGas()');
-      }
+      console.log('[GAS-check] isGasOmgeving=' + isGasOmgeving() + ' | gasRun=' + (gasRun() ? 'beschikbaar' : 'nog niet klaar') + ' | url=' + window.location.href);
     }());
 
     let meldingTimer = null;
@@ -1025,12 +1048,29 @@
       }, type === 'fout' ? 5000 : 3200);
     }
 
-    function haalDocentData() {
+    function haalDocentData(pogingNr) {
       if (isGasOmgeving()) {
-        google.script.run
+        var run = gasRun();
+        if (!run) {
+          // google.script.run is nog niet geïnjecteerd — wacht max 5s
+          if ((pogingNr || 0) < 100) {
+            setTimeout(function () { haalDocentData((pogingNr || 0) + 1); }, 50);
+          } else {
+            toonMelding('Kon geen verbinding maken met Google Apps Script. Herlaad de pagina.', 'fout');
+            console.error('[GAS] google.script.run nooit beschikbaar geworden na 5s — controleer je implementatie en browser-extensies.');
+          const overlay = document.getElementById('laad-overlay');
+          if (overlay) overlay.remove();
+          }
+          return;
+        }
+        console.log('[GAS] getDocentData — echte data ophalen (poging ' + (pogingNr || 0) + ')');
+        run
           .withSuccessHandler(verwerkData)
           .withFailureHandler(function (fout) {
             toonMelding('Kon gegevens niet laden: ' + (fout.message || fout), 'fout');
+            console.error('[GAS] getDocentData fout:', fout);
+            const overlay = document.getElementById('laad-overlay');
+            if (overlay) overlay.remove();
           })
           .getDocentData();
         return;
@@ -1054,20 +1094,9 @@
         opmerking: data.opmerking || '',
         klas: String(data.klas || staat.gekozenKlas || '').trim()
       };
-      if (isGasOmgeving()) {
-        google.script.run
-          .withSuccessHandler(function (antwoord) {
-            staat.registraties.push(antwoord.registratie);
-            if (naSucces) naSucces(antwoord.registratie);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .saveRegistratie(payload);
-        return;
-      }
 
-      const mockRij = {
+      // Optimistisch: registratie meteen lokaal toevoegen en UI hertekenen.
+      const tempRij = {
         datumTijd: nieuweTijdstempel(),
         llnId: payload.llnId,
         taakId: payload.taakId,
@@ -1075,9 +1104,29 @@
         opmerking: payload.opmerking,
         klas: payload.klas
       };
-      console.log('[LOKAAL] saveRegistratie', mockRij);
-      staat.registraties.push(mockRij);
-      if (naSucces) naSucces(mockRij);
+      staat.registraties.push(tempRij);
+      if (naSucces) naSucces(tempRij);
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveRegistratie', tempRij);
+        return;
+      }
+
+      // Bevestig op de achtergrond; bij fout: alles herladen zodat staat consistent blijft.
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          // Vervang de tijdelijke rij door de server-versie (correcte timestamp).
+          const idx = staat.registraties.indexOf(tempRij);
+          if (idx !== -1) staat.registraties.splice(idx, 1, antwoord.registratie);
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
+          // Verwijder de optimistische rij en herlaad de echte data.
+          const idx = staat.registraties.indexOf(tempRij);
+          if (idx !== -1) staat.registraties.splice(idx, 1);
+          haalDocentData();
+        })
+        .saveRegistratie(payload);
     }
 
     function nieuweTijdstempel() {
@@ -1125,23 +1174,9 @@
     }
 
     function slaLeerlingOp(data, naSucces) {
-      if (isGasOmgeving()) {
-        google.script.run
-          .withSuccessHandler(function (antwoord) {
-            staat.leerlingen.push(antwoord.leerling);
-            voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
-            if (naSucces) naSucces(antwoord.leerling);
-          })
-          .withFailureHandler(function (fout) {
-            staat.bezigLeerling = false;
-            toonMelding('Leerling toevoegen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .saveLeerling(data);
-        return;
-      }
-
-      const leerling = {
-        id: volgendeId(staat.leerlingen, 'L'),
+      // Optimistisch: meteen toevoegen met tijdelijk ID, GAS bevestigt op de achtergrond.
+      const tempLeerling = {
+        id: '__temp_' + Date.now(),
         naam: String(data.naam || '').trim(),
         klas: String(data.klas || '').trim(),
         code: uniekeLeerlingCode(staat.leerlingen),
@@ -1152,49 +1187,82 @@
         opvolgingNablijfOp: '',
         opvolgingResetOp: ''
       };
-      console.log('[LOKAAL] saveLeerling', leerling);
-      voegKlasAanStaat(leerling.klas);
-      staat.leerlingen.push(leerling);
-      if (naSucces) naSucces(leerling);
-    }
+      voegKlasAanStaat(tempLeerling.klas);
+      staat.leerlingen.push(tempLeerling);
+      if (naSucces) naSucces(tempLeerling);
 
-    function slaTaakOp(data, naSucces) {
-      if (isGasOmgeving()) {
-        google.script.run
-          .withSuccessHandler(function (antwoord) {
-            const lijst = antwoord.taken || (antwoord.taak ? [antwoord.taak] : []);
-            lijst.forEach(function (taak) { staat.taken.push(taak); });
-            if (naSucces) naSucces(lijst);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Taak toevoegen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .saveTaak(data);
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveLeerling', tempLeerling);
         return;
       }
 
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          // Vervang de tijdelijke leerling door de server-versie (met echt ID en code).
+          const idx = staat.leerlingen.indexOf(tempLeerling);
+          if (idx !== -1) staat.leerlingen.splice(idx, 1, antwoord.leerling);
+          else staat.leerlingen.push(antwoord.leerling);
+          voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
+          tekenActieveWeergave();
+        })
+        .withFailureHandler(function (fout) {
+          staat.bezigLeerling = false;
+          toonMelding('Leerling toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          const idx = staat.leerlingen.indexOf(tempLeerling);
+          if (idx !== -1) staat.leerlingen.splice(idx, 1);
+          tekenActieveWeergave();
+        })
+        .saveLeerling(data);
+    }
+
+    function slaTaakOp(data, naSucces) {
+      // Optimistisch: taak(en) meteen lokaal toevoegen.
       const klassen = (data.klassen && data.klassen.length)
         ? data.klassen
         : [data.klas || staat.gekozenKlas];
-      const gemaakt = [];
+      const tempTaken = [];
       klassen.forEach(function (klas) {
-        const taak = {
-          id: volgendeId(staat.taken.concat(gemaakt), 'T'),
+        tempTaken.push({
+          id: '__temp_' + Date.now() + '_' + tempTaken.length,
           naam: String(data.naam || '').trim(),
           type: String(data.type || '').trim(),
           deadline: String(data.deadline || isoVandaag()),
           klas: String(klas || '').trim()
-        };
-        gemaakt.push(taak);
+        });
       });
-      console.log('[LOKAAL] saveTaak', gemaakt);
-      gemaakt.forEach(function (taak) { staat.taken.push(taak); });
-      if (naSucces) naSucces(gemaakt);
+      tempTaken.forEach(function (taak) { staat.taken.push(taak); });
+      if (naSucces) naSucces(tempTaken);
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveTaak', tempTaken);
+        return;
+      }
+
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          // Vervang tijdelijke taken door server-versies (met echte IDs).
+          const lijst = antwoord.taken || (antwoord.taak ? [antwoord.taak] : []);
+          tempTaken.forEach(function (temp) {
+            const idx = staat.taken.indexOf(temp);
+            if (idx !== -1) staat.taken.splice(idx, 1);
+          });
+          lijst.forEach(function (taak) { staat.taken.push(taak); });
+          tekenActieveWeergave();
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Taak toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          tempTaken.forEach(function (temp) {
+            const idx = staat.taken.indexOf(temp);
+            if (idx !== -1) staat.taken.splice(idx, 1);
+          });
+          tekenActieveWeergave();
+        })
+        .saveTaak(data);
     }
 
     function slaTaakWijzigingOp(id, data, naSucces) {
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak);
             if (naSucces) naSucces(antwoord.taak);
@@ -1224,7 +1292,7 @@
 
     function verwijderLeerlingOp(id, naSucces) {
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             werkLeerlingBij(antwoord.leerling);
             if (naSucces) naSucces(antwoord.leerling);
@@ -1244,7 +1312,7 @@
 
     function herstelLeerlingOp(id, naSucces) {
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             werkLeerlingBij(antwoord.leerling);
             if (naSucces) naSucces(antwoord.leerling);
@@ -1273,7 +1341,7 @@
         return;
       }
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             const n = antwoord && antwoord.aantal ? antwoord.aantal : aantal;
             haalPrullenbakWeg(ids);
@@ -1297,7 +1365,7 @@
 
     function verwijderTaakOp(id, naSucces) {
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function () {
             haalTaakWeg(id);
             if (naSucces) naSucces();
@@ -1360,7 +1428,7 @@
         if (naSucces) naSucces(bijgewerkt);
       }
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             werkLeerlingBij(antwoord.leerling);
             naKlaswijziging(antwoord.leerling);
@@ -2078,39 +2146,55 @@
       const leerling = leerlingOpId(id);
       if (!leerling) return;
       const wissen = stap !== 'reset' && stapOpvolgingGezet(leerling, stap);
-      if (isGasOmgeving()) {
-        google.script.run
-          .withSuccessHandler(function (antwoord) {
-            werkLeerlingBij(antwoord.leerling);
-            tekenActieveWeergave();
-            toonMelding(
-              stap === 'reset' ? 'Opvolging afgerond.' : (wissen ? 'Stap ongedaan gemaakt.' : 'Stap genoteerd.'),
-              'ok'
-            );
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Opvolging bijwerken mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .zetLeerlingOpvolging({ id: id, stap: stap });
-        return;
-      }
+
+      // Sla de huidige opvolgingstoestand op voor rollback bij fout.
+      const oud = {
+        opvolgingLeerlingOp: leerling.opvolgingLeerlingOp,
+        opvolgingOudersOp:   leerling.opvolgingOudersOp,
+        opvolgingNablijfOp:  leerling.opvolgingNablijfOp,
+        opvolgingResetOp:    leerling.opvolgingResetOp
+      };
+
+      // Optimistisch: pas de lokale staat meteen aan en herteken.
       const nu = nieuweTijdstempel();
       if (stap === 'reset') {
         leerling.opvolgingLeerlingOp = '';
-        leerling.opvolgingOudersOp = '';
-        leerling.opvolgingNablijfOp = '';
-        leerling.opvolgingResetOp = nu;
+        leerling.opvolgingOudersOp   = '';
+        leerling.opvolgingNablijfOp  = '';
+        leerling.opvolgingResetOp    = nu;
       } else if (wissen) {
         wisOpvolgingVanaf(leerling, stap);
       } else if (stap === 'leerling') leerling.opvolgingLeerlingOp = nu;
-      else if (stap === 'ouders') leerling.opvolgingOudersOp = nu;
-      else if (stap === 'nablijf') leerling.opvolgingNablijfOp = nu;
-      console.log('[LOKAAL] zetLeerlingOpvolging', leerling);
+      else if (stap === 'ouders')     leerling.opvolgingOudersOp   = nu;
+      else if (stap === 'nablijf')    leerling.opvolgingNablijfOp  = nu;
+
       tekenActieveWeergave();
       toonMelding(
         stap === 'reset' ? 'Opvolging afgerond.' : (wissen ? 'Stap ongedaan gemaakt.' : 'Stap genoteerd.'),
         'ok'
       );
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] zetLeerlingOpvolging', leerling);
+        return;
+      }
+
+      // Bevestig op de achtergrond; bij fout: rollback + herlaad.
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          werkLeerlingBij(antwoord.leerling);
+          tekenActieveWeergave();
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Opvolging bijwerken mislukt: ' + (fout.message || fout), 'fout');
+          // Zet de leerling terug naar de vorige toestand.
+          leerling.opvolgingLeerlingOp = oud.opvolgingLeerlingOp;
+          leerling.opvolgingOudersOp   = oud.opvolgingOudersOp;
+          leerling.opvolgingNablijfOp  = oud.opvolgingNablijfOp;
+          leerling.opvolgingResetOp    = oud.opvolgingResetOp;
+          tekenActieveWeergave();
+        })
+        .zetLeerlingOpvolging({ id: id, stap: stap });
     }
 
     function taakOpId(id) {
@@ -2166,6 +2250,9 @@
       vulKlasKeuze();
       herstelKlas();
       tekenScherm();
+      // Verberg de laadoverlay zodra de eerste data binnenkomt.
+      const overlay = document.getElementById('laad-overlay');
+      if (overlay) overlay.remove();
     }
 
     function normaliseerKlasnaam(naam) {
@@ -2322,7 +2409,7 @@
         return;
       }
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             const klas = (antwoord && antwoord.klas) || naam;
             voegKlasAanStaat(klas, (antwoord && antwoord.vak) || vak);
@@ -2386,7 +2473,7 @@
         return;
       }
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             const klas = (antwoord && antwoord.klas) || naam;
             const label = klasLabel(klas);
@@ -3374,7 +3461,7 @@
     function slaLeerlingNaamOp(id, naam, naSucces) {
       const data = { id: id, naam: naam };
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             werkLeerlingBij(antwoord.leerling);
             if (naSucces) naSucces(antwoord.leerling);
@@ -3693,7 +3780,7 @@
         berichtNablijf: document.getElementById('veld-bericht-nablijf').value
       });
       if (isGasOmgeving()) {
-        google.script.run
+        gasRun()
           .withSuccessHandler(function (antwoord) {
             staat.instellingen = normaliseerInstellingen(antwoord.instellingen);
             sluitModal();
@@ -4453,18 +4540,7 @@
     });
 
     pasTabAanScherm();
-
-    /** GAS injecteert google.script asynchroon; wacht max 3s tot het klaar is. */
-    function startNaGas(callback, poging) {
-      if (typeof google !== 'undefined' && google.script && typeof google.script.run === 'function') {
-        callback();
-      } else if ((poging || 0) < 60) {
-        setTimeout(function () { startNaGas(callback, (poging || 0) + 1); }, 50);
-      } else {
-        callback(); // na 3s: toon mockdata / foutmelding
-      }
-    }
-    startNaGas(haalDocentData);
+    haalDocentData();
   </script>
 </body>
 </html>

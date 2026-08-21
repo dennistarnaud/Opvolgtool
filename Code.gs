@@ -302,18 +302,39 @@ function serveerLeerlingPagina_(code) {
  * @return {{leerlingen: Object[], taken: Object[], registraties: Object[], klassen: Object[], instellingen: Object, webAppUrl: string}}
  */
 function getDocentData() {
-  return metScriptLock_(function () {
+  // Lezen heeft geen script-lock nodig; onderhoudstaken lopen eenmalig via initSetup_().
+  initSetup_();
+  return {
+    leerlingen: leesLeerlingen_(),
+    taken: leesTaken_().filter(function (taak) { return !isMateriaalTaak_(taak); }),
+    registraties: leesRegistraties_(),
+    klassen: leesKlassen_(),
+    instellingen: leesInstellingen_(),
+    webAppUrl: ScriptApp.getService().getUrl() || ''
+  };
+}
+
+/**
+ * Voert eenmalige setup-taken uit (codes normaliseren, kolomkoppen aanvullen).
+ * Resultaat wordt 24 uur gecacht via PropertiesService zodat elke volgende
+ * getDocentData()-aanroep meteen kan beginnen met lezen.
+ */
+function initSetup_() {
+  const props = PropertiesService.getScriptProperties();
+  const SLEUTEL = 'initSetupDatum';
+  const nu = Date.now();
+  const bewaard = Number(props.getProperty(SLEUTEL) || 0);
+  if (nu - bewaard < 24 * 60 * 60 * 1000) return; // al gedaan in de laatste 24 uur
+
+  metScriptLock_(function () {
+    // Controleer opnieuw na het verkrijgen van de lock (een ander verzoek kan al klaar zijn).
+    const bewaardNa = Number(props.getProperty(SLEUTEL) || 0);
+    if (Date.now() - bewaardNa < 24 * 60 * 60 * 1000) return;
+
     normaliseerLeerlingCodes_();
     synchroniseerKlassen_();
     zorgVoorOpvolgingKolommen_();
-    return {
-      leerlingen: leesLeerlingen_(),
-      taken: leesTaken_().filter(function (taak) { return !isMateriaalTaak_(taak); }),
-      registraties: leesRegistraties_(),
-      klassen: leesKlassen_(),
-      instellingen: leesInstellingen_(),
-      webAppUrl: ScriptApp.getService().getUrl() || ''
-    };
+    props.setProperty(SLEUTEL, String(Date.now()));
   });
 }
 
@@ -419,7 +440,6 @@ function saveLeerling(data) {
   }
 
   return metScriptLock_(function () {
-    normaliseerLeerlingCodes_();
     const leerlingen = leesLeerlingen_();
     const leerling = {
       id: volgendeId_(leerlingen, 'L'),
@@ -814,22 +834,31 @@ function wijsOpenRegistratiesToeAanKlas_(llnId, klas) {
   if (gewijzigd) bereik.setValues(rijen);
 }
 
+/** Cache per script-uitvoering zodat we de spreadsheet maar één keer openen. */
+let _cachedSpreadsheet = null;
 function getSpreadsheet_() {
+  if (_cachedSpreadsheet) return _cachedSpreadsheet;
   if (SPREADSHEET_ID) {
-    return SpreadsheetApp.openById(SPREADSHEET_ID);
+    _cachedSpreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } else {
+    const actief = SpreadsheetApp.getActiveSpreadsheet();
+    if (!actief) {
+      throw new Error('Geen spreadsheet gevonden. Koppel het script of vul SPREADSHEET_ID in.');
+    }
+    _cachedSpreadsheet = actief;
   }
-  const actief = SpreadsheetApp.getActiveSpreadsheet();
-  if (!actief) {
-    throw new Error('Geen spreadsheet gevonden. Koppel het script of vul SPREADSHEET_ID in.');
-  }
-  return actief;
+  return _cachedSpreadsheet;
 }
 
+/** Cache per sheet-naam binnen dezelfde script-uitvoering. */
+const _sheetCache = {};
 function getSheet_(naam) {
+  if (_sheetCache[naam]) return _sheetCache[naam];
   const sheet = getSpreadsheet_().getSheetByName(naam);
   if (!sheet) {
     throw new Error('Tabblad "' + naam + '" ontbreekt in de spreadsheet.');
   }
+  _sheetCache[naam] = sheet;
   return sheet;
 }
 
