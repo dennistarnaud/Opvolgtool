@@ -247,11 +247,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(b.datumTijd).localeCompare(String(a.datumTijd));
+          return String(b.deadline).localeCompare(String(a.deadline));
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(b.datumTijd).localeCompare(String(a.datumTijd));
+          return String(b.deadline).localeCompare(String(a.deadline));
         });
       }
       return lijst;
@@ -366,7 +366,7 @@
         const badge = statusBadge(reg.status);
         const groep = taakGroep(reg);
         const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
-        const meta = [formaatDatum(reg.datumTijd), reg.type].filter(Boolean).join(' · ');
+        const meta = [formaatDatum(reg.deadline), reg.type].filter(Boolean).join(' · ');
         const opmerking = reg.opmerking
           ? '<p class="text-sm text-slate-600 leading-snug">' + escapeHtml(reg.opmerking) + '</p>'
           : '';

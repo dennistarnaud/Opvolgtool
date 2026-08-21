@@ -657,6 +657,18 @@
               Annuleren
             </button>
           </div>
+
+          <div class="pt-3 border-t border-slate-100 space-y-2">
+            <p class="text-sm font-medium text-slate-800">Nieuw schooljaar</p>
+            <p class="text-sm text-slate-500 leading-snug">Verwijdert alle leerlingen, taken, klassen en registraties definitief. Instellingen blijven behouden. Typ <span class="font-semibold">Verwijder alles</span> om te bevestigen.</p>
+            <input id="veld-reset-schooljaar" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Verwijder alles"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            <button type="button" id="knop-reset-schooljaar" data-actie="reset-schooljaar" disabled
+              class="inline-flex justify-center items-center px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-700">
+              Alles verwijderen
+            </button>
+          </div>
         </form>
 
         <div id="form-prullenbak" class="hidden">
@@ -1271,101 +1283,78 @@
     }
 
     function slaTaakWijzigingOp(id, data, naSucces) {
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak);
-            if (naSucces) naSucces(antwoord.taak);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .updateTaak({
-            id: id,
-            naam: data.naam,
-            type: data.type,
-            deadline: data.deadline
-          });
-        return;
-      }
       const taak = taakOpId(id);
-      if (!taak) {
-        toonMelding('Taak niet gevonden.', 'fout');
-        return;
-      }
+      if (!taak) { toonMelding('Taak niet gevonden.', 'fout'); return; }
+      const oudNaam = taak.naam, oudType = taak.type, oudDeadline = taak.deadline;
       taak.naam = String(data.naam || '').trim();
       taak.type = String(data.type || '').trim();
       taak.deadline = String(data.deadline || '').trim();
-      console.log('[LOKAAL] updateTaak', taak);
       if (naSucces) naSucces(taak);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] updateTaak', taak); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak); })
+        .withFailureHandler(function (fout) {
+          taak.naam = oudNaam; taak.type = oudType; taak.deadline = oudDeadline;
+          tekenActieveWeergave();
+          toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateTaak({ id: id, naam: data.naam, type: data.type, deadline: data.deadline });
     }
 
     function verwijderLeerlingOp(id, naSucces) {
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            werkLeerlingBij(antwoord.leerling);
-            if (naSucces) naSucces(antwoord.leerling);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Leerling verwijderen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .deleteLeerling(id);
-        return;
-      }
       const leerling = leerlingOpId(id);
       if (!leerling) return;
+      const oudVerwijderd = leerling.verwijderdOp;
       leerling.verwijderdOp = nieuweTijdstempel();
-      console.log('[LOKAAL] deleteLeerling', leerling);
       if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.verwijderdOp = oudVerwijderd;
+          tekenActieveWeergave();
+          toonMelding('Leerling verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteLeerling(id);
     }
 
     function herstelLeerlingOp(id, naSucces) {
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            werkLeerlingBij(antwoord.leerling);
-            if (naSucces) naSucces(antwoord.leerling);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Leerling terugzetten mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .herstelLeerling(id);
-        return;
-      }
       const leerling = leerlingOpId(id);
       if (!leerling) return;
+      const oudVerwijderd = leerling.verwijderdOp;
       leerling.verwijderdOp = '';
-      console.log('[LOKAAL] herstelLeerling', leerling);
       if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] herstelLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.verwijderdOp = oudVerwijderd;
+          tekenPrullenbakLijst();
+          toonMelding('Leerling terugzetten mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .herstelLeerling(id);
     }
 
     function leegPrullenbakOp(naSucces) {
       const ids = {};
-      verwijderdeLeerlingen().forEach(function (lln) {
-        ids[lln.id] = true;
-      });
+      verwijderdeLeerlingen().forEach(function (lln) { ids[lln.id] = true; });
       const aantal = Object.keys(ids).length;
-      if (!aantal) {
-        if (naSucces) naSucces(0);
-        return;
-      }
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            const n = antwoord && antwoord.aantal ? antwoord.aantal : aantal;
-            haalPrullenbakWeg(ids);
-            if (naSucces) naSucces(n);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Prullenbak legen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .leegPrullenbak();
-        return;
-      }
-      console.log('[LOKAAL] leegPrullenbak', Object.keys(ids));
+      if (!aantal) { if (naSucces) naSucces(0); return; }
+      // Bewaar voor eventuele rollback.
+      const wegLln = staat.leerlingen.filter(function (lln) { return ids[lln.id]; });
+      const wegRegs = staat.registraties.filter(function (r) { return ids[r.llnId]; });
       haalPrullenbakWeg(ids);
       if (naSucces) naSucces(aantal);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] leegPrullenbak', Object.keys(ids)); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          wegLln.forEach(function (lln) { staat.leerlingen.push(lln); });
+          wegRegs.forEach(function (r) { staat.registraties.push(r); });
+          tekenScherm(); tekenPrullenbakLijst();
+          toonMelding('Prullenbak legen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .leegPrullenbak();
     }
 
     function haalPrullenbakWeg(ids) {
@@ -1374,21 +1363,20 @@
     }
 
     function verwijderTaakOp(id, naSucces) {
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function () {
-            haalTaakWeg(id);
-            if (naSucces) naSucces();
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Taak verwijderen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .deleteTaak(id);
-        return;
-      }
-      console.log('[LOKAAL] deleteTaak', id);
+      const wegTaken = staat.taken.filter(function (t) { return t.id === id; });
+      const wegRegs = staat.registraties.filter(function (r) { return r.taakId === id; });
       haalTaakWeg(id);
       if (naSucces) naSucces();
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteTaak', id); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          wegTaken.forEach(function (t) { staat.taken.push(t); });
+          wegRegs.forEach(function (r) { staat.registraties.push(r); });
+          tekenActieveWeergave();
+          toonMelding('Taak verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteTaak(id);
     }
 
     function haalTaakWeg(id) {
@@ -1426,34 +1414,25 @@
 
     function slaLeerlingKlasOp(id, klas, naSucces) {
       const leerling = staat.leerlingen.filter(function (lln) { return lln.id === id; })[0];
-      if (!leerling) {
-        toonMelding('Leerling niet gevonden.', 'fout');
-        return;
-      }
+      if (!leerling) { toonMelding('Leerling niet gevonden.', 'fout'); return; }
       const vorigeKlas = String(leerling.klas || '').trim();
       const geschraptIn = volgendeGeschraptIn(leerling, klas);
       const data = { id: id, klas: klas, geschraptIn: geschraptIn, klasSinds: nieuweTijdstempel() };
-      function naKlaswijziging(bijgewerkt) {
-        wijsOpenRegistratiesToeAanKlas(id, vorigeKlas);
-        if (naSucces) naSucces(bijgewerkt);
-      }
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            werkLeerlingBij(antwoord.leerling);
-            naKlaswijziging(antwoord.leerling);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Klas wijzigen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .updateLeerling(data);
-        return;
-      }
+      const oudKlas = leerling.klas, oudGeschraptIn = leerling.geschraptIn, oudKlasSinds = leerling.klasSinds;
       leerling.klas = String(klas || '').trim();
       leerling.geschraptIn = geschraptIn;
       leerling.klasSinds = data.klasSinds;
-      console.log('[LOKAAL] updateLeerling', leerling);
-      naKlaswijziging(leerling);
+      wijsOpenRegistratiesToeAanKlas(id, vorigeKlas);
+      if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] updateLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.leerling) werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.klas = oudKlas; leerling.geschraptIn = oudGeschraptIn; leerling.klasSinds = oudKlasSinds;
+          tekenActieveWeergave();
+          toonMelding('Klas wijzigen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateLeerling(data);
     }
 
     function volgendeGeschraptIn(leerling, nieuweKlas) {
@@ -2419,28 +2398,28 @@
         toonMelding('Klas ' + klasLabel(bestaand) + ' bestaat al.', 'ok');
         return;
       }
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            const klas = (antwoord && antwoord.klas) || naam;
-            voegKlasAanStaat(klas, (antwoord && antwoord.vak) || vak);
-            sluitModal();
-            vulKlasKeuze();
-            kiesKlas(klas);
-            toonMelding('Klas ' + klasLabel(klas) + ' toegevoegd.', 'ok');
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Klas toevoegen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .saveKlas({ naam: naam, vak: vak });
-        return;
-      }
       voegKlasAanStaat(naam, vak);
       sluitModal();
       vulKlasKeuze();
       kiesKlas(naam);
-      console.log('[LOKAAL] saveKlas', { naam: naam, vak: vak });
       toonMelding('Klas ' + klasLabel(naam) + ' toegevoegd.', 'ok');
+      if (!isGasOmgeving()) { console.log('[LOKAAL] saveKlas', { naam: naam, vak: vak }); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const serverKlas = antwoord && antwoord.klas;
+          if (serverKlas && serverKlas !== naam) {
+            voegKlasAanStaat(serverKlas, antwoord.vak || vak);
+            vulKlasKeuze(); kiesKlas(serverKlas);
+          }
+        })
+        .withFailureHandler(function (fout) {
+          staat.klassen = staat.klassen.filter(function (k) {
+            return klasNaamVan(k).toUpperCase() !== naam.toUpperCase();
+          });
+          vulKlasKeuze(); tekenScherm();
+          toonMelding('Klas toevoegen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .saveKlas({ naam: naam, vak: vak });
     }
 
     function vraagKlasVerwijderen(klas) {
@@ -2483,30 +2462,24 @@
         toonMelding('Typ ' + naam + ' om te bevestigen.', 'fout');
         return;
       }
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            const klas = (antwoord && antwoord.klas) || naam;
-            const label = klasLabel(klas);
-            verwijderKlasLokaal(klas);
-            sluitModal();
-            vulKlasKeuze();
-            tekenScherm();
-            toonMelding('Klas ' + label + ' verwijderd.', 'ok');
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Klas verwijderen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .deleteKlas(naam);
-        return;
-      }
       const label = klasLabel(naam);
+      const oudKlassen = staat.klassen.slice();
+      const oudTaken = staat.taken.slice();
+      const oudRegistraties = staat.registraties.slice();
       verwijderKlasLokaal(naam);
       sluitModal();
       vulKlasKeuze();
       tekenScherm();
-      console.log('[LOKAAL] deleteKlas', naam);
       toonMelding('Klas ' + label + ' verwijderd.', 'ok');
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteKlas', naam); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          staat.klassen = oudKlassen; staat.taken = oudTaken; staat.registraties = oudRegistraties;
+          vulKlasKeuze(); tekenScherm();
+          toonMelding('Klas verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteKlas(naam);
     }
 
     function verwijderKlasLokaal(klas) {
@@ -3870,6 +3843,12 @@
       knop.disabled = String(veld.value || '').trim() !== 'Leegmaken';
     }
 
+    function zetResetSchooljaarKnop() {
+      const veld = document.getElementById('veld-reset-schooljaar');
+      const knop = document.getElementById('knop-reset-schooljaar');
+      knop.disabled = String(veld.value || '').trim() !== 'Verwijder alles';
+    }
+
     function bevestigPrullenbakLegen() {
       const veld = document.getElementById('veld-prullenbak-legen');
       if (String(veld.value || '').trim() !== 'Leegmaken') {
@@ -3885,6 +3864,50 @@
         tekenPrullenbakLijst();
         toonMelding(n === 1 ? '1 leerling definitief verwijderd.' : n + ' leerlingen definitief verwijderd.', 'ok');
       });
+    }
+
+    function bevestigResetSchooljaar() {
+      const veld = document.getElementById('veld-reset-schooljaar');
+      if (String(veld.value || '').trim() !== 'Verwijder alles') {
+        toonMelding('Typ Verwijder alles om te bevestigen.', 'fout');
+        return;
+      }
+      const knop = document.getElementById('knop-reset-schooljaar');
+      knop.disabled = true;
+      if (isGasOmgeving()) {
+        gasRun()
+          .withSuccessHandler(function () {
+            staat.leerlingen = [];
+            staat.taken = [];
+            staat.registraties = [];
+            staat.klassen = [];
+            staat.gekozenKlas = '';
+            veld.value = '';
+            zetResetSchooljaarKnop();
+            sluitModal();
+            vulKlasKeuze();
+            tekenScherm();
+            toonMelding('Alle leerlingen, taken en klassen zijn verwijderd.', 'ok');
+          })
+          .withFailureHandler(function (fout) {
+            knop.disabled = false;
+            toonMelding('Verwijderen mislukt: ' + (fout && fout.message ? fout.message : fout), 'fout');
+          })
+          .resetSchooljaar();
+        return;
+      }
+      // Lokaal (mockdata)
+      staat.leerlingen = [];
+      staat.taken = [];
+      staat.registraties = [];
+      staat.klassen = [];
+      staat.gekozenKlas = '';
+      veld.value = '';
+      zetResetSchooljaarKnop();
+      sluitModal();
+      vulKlasKeuze();
+      tekenScherm();
+      toonMelding('Alle leerlingen, taken en klassen zijn verwijderd.', 'ok');
     }
 
     function zetLeerlingTerug(id) {
@@ -4469,6 +4492,12 @@
       event.preventDefault();
       bevestigPrullenbakLegen();
     });
+    document.getElementById('veld-reset-schooljaar').addEventListener('input', zetResetSchooljaarKnop);
+    document.getElementById('veld-reset-schooljaar').addEventListener('keydown', function (event) {
+      if (String(event.key || '').toLowerCase() !== 'enter') return;
+      event.preventDefault();
+      bevestigResetSchooljaar();
+    });
     document.getElementById('veld-klas-verwijderen').addEventListener('input', zetKlasVerwijderKnop);
     document.getElementById('veld-klas-verwijderen').addEventListener('keydown', function (event) {
       if (String(event.key || '').toLowerCase() !== 'enter') return;
@@ -4525,6 +4554,7 @@
       else if (actie === 'prullenbak-openen') openPrullenbak();
       else if (actie === 'instellingen-openen') openInstellingen();
       else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
+      else if (actie === 'reset-schooljaar') bevestigResetSchooljaar();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
       else if (actie === 'klas-nieuw') openNieuweKlasModal();
       else if (actie === 'klas-verwijderen') vraagKlasVerwijderen(doel.getAttribute('data-klas'));

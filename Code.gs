@@ -277,11 +277,18 @@ function emailHeeftDocentToegang_(email) {
  * Gebruik bij elke server-side functie die docent-data leest of schrijft.
  */
 function assertDocentToegang_() {
+  // Resultaat cachen per script-uitvoering: Session/ScriptApp-aanroepen kosten ~200ms elk.
+  if (_docentToegangBevestigd === true) return;
+  if (_docentToegangBevestigd === false) {
+    throw new Error('Geen docenttoegang. Meld je aan met een bevoegd account.');
+  }
+
   // Laag 1: blokkeer docent-aanroepen op de leerling-implementatie.
   const leerlingUrl = String(LEERLING_IMPLEMENTATIE_URL || '').trim();
   if (leerlingUrl) {
     const huidigeUrl = String(ScriptApp.getService().getUrl() || '').trim();
     if (huidigeUrl === leerlingUrl) {
+      _docentToegangBevestigd = false;
       throw new Error('Deze functie is niet beschikbaar op de leerling-implementatie.');
     }
   }
@@ -289,8 +296,10 @@ function assertDocentToegang_() {
   // Laag 2: controleer het e-mailadres van de actieve gebruiker.
   const email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
   if (!emailHeeftDocentToegang_(email)) {
+    _docentToegangBevestigd = false;
     throw new Error('Geen docenttoegang. Meld je aan met een bevoegd account.');
   }
+  _docentToegangBevestigd = true;
 }
 
 /**
@@ -319,8 +328,8 @@ function serveerLeerlingPagina_(code) {
   const leerling = zoekLeerlingOpCode_(code);
   if (!leerling) {
     return htmlFout_(
-      'Ongeldige code',
-      'Er is geen leerling gekoppeld aan deze link. Vraag een nieuwe code aan je leerkracht.'
+      'Link niet herkend',
+      'Deze link is niet geldig of verlopen. Controleer of je de juiste link gebruikt.'
     );
   }
 
@@ -363,22 +372,23 @@ function getDocentData() {
  * getDocentData()-aanroep meteen kan beginnen met lezen.
  */
 function initSetup_() {
-  const props = PropertiesService.getScriptProperties();
-  const SLEUTEL = 'initSetupDatum';
-  const nu = Date.now();
-  const bewaard = Number(props.getProperty(SLEUTEL) || 0);
-  if (nu - bewaard < 24 * 60 * 60 * 1000) return; // al gedaan in de laatste 24 uur
+  // CacheService (in-memory) is veel sneller dan PropertiesService (disk).
+  const cache = CacheService.getScriptCache();
+  const SLEUTEL = 'initSetupGedaan';
+  if (cache.get(SLEUTEL)) return; // al gedaan in de laatste 6 uur
 
-  metScriptLock_(function () {
-    // Controleer opnieuw na het verkrijgen van de lock (een ander verzoek kan al klaar zijn).
-    const bewaardNa = Number(props.getProperty(SLEUTEL) || 0);
-    if (Date.now() - bewaardNa < 24 * 60 * 60 * 1000) return;
-
+  // tryLock(200): als een ander verzoek de lock al heeft, sla setup over (wordt straks gedaan).
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(200)) return;
+  try {
+    if (cache.get(SLEUTEL)) return; // tweede check na lock
     normaliseerLeerlingCodes_();
     synchroniseerKlassen_();
     zorgVoorOpvolgingKolommen_();
-    props.setProperty(SLEUTEL, String(Date.now()));
-  });
+    cache.put(SLEUTEL, '1', 6 * 3600); // 6 uur geldig
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
@@ -777,6 +787,28 @@ function leegPrullenbak() {
 }
 
 /**
+ * Reset alles voor een nieuw schooljaar:
+ *  - Wist alle leerlingen (inclusief geschrapte), registraties, taken en klassen.
+ *  - Behoudt de instellingen (berichten, drempel, …).
+ *  - Reset de initSetup_-cache zodat onderhoudstaken bij de volgende load opnieuw lopen.
+ * @return {{ok: boolean}}
+ */
+function resetSchooljaar() {
+  assertDocentToegang_();
+  const tabNamen = [TAB_LEERLINGEN, TAB_TAKEN, TAB_REGISTRATIES, TAB_KLASSEN];
+  tabNamen.forEach(function (naam) {
+    const sheet = getSheet_(naam);
+    const aantalRijen = sheet.getLastRow();
+    if (aantalRijen > 1) {
+      sheet.deleteRows(2, aantalRijen - 1);
+    }
+  });
+  // Wis initSetup_-cache zodat setup bij de volgende load opnieuw loopt.
+  CacheService.getScriptCache().remove('initSetupGedaan');
+  return { ok: true };
+}
+
+/**
  * Verwijdert een taak en bijhorende registraties.
  * @param {string} id
  * @return {{ok: boolean, id: string}}
@@ -800,16 +832,14 @@ function deleteTaak(id) {
  */
 function saveKlas(data) {
   assertDocentToegang_();
-  return metScriptLock_(function () {
-    const naam = typeof data === 'string' ? data : (data && data.naam);
-    const vak = typeof data === 'string' ? '' : (data && data.vak);
-    const klas = normaliseerKlasnaam_(naam);
-    const vakNaam = normaliseerVaknaam_(vak);
-    if (!klas) throw new Error('Klasnaam is verplicht.');
-    if (!vakNaam) throw new Error('Vak is verplicht.');
-    voegKlasToeAlsNieuw_(klas, vakNaam);
-    return { ok: true, klas: bestaandeKlasnaam_(klas) || klas, vak: vakNaam };
-  });
+  const naam = typeof data === 'string' ? data : (data && data.naam);
+  const vak = typeof data === 'string' ? '' : (data && data.vak);
+  const klas = normaliseerKlasnaam_(naam);
+  const vakNaam = normaliseerVaknaam_(vak);
+  if (!klas) throw new Error('Klasnaam is verplicht.');
+  if (!vakNaam) throw new Error('Vak is verplicht.');
+  voegKlasToeAlsNieuw_(klas, vakNaam);
+  return { ok: true, klas: bestaandeKlasnaam_(klas) || klas, vak: vakNaam };
 }
 
 /**
@@ -820,32 +850,30 @@ function saveKlas(data) {
  */
 function deleteKlas(naam) {
   assertDocentToegang_();
-  return metScriptLock_(function () {
-    const klas = bestaandeKlasnaam_(naam);
-    if (!klas) throw new Error('Klas niet gevonden.');
+  const klas = bestaandeKlasnaam_(naam);
+  if (!klas) throw new Error('Klas niet gevonden.');
 
-    const bezet = [];
-    leesLeerlingen_().forEach(function (lln) {
-      if (String(lln.klas || '').trim() === klas) bezet.push(lln);
-    });
-    if (bezet.length) {
-      throw new Error('Verplaats of verwijder eerst alle leerlingen van ' + klas + ' (ook in de prullenbak).');
-    }
-
-    const taakIds = {};
-    let aantalTaken = 0;
-    leesTaken_().forEach(function (taak) {
-      if (String(taak.klas || '').trim() === klas) {
-        taakIds[taak.id] = true;
-        aantalTaken += 1;
-      }
-    });
-    if (aantalTaken) vervangSheetZonderIds_(TAB_TAKEN, 0, taakIds);
-    verwijderRegistratiesVoorKlas_(klas, taakIds);
-    verwijderKlasUitGeschraptIn_(klas);
-    verwijderKlasnaam_(klas);
-    return { ok: true, klas: klas, taken: aantalTaken };
+  const bezet = [];
+  leesLeerlingen_().forEach(function (lln) {
+    if (String(lln.klas || '').trim() === klas) bezet.push(lln);
   });
+  if (bezet.length) {
+    throw new Error('Verplaats of verwijder eerst alle leerlingen van ' + klas + ' (ook in de prullenbak).');
+  }
+
+  const taakIds = {};
+  let aantalTaken = 0;
+  leesTaken_().forEach(function (taak) {
+    if (String(taak.klas || '').trim() === klas) {
+      taakIds[taak.id] = true;
+      aantalTaken += 1;
+    }
+  });
+  if (aantalTaken) vervangSheetZonderIds_(TAB_TAKEN, 0, taakIds);
+  verwijderRegistratiesVoorKlas_(klas, taakIds);
+  verwijderKlasUitGeschraptIn_(klas);
+  verwijderKlasnaam_(klas);
+  return { ok: true, klas: klas, taken: aantalTaken };
 }
 
 // ---------------------------------------------------------------------------
@@ -889,6 +917,12 @@ function wijsOpenRegistratiesToeAanKlas_(llnId, klas) {
   }
   if (gewijzigd) bereik.setValues(rijen);
 }
+
+/**
+ * Per script-uitvoering: sla op of assertDocentToegang_ al geslaagd is.
+ * Elke GAS-aanroep start een nieuwe uitvoering met een verse waarde (null).
+ */
+let _docentToegangBevestigd = null;
 
 /** Cache per script-uitvoering zodat we de spreadsheet maar één keer openen. */
 let _cachedSpreadsheet = null;
@@ -1460,14 +1494,20 @@ function verwijderRijOpId_(sheetNaam, id) {
 }
 
 function verwijderRegistratiesOpKolom_(kolomIndex, id) {
+  // Bulk rewrite in plaats van rij-per-rij deleteRow — elke deleteRow is een aparte API-call.
   const sheet = getSheet_(TAB_REGISTRATIES);
   const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
   const gezocht = String(id || '').trim();
-  for (let i = rijen.length - 1; i >= 1; i--) {
-    if (String(rijen[i][kolomIndex] || '').trim() === gezocht) {
-      sheet.deleteRow(i + 1);
-    }
+  const over = [rijen[0]];
+  for (let i = 1; i < rijen.length; i++) {
+    if (String(rijen[i][kolomIndex] || '').trim() === gezocht) continue;
+    over.push(rijen[i]);
   }
+  if (over.length === rijen.length) return;
+  const kolommen = rijen[0].length;
+  sheet.getRange(1, 1, rijen.length, kolommen).clearContent();
+  sheet.getRange(1, 1, over.length, over[0].length).setValues(over);
 }
 
 function htmlFout_(titel, bericht) {
