@@ -416,6 +416,17 @@
     });
     document.getElementById('knop-filter-wissen').addEventListener('click', wisFilters);
 
+    // Stuur de werkelijke paginahoogte naar de embedder na elke render,
+    // zodat de iframe-hoogte automatisch meeschaalt (ook op smartphones).
+    function stuurHoogte() {
+      if (window.parent === window) return; // Niet ingesloten — niets doen.
+      var hoogte = document.documentElement.scrollHeight;
+      window.parent.postMessage({ type: 'opvolgtool-hoogte', hoogte: hoogte }, '*');
+    }
+    // Observeer DOM-wijzigingen zodat hoogte altijd up-to-date is.
+    new MutationObserver(stuurHoogte).observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('resize', stuurHoogte);
+
     haalLeerlingData();
   </script>
 </body>

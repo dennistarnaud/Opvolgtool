@@ -3613,7 +3613,23 @@
     function leerlingIframeHtml(code) {
       const src = leerlingUrl(code);
       if (!src) return '';
-      return '<iframe src="' + src + '" width="100%" height="720" style="border:0;" title="Opvolging leerkansen"></iframe>';
+      // Wrapper beperkt breedte tot de content-breedte (max-w-lg = 520 px).
+      // Het script past de iframe-hoogte aan via postMessage vanuit de leerlingpagina.
+      const id = 'opvolgtool-' + code.toLowerCase();
+      return (
+        '<div style="width:100%;max-width:520px;">\n' +
+        '  <iframe id="' + id + '" src="' + src + '" width="100%" height="480"\n' +
+        '    style="border:0;border-radius:12px;display:block;" title="Opvolging leerkansen"\n' +
+        '    loading="lazy"></iframe>\n' +
+        '</div>\n' +
+        '<script>\n' +
+        '  window.addEventListener("message",function(e){\n' +
+        '    if(!e.data||e.data.type!=="opvolgtool-hoogte")return;\n' +
+        '    var f=document.getElementById("' + id + '");\n' +
+        '    if(f)f.height=e.data.hoogte;\n' +
+        '  });\n' +
+        '<\\/script>'
+      );
     }
 
     function webAppBasisUrl() {
@@ -4363,10 +4379,7 @@
       const cellen = staat.selectie && staat.selectie.length
         ? staat.selectie
         : (staat.geselecteerd ? [staat.geselecteerd] : []);
-      if (!cellen.length) {
-        toonMelding('Selecteer eerst een vakje, daarna 1–5.', 'fout');
-        return;
-      }
+      if (!cellen.length) return;
       const leeg = !status;
       cellen.forEach(function (cel) {
         const vorige = laatsteRegistratieVoorKlas(leerlingOpId(cel.llnId), taakOpId(cel.taakId), staat.gekozenKlas);
@@ -4436,7 +4449,10 @@
 
     function onKruisToets(event) {
       if (staat.actieveTab !== 'kruistabel' || !staat.gekozenKlas) return;
-      const tag = ((event.target && event.target.tagName) || '').toLowerCase();
+      // Gebruik activeElement (niet event.target): na een re-render kan event.target <body> zijn
+      // terwijl de gebruiker gewoon aan het typen is in het leerlinginputveld.
+      const actief = document.activeElement;
+      const tag = ((actief && actief.tagName) || '').toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
       if (modalOpen()) {
         if (String(event.key || '').toLowerCase() === 'escape') sluitModal();
@@ -4560,6 +4576,12 @@
       else if (actie === 'klas-verwijderen') vraagKlasVerwijderen(doel.getAttribute('data-klas'));
       else if (actie === 'klas-verwijderen-bevestigen') bevestigKlasVerwijderen();
       else if (actie === 'modal-sluiten') sluitModal();
+
+      // Geef focus terug na een knopklik buiten een modal, zodat de kruistabel
+      // direct bruikbaar blijft en knoppen geen focus-ring blijven tonen.
+      if (doel.tagName === 'BUTTON' && !doel.closest('[role="dialog"]')) {
+        doel.blur();
+      }
     });
     document.addEventListener('keydown', function (event) {
       if (!modalOpen() || String(event.key || '').toLowerCase() !== 'escape') return;
@@ -4585,6 +4607,7 @@
         openNieuweKlasModal();
         return;
       }
+      event.target.blur();
       kiesKlas(waarde);
     });
     document.getElementById('tab-leerling').addEventListener('click', function () { wisselTab('leerling'); });
