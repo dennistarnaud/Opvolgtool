@@ -36,25 +36,31 @@ const DREMPEL_MAX = 6;
 const BERICHT_MAX = 4000;
 const DEFAULT_BERICHT_LEERLING =
   'Hallo {voornaam},\n\n' +
-  'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+  'Ik zie dat er meerdere opdrachten zijn die je nog in orde moet brengen:\n\n' +
   '{taken}\n\n' +
-  'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
-  'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
-  'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we samen kunnen kijken.\n\n' +
+  'Omdat het intussen al {drempel} keer is dat een opdracht niet (of te laat) gemaakt werd, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+  'Ik verwacht dan ook dat je deze lijst met opdrachten volledig afwerkt tegen de eerstvolgende les.\n\n' +
+  'Om te vermijden dat we tijdens de les tijd verliezen aan de controle, vraag ik je om een duidelijke foto van al het gemaakte werk te uploaden in de uploadzone. Je doet dat in de uploadmap met als naam \'Opdrachten inhalen\'.\n\n' +
+  'Ik reken erop dat dit tegen de volgende les volledig in orde is.\n\n' +
   'Met vriendelijke groeten';
 const DEFAULT_BERICHT_OUDERS =
-  'Beste ouder(s) van {naam},\n\n' +
-  'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+  'Beste ouders,\n\n' +
+  'Via dit bericht wil ik u even op de hoogte brengen van de openstaande opdrachten van {voornaam}.\n\n' +
+  'Hoewel ik {voornaam} hierover al persoonlijk heb aangesproken en er duidelijke afspraken zijn gemaakt, stelde ik vast dat de volgende opdrachten nog steeds niet zijn ingeleverd:\n\n' +
   '{taken}\n\n' +
-  'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
-  'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
-  'Met vriendelijke groeten';
+  'Omdat we willen vermijden dat de achterstand groter wordt, vraag ik om dit samen met {voornaam} mee op te volgen en ervoor te zorgen dat deze opdrachten alsnog zo snel mogelijk afgewerkt worden. Zodra het werk klaar is, kan {voornaam} hiervan een duidelijke foto uploaden in de uploadmap \'Opdrachten inhalen\'.\n\n' +
+  'U kunt de actuele status van alle taken, opdrachten en remediëringen overigens steeds zelf raadplegen via ons leerlingenvolgsysteem.\n\n' +
+  'Alvast bedankt voor uw medewerking en ondersteuning thuis.\n\n' +
+  'Met vriendelijke groeten,';
 const DEFAULT_BERICHT_NABLIJF =
-  'Beste ouder(s) van {naam},\n\n' +
-  'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+  'Onderwerp: Verplichte avondstudie openstaande opdrachten {voornaam}\n\n' +
+  'Beste ouders,\n\n' +
+  'Ondanks eerdere herinneringen en ons vorig contact over de openstaande schoolopdrachten, stelde ik vast dat {voornaam} de volgende taken nog steeds niet in orde heeft gebracht:\n\n' +
   '{taken}\n\n' +
-  '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
-  'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+  'Omdat het belangrijk is dat deze achterstand nu definitief wordt weggewerkt, is {voornaam} ingeschreven voor de avondstudie op {datum} van 16.00u tot 17.00u.\n\n' +
+  'We verwachten dat {voornaam} daar aanwezig is, om onder toezicht aan deze opdrachten te werken en ze af te ronden. Gelieve ervoor te zorgen dat {voornaam} het nodige lesmateriaal meeneemt om zelfstandig aan de slag te kunnen.\n\n' +
+  'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
+  'Bedankt voor uw medewerking.\n\n' +
   'Met vriendelijke groeten';
 const OUD_BERICHT_LEERLING = [
   'Hallo {voornaam},\n\n' +
@@ -66,20 +72,48 @@ const OUD_BERICHT_LEERLING = [
   'Voor {klas} zijn er nog taken of afspraken die niet in orde zijn:\n\n' +
   '{taken}\n\n' +
   'Breng die tegen de volgende les in orde. Lukt dat niet of is iets onduidelijk, laat het me dan tijdig weten.\n\n' +
-  'Dankjewel'
+  'Dankjewel',
+  'Hallo {voornaam},\n\n' +
+  'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+  '{taken}\n\n' +
+  'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+  'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+  'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we samen kunnen kijken.\n\n' +
+  'Met vriendelijke groeten',
+  'Hallo {voornaam},\n\n' +
+  'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+  '{taken}\n\n' +
+  'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+  'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+  'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we dit samen kunnen bekijken.\n\n' +
+  'Met vriendelijke groeten'
 ];
-const OUD_BERICHT_OUDERS =
+const OUD_BERICHT_OUDERS = [
   'Beste ouder(s) van {naam},\n\n' +
   '{voornaam} heeft meerdere taken die niet in orde zijn:\n' +
   '{taken}\n\n' +
   'Ik heb {voornaam} gevraagd dit tegen de volgende les in te halen. Kan u dit thuis mee opvolgen?\n\n' +
-  'Met vriendelijke groeten';
-const OUD_BERICHT_NABLIJF =
+  'Met vriendelijke groeten',
+  'Beste ouder(s) van {naam},\n\n' +
+  'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+  '{taken}\n\n' +
+  'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
+  'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
+  'Met vriendelijke groeten'
+];
+const OUD_BERICHT_NABLIJF = [
   'Beste ouder(s) van {naam},\n\n' +
   'De openstaande taken zijn nog niet in orde:\n' +
   '{taken}\n\n' +
   '{voornaam} wordt ingeschreven voor nablijfstudie om dit in te halen.\n\n' +
-  'Met vriendelijke groeten';
+  'Met vriendelijke groeten',
+  'Beste ouder(s) van {naam},\n\n' +
+  'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+  '{taken}\n\n' +
+  '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
+  'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+  'Met vriendelijke groeten'
+];
 
 /**
  * Leeg laten als dit script aan de spreadsheet gekoppeld is (gebonden script).

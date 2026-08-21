@@ -536,7 +536,7 @@
               </div>
               <div class="flex items-center gap-0.5 shrink-0">
                 <button type="button" id="knop-opvolging-bericht" data-actie="opvolging-bericht"
-                  class="hidden shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100">
+                  class="hidden shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed">
                   E-mail
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
                 </button>
@@ -549,6 +549,10 @@
                 </button>
               </div>
             </div>
+            <label id="fiche-avondstudie-datum-wrap" class="hidden mt-2 block">
+              <span class="text-[11px] font-semibold text-amber-950">Datum avondstudie</span>
+              <input id="veld-avondstudie-datum" type="date" class="veld-avondstudie-datum mt-1 w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </label>
             <div id="fiche-opvolging-stappen" class="mt-2 grid grid-cols-3 gap-1.5"></div>
           </div>
           <div class="filter-wrap mt-3">
@@ -620,7 +624,7 @@
           </label>
           <div class="space-y-3 pt-1 border-t border-slate-100">
             <p class="text-sm font-medium text-slate-800">Standaardberichten</p>
-            <p class="text-[12px] text-slate-500 leading-snug">Bij elke opvolgstap kopieer je dit naar het klembord. Plaatsaanduidingen: <span class="font-mono text-[11px]">{voornaam}</span> <span class="font-mono text-[11px]">{naam}</span> <span class="font-mono text-[11px]">{taken}</span> <span class="font-mono text-[11px]">{klas}</span> <span class="font-mono text-[11px]">{drempel}</span></p>
+            <p class="text-[12px] text-slate-500 leading-snug">Bij elke opvolgstap kopieer je dit naar het klembord. Plaatsaanduidingen: <span class="font-mono text-[11px]">{voornaam}</span> <span class="font-mono text-[11px]">{naam}</span> <span class="font-mono text-[11px]">{taken}</span> <span class="font-mono text-[11px]">{klas}</span> <span class="font-mono text-[11px]">{drempel}</span> <span class="font-mono text-[11px]">{datum}</span></p>
             <label class="block">
               <span class="text-sm font-medium text-slate-700">Stap 1 · naar de leerling</span>
               <textarea id="veld-bericht-leerling" rows="5" maxlength="4000"
@@ -632,7 +636,7 @@
                 class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
             </label>
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">Stap 3 · opnieuw naar de ouders</span>
+              <span class="text-sm font-medium text-slate-700">Stap 3 · avondstudie, naar de ouders</span>
               <textarea id="veld-bericht-nablijf" rows="5" maxlength="4000"
                 class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
             </label>
@@ -869,25 +873,31 @@
       opvolgingDrempel: 3,
       berichtLeerling:
         'Hallo {voornaam},\n\n' +
-        'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+        'Ik zie dat er meerdere opdrachten zijn die je nog in orde moet brengen:\n\n' +
         '{taken}\n\n' +
-        'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
-        'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
-        'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we dit samen kunnen bekijken.\n\n' +
+        'Omdat het intussen al {drempel} keer is dat een opdracht niet (of te laat) gemaakt werd, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+        'Ik verwacht dan ook dat je deze lijst met opdrachten volledig afwerkt tegen de eerstvolgende les.\n\n' +
+        'Om te vermijden dat we tijdens de les tijd verliezen aan de controle, vraag ik je om een duidelijke foto van al het gemaakte werk te uploaden in de uploadzone. Je doet dat in de uploadmap met als naam \'Opdrachten inhalen\'.\n\n' +
+        'Ik reken erop dat dit tegen de volgende les volledig in orde is.\n\n' +
         'Met vriendelijke groeten',
       berichtOuders:
-        'Beste ouder(s) van {naam},\n\n' +
-        'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+        'Beste ouders van {voornaam},\n\n' +
+        'Via dit bericht wil ik u even op de hoogte brengen van de openstaande opdrachten van {voornaam}.\n\n' +
+        'Hoewel ik {voornaam} hierover al persoonlijk heb aangesproken en er duidelijke afspraken zijn gemaakt, stelde ik vast dat de volgende opdrachten nog steeds niet zijn ingeleverd:\n\n' +
         '{taken}\n\n' +
-        'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
-        'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
+        'Omdat we willen vermijden dat de achterstand groter wordt, vraag ik om dit samen met {voornaam} mee op te volgen en ervoor te zorgen dat deze opdrachten alsnog zo snel mogelijk afgewerkt worden. Zodra het werk klaar is, kan {voornaam} hiervan een duidelijke foto uploaden in de uploadmap \'Opdrachten inhalen\'.\n\n' +
+        'U kunt de actuele status van alle taken, opdrachten en remediëringen overigens steeds zelf raadplegen via ons leerlingenvolgsysteem.\n\n' +
+        'Alvast bedankt voor uw medewerking en ondersteuning thuis.\n\n' +
         'Met vriendelijke groeten',
       berichtNablijf:
-        'Beste ouder(s) van {naam},\n\n' +
-        'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+        'Onderwerp: Verplichte avondstudie openstaande opdrachten {voornaam}\n\n' +
+        'Beste ouders van {voornaam},\n\n' +
+        'Ondanks eerdere herinneringen en ons vorig contact over de openstaande schoolopdrachten, stelde ik vast dat {voornaam} de volgende taken nog steeds niet in orde heeft gebracht:\n\n' +
         '{taken}\n\n' +
-        '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
-        'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+        'Omdat het belangrijk is dat deze achterstand nu definitief wordt weggewerkt, is {voornaam} ingeschreven voor de avondstudie op {datum} van 16.00u tot 17.00u.\n\n' +
+        'We verwachten dat {voornaam} daar aanwezig is, om onder toezicht aan deze opdrachten te werken en ze af te ronden. Gelieve ervoor te zorgen dat {voornaam} het nodige lesmateriaal meeneemt om zelfstandig aan de slag te kunnen.\n\n' +
+        'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
+        'Bedankt voor uw medewerking.\n\n' +
         'Met vriendelijke groeten'
     };
     const OUD_BERICHT_LEERLING = [
@@ -900,20 +910,48 @@
       'Voor {klas} zijn er nog taken of afspraken die niet in orde zijn:\n\n' +
       '{taken}\n\n' +
       'Breng die tegen de volgende les in orde. Lukt dat niet of is iets onduidelijk, laat het me dan tijdig weten.\n\n' +
-      'Dankjewel'
+      'Dankjewel',
+      'Hallo {voornaam},\n\n' +
+      'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+      '{taken}\n\n' +
+      'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+      'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+      'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we samen kunnen kijken.\n\n' +
+      'Met vriendelijke groeten',
+      'Hallo {voornaam},\n\n' +
+      'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+      '{taken}\n\n' +
+      'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+      'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+      'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we dit samen kunnen bekijken.\n\n' +
+      'Met vriendelijke groeten'
     ];
-    const OUD_BERICHT_OUDERS =
+    const OUD_BERICHT_OUDERS = [
       'Beste ouder(s) van {naam},\n\n' +
       '{voornaam} heeft meerdere taken die niet in orde zijn:\n' +
       '{taken}\n\n' +
       'Ik heb {voornaam} gevraagd dit tegen de volgende les in te halen. Kan u dit thuis mee opvolgen?\n\n' +
-      'Met vriendelijke groeten';
-    const OUD_BERICHT_NABLIJF =
+      'Met vriendelijke groeten',
+      'Beste ouder(s) van {naam},\n\n' +
+      'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+      '{taken}\n\n' +
+      'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
+      'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
+      'Met vriendelijke groeten'
+    ];
+    const OUD_BERICHT_NABLIJF = [
       'Beste ouder(s) van {naam},\n\n' +
       'De openstaande taken zijn nog niet in orde:\n' +
       '{taken}\n\n' +
       '{voornaam} wordt ingeschreven voor nablijfstudie om dit in te halen.\n\n' +
-      'Met vriendelijke groeten';
+      'Met vriendelijke groeten',
+      'Beste ouder(s) van {naam},\n\n' +
+      'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+      '{taken}\n\n' +
+      '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
+      'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+      'Met vriendelijke groeten'
+    ];
     const BERICHT_MAX = 4000;
     const GROEP_KLEUR = {
       huiswerk: 'bg-sky-400',
@@ -952,6 +990,7 @@
       sleepVerplaatst: false,
       sortering: 'datum',
       groepFilters: [],
+      avondstudieDatum: '',
       modalTopVast: false,
       modal: null,
       naLeerling: null,
@@ -1659,7 +1698,7 @@
       const titel = {
         leerling: 'Leerling laten weten: taken inhalen tegen de volgende les',
         ouders: 'Bericht naar de ouders',
-        nablijf: 'Nablijfstudie',
+        nablijf: 'Avondstudie',
         reset: 'Opvolging afronden'
       }[stap];
       return '<span class="opvolg-sein" title="' + escapeAttr(titel) + '">' + opvolgIcoonSvg(stap, 14) + '</span>';
@@ -1667,7 +1706,7 @@
 
     function opvolgStapLabel(stap) {
       if (stap === 'ouders') return 'Ouders';
-      if (stap === 'nablijf') return 'Nablijf';
+      if (stap === 'nablijf') return 'Avondstudie';
       return 'Leerling';
     }
 
@@ -1712,7 +1751,7 @@
       const stappen = [
         { id: 'leerling', uitleg: 'Laten weten: taken inhalen tegen de volgende les' },
         { id: 'ouders', uitleg: 'Bericht naar de ouders' },
-        { id: 'nablijf', uitleg: 'Nablijfstudie — opnieuw bericht naar de ouders' }
+        { id: 'nablijf', uitleg: 'Avondstudie — opnieuw bericht naar de ouders' }
       ];
       return stappen.map(function (stap) {
         const klaar = !!o[stap.id];
@@ -1736,9 +1775,12 @@
     function htmlOpvolgKopieerKnop(leerling) {
       const stap = opvolgActieNodig(leerling);
       if (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') return '';
-      const label = stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren';
-      return '<button type="button" class="shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" ' +
+      const mag = kopieerBerichtMag(stap);
+      const label = !mag ? 'Kies eerst de datum van de avondstudie'
+        : (stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren');
+      return '<button type="button" class="shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed" ' +
         'data-actie="opvolging-bericht" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
+        (mag ? '' : 'disabled ') +
         'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
         'E-mail' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>' +
@@ -1759,11 +1801,14 @@
       const tonen = stap === 'leerling' || stap === 'ouders' || stap === 'nablijf';
       knop.classList.toggle('hidden', !tonen);
       if (!tonen) return;
-      const label = stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren';
+      const mag = kopieerBerichtMag(stap);
+      const label = !mag ? 'Kies eerst de datum van de avondstudie'
+        : (stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren');
       knop.setAttribute('data-id', leerling.id);
       knop.setAttribute('data-stap', stap);
       knop.setAttribute('title', label);
       knop.setAttribute('aria-label', label);
+      knop.disabled = !mag;
     }
 
     function openstaandeTakenTekst(lln) {
@@ -1786,23 +1831,112 @@
       return inst.berichtLeerling || DEFAULT_OPVOLGING.berichtLeerling;
     }
 
-    function vulOpvolgBericht(sjabloon, lln) {
+    function berichtVraagtDatum(stap) {
+      return stap === 'nablijf' && /\{datum(\/dag)?\}/.test(opvolgBerichtSjabloon('nablijf'));
+    }
+
+    function isIsoDatum(waarde) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(String(waarde || '').trim());
+    }
+
+    function leesAvondstudieDatum() {
+      if (isIsoDatum(staat.avondstudieDatum)) return staat.avondstudieDatum;
+      try {
+        const ruw = sessionStorage.getItem('opvolgtool-avondstudie-datum') || '';
+        if (isIsoDatum(ruw)) {
+          staat.avondstudieDatum = ruw;
+          return ruw;
+        }
+      } catch (e) { /* negeren */ }
+      return '';
+    }
+
+    function zetAvondstudieDatum(waarde) {
+      const iso = isIsoDatum(waarde) ? String(waarde).trim() : '';
+      staat.avondstudieDatum = iso;
+      try {
+        if (iso) sessionStorage.setItem('opvolgtool-avondstudie-datum', iso);
+        else sessionStorage.removeItem('opvolgtool-avondstudie-datum');
+      } catch (e) { /* negeren */ }
+      document.querySelectorAll('.veld-avondstudie-datum').forEach(function (veld) {
+        if (veld.value !== iso) veld.value = iso;
+      });
+      document.querySelectorAll('[data-actie="opvolging-bericht"]').forEach(function (knop) {
+        const stap = knop.getAttribute('data-stap');
+        const mag = kopieerBerichtMag(stap);
+        knop.disabled = !mag;
+        if (stap === 'nablijf' && berichtVraagtDatum(stap)) {
+          const label = mag ? 'Bericht naar ouders kopiëren' : 'Kies eerst de datum van de avondstudie';
+          knop.setAttribute('title', label);
+          knop.setAttribute('aria-label', label);
+        }
+      });
+    }
+
+    function kopieerBerichtMag(stap) {
+      if (!berichtVraagtDatum(stap)) return true;
+      return !!leesAvondstudieDatum();
+    }
+
+    function htmlAvondstudieDatumVeld() {
+      const iso = leesAvondstudieDatum();
+      return '<label class="mt-2 flex items-center gap-2">' +
+        '<span class="text-[11px] font-semibold text-amber-950 shrink-0">Avondstudie</span>' +
+        '<input type="date" class="veld-avondstudie-datum min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" value="' + escapeAttr(iso) + '" />' +
+        '</label>';
+    }
+
+    function zetFicheAvondstudieDatum(leerling) {
+      const wrap = document.getElementById('fiche-avondstudie-datum-wrap');
+      const veld = document.getElementById('veld-avondstudie-datum');
+      if (!wrap || !veld) return;
+      const tonen = berichtVraagtDatum(opvolgActieNodig(leerling));
+      wrap.classList.toggle('hidden', !tonen);
+      if (tonen) veld.value = leesAvondstudieDatum();
+    }
+
+    function vulOpvolgBericht(sjabloon, lln, extra) {
+      extra = extra || {};
       const naam = String(lln && lln.naam ? lln.naam : '').trim();
       const voornaam = naam.split(/\s+/)[0] || naam;
       const klas = klasLabel(staat.gekozenKlas || (lln && lln.klas) || '');
       const drempel = String(drempelNietInOrde());
+      const datum = String(extra.datum || '').trim();
       return String(sjabloon || '')
         .replace(/\{voornaam\}/g, voornaam)
         .replace(/\{naam\}/g, naam)
         .replace(/\{klas\}/g, klas)
         .replace(/\{drempel\}/g, drempel)
-        .replace(/\{taken\}/g, openstaandeTakenTekst(lln));
+        .replace(/\{taken\}/g, openstaandeTakenTekst(lln))
+        .replace(/\{datum\/dag\}/g, datum)
+        .replace(/\{datum\}/g, datum);
+    }
+
+    function formatteerAvondstudieDatum(waarde) {
+      const s = String(waarde || '').trim();
+      const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      if (!iso) return s;
+      const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+      if (isNaN(d.getTime())) return s;
+      const dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+      const maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+      return dagen[d.getDay()] + ' ' + d.getDate() + ' ' + maanden[d.getMonth()] + ' ' + d.getFullYear();
     }
 
     function kopieerOpvolgBericht(id, stap) {
       const leerling = leerlingOpId(id);
       if (!leerling || (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf')) return;
-      const tekst = vulOpvolgBericht(opvolgBerichtSjabloon(stap), leerling).trim();
+      const sjabloon = opvolgBerichtSjabloon(stap);
+      const extra = {};
+      if (berichtVraagtDatum(stap)) {
+        const iso = leesAvondstudieDatum();
+        if (!iso) {
+          toonMelding('Kies eerst de datum van de avondstudie.', 'fout');
+          return;
+        }
+        extra.datum = formatteerAvondstudieDatum(iso);
+      }
+      const tekst = vulOpvolgBericht(sjabloon, leerling, extra).trim();
       if (!tekst) {
         toonMelding('Er is geen bericht ingesteld voor deze stap.', 'fout');
         return;
@@ -1817,6 +1951,7 @@
       if (!wrap) return;
       if (!opvolgingAan()) {
         wrap.classList.add('hidden');
+        document.getElementById('fiche-avondstudie-datum-wrap').classList.add('hidden');
         return;
       }
       const n = aantalNietInOrde(leerling);
@@ -1825,18 +1960,22 @@
       const drempel = drempelNietInOrde();
       const tonen = n >= drempel || heeftStap;
       wrap.classList.toggle('hidden', !tonen);
-      if (!tonen) return;
+      if (!tonen) {
+        document.getElementById('fiche-avondstudie-datum-wrap').classList.add('hidden');
+        return;
+      }
       const volgende = opvolgActieNodig(leerling);
       document.getElementById('fiche-opvolging-titel').textContent =
         n + '× niet in orde (drempel ' + drempel + ')';
       let uitleg = 'Nog geen actie nodig.';
       if (volgende === 'leerling') uitleg = 'Laat de leerling weten dat de openstaande taken tegen de volgende les af moeten.';
       else if (volgende === 'ouders') uitleg = 'Nog niet in orde: stuur een bericht naar de ouders.';
-      else if (volgende === 'nablijf') uitleg = 'Nog niet in orde: opnieuw een bericht naar de ouders, en inschrijven voor nablijfstudie.';
+      else if (volgende === 'nablijf') uitleg = 'Nog niet in orde: kies de datum van de avondstudie en kopieer daarna het bericht naar de ouders.';
       else if (volgende === 'reset') uitleg = 'Alle stappen gezet. Rond af met het vinkje als deze cyclus klaar is.';
       else if (heeftStap) uitleg = 'Onder de drempel. Rond af met het vinkje als deze cyclus klaar is.';
       document.getElementById('fiche-opvolging-uitleg').textContent = uitleg;
       document.getElementById('fiche-opvolging-stappen').innerHTML = htmlOpvolgingStappen(leerling);
+      zetFicheAvondstudieDatum(leerling);
       zetOpvolgKopieerKnop(document.getElementById('knop-opvolging-bericht'), leerling);
       const reset = document.getElementById('knop-opvolging-reset');
       reset.classList.remove('hidden');
@@ -1853,10 +1992,11 @@
       let uitleg = '';
       if (volgende === 'leerling') uitleg = 'Laten weten: inhalen tegen de volgende les.';
       else if (volgende === 'ouders') uitleg = 'Nog niet in orde: bericht naar ouders.';
-      else if (volgende === 'nablijf') uitleg = 'Nog niet in orde: opnieuw bericht naar ouders.';
+      else if (volgende === 'nablijf') uitleg = 'Kies de datum van de avondstudie en kopieer daarna het bericht.';
       else if (volgende === 'reset' || heeftStap) uitleg = 'Rond af met het vinkje als deze cyclus klaar is.';
       const kopieerKnop = htmlOpvolgKopieerKnop(leerling);
       const afrondenKnop = htmlOpvolgAfrondenKnop(leerling);
+      const datumVeld = berichtVraagtDatum(volgende) ? htmlAvondstudieDatumVeld() : '';
       return '<div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5">' +
         '<div class="flex items-start justify-between gap-2">' +
           '<div class="min-w-0">' +
@@ -1865,6 +2005,7 @@
           '</div>' +
           '<div class="flex items-center gap-0.5 shrink-0">' + kopieerKnop + afrondenKnop + '</div>' +
         '</div>' +
+        datumVeld +
         '<div class="mt-2 grid grid-cols-3 gap-1.5">' + htmlOpvolgingStappen(leerling) + '</div>' +
         '</div>';
     }
@@ -4199,6 +4340,11 @@
       const actie = staat.bevestigActie;
       sluitModal();
       if (actie) actie();
+    });
+    document.addEventListener('change', function (event) {
+      const veld = event.target && event.target.closest ? event.target.closest('.veld-avondstudie-datum') : null;
+      if (!veld) return;
+      zetAvondstudieDatum(veld.value);
     });
     document.addEventListener('click', function (event) {
       const doel = event.target && event.target.closest ? event.target.closest('[data-actie]') : null;
