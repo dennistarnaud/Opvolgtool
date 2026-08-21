@@ -529,9 +529,17 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
               <span id="fiche-code" class="font-mono"></span>
             </button>
+            <button type="button" id="fiche-url-knop" data-actie="url-kopieren"
+              class="inline-flex items-center justify-center w-8 min-h-8 rounded-full bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+              title="Leerlinglink kopiëren" aria-label="Leerlinglink kopiëren">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
             <button type="button" id="fiche-iframe-knop" data-actie="iframe-kopieren"
               class="inline-flex items-center justify-center w-8 min-h-8 rounded-full bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
-              title="Iframe voor het LVS kopiëren" aria-label="Iframe voor het LVS kopiëren">
+              title="Iframe-code kopiëren" aria-label="Iframe-code kopiëren">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="16 18 22 12 16 6" />
                 <polyline points="8 6 2 12 8 18" />
@@ -1000,7 +1008,8 @@
       bevestigActie: null,
       taakBewerkenId: '',
       nieuweLeerlingTekst: '',
-      webAppUrl: ''
+      webAppUrl: '',
+      leerlingUrl: ''
     };
 
     /**
@@ -2247,6 +2256,7 @@
         return { naam: String(item || '').trim(), vak: '' };
       }).filter(function (item) { return item.naam; });
       staat.webAppUrl = String(data.webAppUrl || '').trim();
+      staat.leerlingUrl = String(data.leerlingUrl || '').trim();
       staat.instellingen = normaliseerInstellingen(data.instellingen);
       vulKlasKeuze();
       herstelKlas();
@@ -3261,6 +3271,7 @@
     function tekenLeerlingFiche(leerling) {
       document.getElementById('fiche-code').textContent = leerling.code || '—';
       document.getElementById('fiche-code-knop').setAttribute('data-code', leerling.code || '');
+      document.getElementById('fiche-url-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('fiche-iframe-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('knop-leerling-verwijderen').setAttribute('data-id', leerling.id);
       zetFicheNaamWeergave(leerling);
@@ -3587,6 +3598,28 @@
       });
     }
 
+    function leerlingUrl(code) {
+      const basis = webAppBasisUrl();
+      if (!basis) return '';
+      const scheiding = basis.indexOf('?') === -1 ? '?' : '&';
+      return basis + scheiding + 'id=' + encodeURIComponent(code);
+    }
+
+    function kopieerLeerlingUrl(knop) {
+      const code = (knop && knop.getAttribute('data-code')) || '';
+      if (!code) return;
+      const url = leerlingUrl(code);
+      if (!url) {
+        toonMelding('Vul eerst LEERLING_IMPLEMENTATIE_URL in Code.gs in.', 'fout');
+        return;
+      }
+      const icoon = knop.innerHTML;
+      kopieerTekst(url, function () {
+        knop.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>';
+        setTimeout(function () { knop.innerHTML = icoon; }, 1200);
+      });
+    }
+
     function kopieerLeerlingIframe(knop) {
       const code = (knop && knop.getAttribute('data-code')) || '';
       if (!code) return;
@@ -3605,14 +3638,16 @@
     }
 
     function leerlingIframeHtml(code) {
-      const basis = webAppBasisUrl();
-      if (!basis) return '';
-      const scheiding = basis.indexOf('?') === -1 ? '?' : '&';
-      const src = basis + scheiding + 'id=' + encodeURIComponent(code);
+      const src = leerlingUrl(code);
+      if (!src) return '';
       return '<iframe src="' + src + '" width="100%" height="720" style="border:0;" title="Opvolging leerkansen"></iframe>';
     }
 
     function webAppBasisUrl() {
+      // Gebruik de leerling-implementatie-URL als die ingesteld is.
+      const leerlingUrl = String(staat.leerlingUrl || '').trim().replace(/\/+$/, '');
+      if (leerlingUrl) return leerlingUrl;
+      // Fallback: docent-URL (zelfde implementatie, werkt alleen als "Iedereen" toegang heeft).
       const bewaard = String(staat.webAppUrl || '').trim().replace(/\/+$/, '');
       if (bewaard) return bewaard;
       if (isGasOmgeving()) return '';
@@ -4476,6 +4511,7 @@
       else if (actie === 'bulk-openstaand') zetBulkOpenstaand(doel.getAttribute('data-taak'), doel.getAttribute('data-status'));
       else if (actie === 'leerling-fiche') openLeerlingFiche(doel.getAttribute('data-id'));
       else if (actie === 'code-kopieren') kopieerLeerlingCode(doel);
+      else if (actie === 'url-kopieren') kopieerLeerlingUrl(doel);
       else if (actie === 'iframe-kopieren') kopieerLeerlingIframe(doel);
       else if (actie === 'leerling-verwijderen') vraagLeerlingVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-verwijderen') vraagTaakVerwijderen(doel.getAttribute('data-id'));

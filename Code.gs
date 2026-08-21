@@ -352,7 +352,8 @@ function getDocentData() {
     registraties: leesRegistraties_(),
     klassen: leesKlassen_(),
     instellingen: leesInstellingen_(),
-    webAppUrl: ScriptApp.getService().getUrl() || ''
+    webAppUrl: ScriptApp.getService().getUrl() || '',
+    leerlingUrl: String(LEERLING_IMPLEMENTATIE_URL || '').trim()
   };
 }
 
