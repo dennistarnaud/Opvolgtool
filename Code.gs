@@ -20,7 +20,7 @@ const TOEGANG_EMAIL_DOCENT = 'jouw.email@school.be';
 
 const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp | opvolgingLeerlingOp | opvolgingOudersOp | opvolgingNablijfOp | opvolgingResetOp
 const TAB_TAKEN = 'Taken_Lijst'; // kolommen: id | naam | type | deadline | klas
-const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | uploadUrl | klas
+const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | klas
 const TAB_KLASSEN = 'Klassen'; // kolommen: naam | vak
 const TAB_INSTELLINGEN = 'Instellingen'; // kolommen: sleutel | waarde
 
@@ -266,8 +266,7 @@ function getLeerlingData(code) {
         type: (taak && taak.type) ? taak.type : '',
         deadline: (taak && taak.deadline) ? taak.deadline : '',
         status: reg.status,
-        opmerking: reg.opmerking,
-        uploadUrl: reg.uploadUrl
+        opmerking: reg.opmerking
       };
     })
     .sort(function (a, b) {
@@ -284,7 +283,7 @@ function getLeerlingData(code) {
 
 /**
  * Schrijft een nieuwe rij naar tabblad Registraties.
- * @param {{llnId: string, taakId: string, status: string, opmerking?: string, uploadUrl?: string, klas?: string}} data
+ * @param {{llnId: string, taakId: string, status: string, opmerking?: string, klas?: string}} data
  * @return {{ok: boolean, registratie: Object}}
  */
 function saveRegistratie(data) {
@@ -306,7 +305,6 @@ function saveRegistratie(data) {
     String(data.taakId).trim(),
     status,
     String(data.opmerking || ''),
-    String(data.uploadUrl || ''),
     klas
   ];
 
@@ -320,7 +318,6 @@ function saveRegistratie(data) {
       taakId: rij[2],
       status: rij[3],
       opmerking: rij[4],
-      uploadUrl: rij[5],
       klas: klas
     }
   };
@@ -720,13 +717,13 @@ function wijsOpenRegistratiesToeAanKlas_(llnId, klas) {
   const sheet = getSheet_(TAB_REGISTRATIES);
   const laatste = sheet.getLastRow();
   if (laatste < 2) return;
-  const bereik = sheet.getRange(2, 1, laatste - 1, 7);
+  const bereik = sheet.getRange(2, 1, laatste - 1, 6);
   const rijen = bereik.getValues();
   let gewijzigd = false;
   for (let i = 0; i < rijen.length; i++) {
     if (String(rijen[i][1] || '').trim() !== llnId) continue;
-    if (String(rijen[i][6] || '').trim()) continue;
-    rijen[i][6] = klas;
+    if (String(rijen[i][5] || '').trim()) continue;
+    rijen[i][5] = klas;
     gewijzigd = true;
   }
   if (gewijzigd) bereik.setValues(rijen);
@@ -1035,7 +1032,7 @@ function verwijderRegistratiesVoorKlas_(klas, taakIds) {
   const over = [rijen[0]];
   for (let i = 1; i < rijen.length; i++) {
     const taakId = String(rijen[i][2] || '').trim();
-    const regKlas = String(rijen[i][6] || '').trim();
+    const regKlas = String(rijen[i][5] || '').trim();
     if (ids[taakId] || regKlas === klas) continue;
     over.push(rijen[i]);
   }
@@ -1085,8 +1082,7 @@ function leesRegistraties_() {
       taakId: String(rij[2] || '').trim(),
       status: String(rij[3] || '').trim(),
       opmerking: String(rij[4] || '').trim(),
-      uploadUrl: String(rij[5] || '').trim(),
-      klas: String(rij[6] || '').trim()
+      klas: String(rij[5] || '').trim()
     });
   }
   return resultaat;

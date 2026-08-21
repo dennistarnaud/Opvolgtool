@@ -113,17 +113,17 @@
     ];
 
     const MOCK_REGISTRATIES = [
-      { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
-      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te laat', opmerking: 'Na de deadline ingediend.', uploadUrl: '' },
-      { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.', uploadUrl: '' },
-      { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.', uploadUrl: 'https://drive.google.com/voorbeeld' },
-      { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' }
+      { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.' },
+      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te laat', opmerking: 'Na de deadline ingediend.' },
+      { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.' },
+      { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.' },
+      { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.' },
+      { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '' }
     ];
 
     function isGasOmgeving() {
@@ -168,8 +168,7 @@
             type: (taak && taak.type) ? taak.type : '',
             deadline: (taak && taak.deadline) ? taak.deadline : '',
             status: r.status,
-            opmerking: r.opmerking,
-            uploadUrl: r.uploadUrl
+            opmerking: r.opmerking
           };
         });
 
@@ -362,9 +361,6 @@
         const opmerking = reg.opmerking
           ? '<p class="text-sm text-slate-600 leading-snug">' + escapeHtml(reg.opmerking) + '</p>'
           : '';
-        const upload = reg.uploadUrl
-          ? '<p class="text-sm text-slate-600 leading-snug">Ingediend</p>'
-          : '';
 
         return (
           '<article class="px-3 py-2.5">' +
@@ -373,7 +369,7 @@
               '<div class="min-w-0 flex-1 space-y-0.5">' +
                 '<p class="text-xs text-slate-500">' + escapeHtml(meta) + '</p>' +
                 '<p class="text-sm font-semibold text-slate-900 leading-snug">' + escapeHtml(reg.taakNaam) + '</p>' +
-                opmerking + upload +
+                opmerking +
               '</div>' +
               badge +
             '</div>' +
