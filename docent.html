@@ -998,6 +998,17 @@
       return typeof google !== 'undefined' && google.script && typeof google.script.run === 'function';
     }
 
+    /** Voor debuggen: logt GAS-status naar console. */
+    (function debugGasStatus() {
+      var heeft = isGasOmgeving();
+      var url   = window.location.href;
+      var isExec = url.indexOf('/exec') !== -1 || url.indexOf('/dev') !== -1;
+      console.log('[GAS-check] isGasOmgeving=' + heeft + ' | isExecUrl=' + isExec + ' | url=' + url);
+      if (isExec && !heeft) {
+        console.warn('[GAS-check] LET OP: exec-URL maar google.script.run nog niet klaar – wordt opnieuw geprobeerd via startNaGas()');
+      }
+    }());
+
     let meldingTimer = null;
 
     function toonMelding(tekst, type) {
@@ -4442,7 +4453,18 @@
     });
 
     pasTabAanScherm();
-    haalDocentData();
+
+    /** GAS injecteert google.script asynchroon; wacht max 3s tot het klaar is. */
+    function startNaGas(callback, poging) {
+      if (typeof google !== 'undefined' && google.script && typeof google.script.run === 'function') {
+        callback();
+      } else if ((poging || 0) < 60) {
+        setTimeout(function () { startNaGas(callback, (poging || 0) + 1); }, 50);
+      } else {
+        callback(); // na 3s: toon mockdata / foutmelding
+      }
+    }
+    startNaGas(haalDocentData);
   </script>
 </body>
 </html>
