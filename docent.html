@@ -534,26 +534,16 @@
                 <p id="fiche-opvolging-titel" class="text-xs font-semibold text-amber-950"></p>
                 <p id="fiche-opvolging-uitleg" class="text-[11px] text-amber-900/80 mt-0.5 leading-snug"></p>
               </div>
-              <div class="flex items-center gap-0.5 shrink-0">
-                <button type="button" id="knop-opvolging-bericht" data-actie="opvolging-bericht"
-                  class="hidden shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed">
-                  E-mail
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
-                </button>
-                <button type="button" id="knop-opvolging-reset" data-actie="opvolging-zet" data-stap="reset"
-                  class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-800 hover:bg-amber-100"
-                  title="Opvolging afronden" aria-label="Opvolging afronden">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </button>
-              </div>
+              <button type="button" id="knop-opvolging-reset" data-actie="opvolging-zet" data-stap="reset"
+                class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-800 hover:bg-amber-100"
+                title="Opvolging afronden" aria-label="Opvolging afronden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </button>
             </div>
-            <label id="fiche-avondstudie-datum-wrap" class="hidden mt-2 block">
-              <span class="text-[11px] font-semibold text-amber-950">Datum avondstudie</span>
-              <input id="veld-avondstudie-datum" type="date" class="veld-avondstudie-datum mt-1 w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            </label>
             <div id="fiche-opvolging-stappen" class="mt-2 grid grid-cols-3 gap-1.5"></div>
+            <div id="fiche-opvolging-actie" class="mt-2"></div>
           </div>
           <div class="filter-wrap mt-3">
             <div class="flex items-center justify-between gap-2">
@@ -1746,10 +1736,17 @@
       if (wrapper) lijnKoppenOpTabel(wrapper);
     }
 
+    function laatsteOpvolgStap(lln) {
+      const o = opvolgingVan(lln);
+      if (o.nablijf) return 'nablijf';
+      if (o.ouders) return 'ouders';
+      if (o.leerling) return 'leerling';
+      return '';
+    }
+
     function htmlOpvolgingStappen(leerling) {
       const o = opvolgingVan(leerling);
       const volgende = opvolgActieNodig(leerling);
-      const laatsteKlaar = o.nablijf ? 'nablijf' : (o.ouders ? 'ouders' : (o.leerling ? 'leerling' : ''));
       const stappen = [
         { id: 'leerling', uitleg: 'Laten weten: taken inhalen tegen de volgende les' },
         { id: 'ouders', uitleg: 'Bericht naar de ouders' },
@@ -1758,35 +1755,44 @@
       return stappen.map(function (stap) {
         const klaar = !!o[stap.id];
         const aan = volgende === stap.id;
-        const kanTerug = klaar && stap.id === laatsteKlaar;
         let klasse = 'flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-center text-[10px] font-semibold border w-full ';
-        if (klaar && kanTerug) klasse += 'bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50';
-        else if (klaar) klasse += 'bg-white border-emerald-200 text-emerald-700';
-        else if (aan) klasse += 'bg-amber-400 border-amber-500 text-amber-950 hover:bg-amber-500';
-        else klasse += 'bg-white/50 border-transparent text-amber-900/35 cursor-not-allowed';
-        const titel = kanTerug ? 'Stap ongedaan maken' : stap.uitleg;
+        if (klaar) klasse += 'bg-white border-emerald-200 text-emerald-700';
+        else if (aan) klasse += 'bg-amber-400 border-amber-500 text-amber-950 ring-2 ring-amber-300/60';
+        else klasse += 'bg-white/50 border-transparent text-amber-900/35';
+        const titel = klaar ? 'Klaar: ' + stap.uitleg : (aan ? 'Nu: ' + stap.uitleg : stap.uitleg);
         return '<div class="min-w-0">' +
-          '<button type="button" class="' + klasse + '" data-actie="opvolging-zet" data-stap="' + stap.id +
-          '" data-id="' + escapeAttr(leerling.id) + '" title="' + escapeAttr(titel) + '"' +
-          (aan || kanTerug ? '' : ' disabled') + '>' +
-          opvolgIcoonSvg(stap.id, 16) + '<span>' + escapeHtml(opvolgStapLabel(stap.id)) + '</span></button>' +
+          '<div class="' + klasse + '" title="' + escapeAttr(titel) + '" aria-current="' + (aan ? 'step' : 'false') + '">' +
+          opvolgIcoonSvg(stap.id, 16) + '<span>' + escapeHtml(opvolgStapLabel(stap.id)) + '</span></div>' +
           '</div>';
       }).join('');
     }
 
-    function htmlOpvolgKopieerKnop(leerling) {
-      const stap = opvolgActieNodig(leerling);
+    function htmlOpvolgKopieerKnop(leerling, stap) {
+      stap = stap || opvolgActieNodig(leerling);
       if (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') return '';
       const mag = kopieerBerichtMag(stap);
       const label = !mag ? 'Kies eerst de datum van de avondstudie'
         : (stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren');
-      return '<button type="button" class="shrink-0 inline-flex items-center gap-1 rounded-lg px-2 h-8 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed" ' +
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-amber-950 bg-white border border-amber-200 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-white disabled:cursor-not-allowed" ' +
         'data-actie="opvolging-bericht" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
         (mag ? '' : 'disabled ') +
         'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
         'E-mail' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>' +
         '</button>';
+    }
+
+    function htmlOpvolgGedaanKnop(leerling, stap) {
+      stap = stap || opvolgActieNodig(leerling);
+      if (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') return '';
+      const mag = kopieerBerichtMag(stap);
+      const label = !mag ? 'Kies eerst de datum van de avondstudie' : 'Stap als gedaan markeren';
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-30 disabled:hover:bg-amber-600 disabled:cursor-not-allowed" ' +
+        'data-actie="opvolging-zet" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
+        (mag ? '' : 'disabled ') +
+        'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
+        'Gedaan</button>';
     }
 
     function htmlOpvolgAfrondenKnop(leerling) {
@@ -1797,20 +1803,45 @@
         '</button>';
     }
 
-    function zetOpvolgKopieerKnop(knop, leerling) {
-      if (!knop) return;
-      const stap = opvolgActieNodig(leerling);
-      const tonen = stap === 'leerling' || stap === 'ouders' || stap === 'nablijf';
-      knop.classList.toggle('hidden', !tonen);
-      if (!tonen) return;
-      const mag = kopieerBerichtMag(stap);
-      const label = !mag ? 'Kies eerst de datum van de avondstudie'
-        : (stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren');
-      knop.setAttribute('data-id', leerling.id);
-      knop.setAttribute('data-stap', stap);
-      knop.setAttribute('title', label);
-      knop.setAttribute('aria-label', label);
-      knop.disabled = !mag;
+    function htmlOpvolgTerugKnop(leerling) {
+      const stap = laatsteOpvolgStap(leerling);
+      if (!stap) return '';
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-amber-900/80 hover:bg-amber-100 hover:text-amber-950" ' +
+        'data-actie="opvolging-zet" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'title="Laatste stap ongedaan maken" aria-label="Laatste stap ongedaan maken">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 2.8L3 13" /></svg>' +
+        'Terug</button>';
+    }
+
+    function htmlAvondstudieDatumVeld() {
+      const iso = leesAvondstudieDatum();
+      return '<label class="block">' +
+        '<span class="text-[11px] font-semibold text-amber-950">Datum avondstudie</span>' +
+        '<input type="date" class="veld-avondstudie-datum mt-1 w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" value="' + escapeAttr(iso) + '" />' +
+        '</label>';
+    }
+
+    function htmlOpvolgingActiePaneel(leerling) {
+      const volgende = opvolgActieNodig(leerling);
+      const delen = [];
+      if (volgende === 'leerling' || volgende === 'ouders' || volgende === 'nablijf') {
+        if (berichtVraagtDatum(volgende)) delen.push(htmlAvondstudieDatumVeld());
+      }
+      const acties = [];
+      const terug = htmlOpvolgTerugKnop(leerling);
+      if (terug) acties.push(terug);
+      if (volgende === 'leerling' || volgende === 'ouders' || volgende === 'nablijf') {
+        acties.push(htmlOpvolgKopieerKnop(leerling, volgende));
+        acties.push(htmlOpvolgGedaanKnop(leerling, volgende));
+      }
+      if (acties.length) {
+        delen.push(
+          '<div class="flex flex-wrap items-center justify-end gap-1.5' + (delen.length ? ' mt-2' : '') + '">' +
+            acties.join('') +
+          '</div>'
+        );
+      }
+      return delen.join('');
     }
 
     function openstaandeTakenTekst(lln) {
@@ -1863,38 +1894,23 @@
       document.querySelectorAll('.veld-avondstudie-datum').forEach(function (veld) {
         if (veld.value !== iso) veld.value = iso;
       });
-      document.querySelectorAll('[data-actie="opvolging-bericht"]').forEach(function (knop) {
+      document.querySelectorAll('[data-actie="opvolging-bericht"], [data-actie="opvolging-zet"]').forEach(function (knop) {
         const stap = knop.getAttribute('data-stap');
+        if (!berichtVraagtDatum(stap)) return;
+        if (knop.getAttribute('data-actie') === 'opvolging-zet' && stapOpvolgingGezet(leerlingOpId(knop.getAttribute('data-id')), stap)) return;
         const mag = kopieerBerichtMag(stap);
         knop.disabled = !mag;
-        if (stap === 'nablijf' && berichtVraagtDatum(stap)) {
-          const label = mag ? 'Bericht naar ouders kopiëren' : 'Kies eerst de datum van de avondstudie';
-          knop.setAttribute('title', label);
-          knop.setAttribute('aria-label', label);
-        }
+        const label = mag
+          ? (knop.getAttribute('data-actie') === 'opvolging-bericht' ? 'Bericht naar ouders kopiëren' : 'Stap als gedaan markeren')
+          : 'Kies eerst de datum van de avondstudie';
+        knop.setAttribute('title', label);
+        knop.setAttribute('aria-label', label);
       });
     }
 
     function kopieerBerichtMag(stap) {
       if (!berichtVraagtDatum(stap)) return true;
       return !!leesAvondstudieDatum();
-    }
-
-    function htmlAvondstudieDatumVeld() {
-      const iso = leesAvondstudieDatum();
-      return '<label class="mt-2 flex items-center gap-2">' +
-        '<span class="text-[11px] font-semibold text-amber-950 shrink-0">Avondstudie</span>' +
-        '<input type="date" class="veld-avondstudie-datum min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" value="' + escapeAttr(iso) + '" />' +
-        '</label>';
-    }
-
-    function zetFicheAvondstudieDatum(leerling) {
-      const wrap = document.getElementById('fiche-avondstudie-datum-wrap');
-      const veld = document.getElementById('veld-avondstudie-datum');
-      if (!wrap || !veld) return;
-      const tonen = berichtVraagtDatum(opvolgActieNodig(leerling));
-      wrap.classList.toggle('hidden', !tonen);
-      if (tonen) veld.value = leesAvondstudieDatum();
     }
 
     function vulOpvolgBericht(sjabloon, lln, extra) {
@@ -1951,9 +1967,10 @@
     function tekenFicheOpvolging(leerling) {
       const wrap = document.getElementById('fiche-opvolging');
       if (!wrap) return;
+      const actieEl = document.getElementById('fiche-opvolging-actie');
       if (!opvolgingAan()) {
         wrap.classList.add('hidden');
-        document.getElementById('fiche-avondstudie-datum-wrap').classList.add('hidden');
+        if (actieEl) actieEl.innerHTML = '';
         return;
       }
       const n = aantalNietInOrde(leerling);
@@ -1963,22 +1980,21 @@
       const tonen = n >= drempel || heeftStap;
       wrap.classList.toggle('hidden', !tonen);
       if (!tonen) {
-        document.getElementById('fiche-avondstudie-datum-wrap').classList.add('hidden');
+        if (actieEl) actieEl.innerHTML = '';
         return;
       }
       const volgende = opvolgActieNodig(leerling);
       document.getElementById('fiche-opvolging-titel').textContent =
         n + '× niet in orde (drempel ' + drempel + ')';
       let uitleg = 'Nog geen actie nodig.';
-      if (volgende === 'leerling') uitleg = 'Laat de leerling weten dat de openstaande taken tegen de volgende les af moeten.';
-      else if (volgende === 'ouders') uitleg = 'Nog niet in orde: stuur een bericht naar de ouders.';
-      else if (volgende === 'nablijf') uitleg = 'Nog niet in orde: kies de datum van de avondstudie en kopieer daarna het bericht naar de ouders.';
+      if (volgende === 'leerling') uitleg = 'Kopieer het bericht naar de leerling. Markeer daarna Gedaan.';
+      else if (volgende === 'ouders') uitleg = 'Kopieer het bericht naar de ouders. Markeer daarna Gedaan.';
+      else if (volgende === 'nablijf') uitleg = 'Kies de datum, kopieer het bericht, markeer daarna Gedaan.';
       else if (volgende === 'reset') uitleg = 'Alle stappen gezet. Rond af met het vinkje als deze cyclus klaar is.';
       else if (heeftStap) uitleg = 'Onder de drempel. Rond af met het vinkje als deze cyclus klaar is.';
       document.getElementById('fiche-opvolging-uitleg').textContent = uitleg;
       document.getElementById('fiche-opvolging-stappen').innerHTML = htmlOpvolgingStappen(leerling);
-      zetFicheAvondstudieDatum(leerling);
-      zetOpvolgKopieerKnop(document.getElementById('knop-opvolging-bericht'), leerling);
+      if (actieEl) actieEl.innerHTML = htmlOpvolgingActiePaneel(leerling);
       const reset = document.getElementById('knop-opvolging-reset');
       reset.classList.remove('hidden');
       reset.setAttribute('data-id', leerling.id);
@@ -1992,23 +2008,20 @@
       if (n < drempelNietInOrde() && !heeftStap) return '';
       const volgende = opvolgActieNodig(leerling);
       let uitleg = '';
-      if (volgende === 'leerling') uitleg = 'Laten weten: inhalen tegen de volgende les.';
-      else if (volgende === 'ouders') uitleg = 'Nog niet in orde: bericht naar ouders.';
-      else if (volgende === 'nablijf') uitleg = 'Kies de datum van de avondstudie en kopieer daarna het bericht.';
+      if (volgende === 'leerling') uitleg = 'Kopieer het bericht, markeer daarna Gedaan.';
+      else if (volgende === 'ouders') uitleg = 'Kopieer het bericht naar ouders, markeer daarna Gedaan.';
+      else if (volgende === 'nablijf') uitleg = 'Kies datum, kopieer bericht, markeer Gedaan.';
       else if (volgende === 'reset' || heeftStap) uitleg = 'Rond af met het vinkje als deze cyclus klaar is.';
-      const kopieerKnop = htmlOpvolgKopieerKnop(leerling);
-      const afrondenKnop = htmlOpvolgAfrondenKnop(leerling);
-      const datumVeld = berichtVraagtDatum(volgende) ? htmlAvondstudieDatumVeld() : '';
       return '<div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5">' +
         '<div class="flex items-start justify-between gap-2">' +
           '<div class="min-w-0">' +
             '<p class="text-[11px] font-semibold text-amber-950">' + n + '× niet in orde</p>' +
             (uitleg ? '<p class="text-[11px] text-amber-900/80 mt-0.5">' + escapeHtml(uitleg) + '</p>' : '') +
           '</div>' +
-          '<div class="flex items-center gap-0.5 shrink-0">' + kopieerKnop + afrondenKnop + '</div>' +
+          htmlOpvolgAfrondenKnop(leerling) +
         '</div>' +
-        datumVeld +
         '<div class="mt-2 grid grid-cols-3 gap-1.5">' + htmlOpvolgingStappen(leerling) + '</div>' +
+        '<div class="mt-2">' + htmlOpvolgingActiePaneel(leerling) + '</div>' +
         '</div>';
     }
 
@@ -2040,6 +2053,13 @@
           'Afronden',
           'bg-emerald-600 text-white hover:bg-emerald-700'
         );
+        return;
+      }
+      const leerling = leerlingOpId(id);
+      if (!leerling) return;
+      const wissen = stapOpvolgingGezet(leerling, stap);
+      if (!wissen && berichtVraagtDatum(stap) && !leesAvondstudieDatum()) {
+        toonMelding('Kies eerst de datum van de avondstudie.', 'fout');
         return;
       }
       slaOpvolgingOp(id, stap);
