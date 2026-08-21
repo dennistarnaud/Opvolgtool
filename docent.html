@@ -3583,7 +3583,7 @@
       if (!code) return;
       const url = leerlingUrl(code);
       if (!url) {
-        toonMelding('Vul eerst LEERLING_IMPLEMENTATIE_URL in Code.gs in.', 'fout');
+        toonMelding('Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
         return;
       }
       const icoon = knop.innerHTML;
@@ -3598,7 +3598,7 @@
       if (!code) return;
       const html = leerlingIframeHtml(code);
       if (!html) {
-        toonMelding('Kon de web-app-URL niet bepalen. Deploy de app opnieuw.', 'fout');
+        toonMelding('Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
         return;
       }
       const icoon = knop.innerHTML;
@@ -3617,18 +3617,18 @@
     }
 
     function webAppBasisUrl() {
-      // Gebruik de leerling-implementatie-URL als die ingesteld is.
+      // Gebruik uitsluitend de leerling-implementatie-URL (implementatie B — publiek toegankelijk).
+      // De docent-URL mag hier nooit als fallback dienen: die vereist een Google-account en
+      // geeft een 401 voor leerlingen/ouders.
       const leerlingUrl = String(staat.leerlingUrl || '').trim().replace(/\/+$/, '');
       if (leerlingUrl) return leerlingUrl;
-      // Fallback: docent-URL (zelfde implementatie, werkt alleen als "Iedereen" toegang heeft).
-      const bewaard = String(staat.webAppUrl || '').trim().replace(/\/+$/, '');
-      if (bewaard) return bewaard;
-      if (isGasOmgeving()) return '';
-      try {
-        return window.location.origin + window.location.pathname.replace(/docent\.html$/i, 'leerling.html');
-      } catch (e) {
-        return '';
+      // Lokale ontwikkelomgeving: gebruik de leerling.html naast de docent.html.
+      if (!isGasOmgeving()) {
+        try {
+          return window.location.origin + window.location.pathname.replace(/docent\.html$/i, 'leerling.html');
+        } catch (e) { /* negeren */ }
       }
+      return '';
     }
 
     function kopieerTekst(tekst, klaar) {
