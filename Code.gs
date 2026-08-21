@@ -1,28 +1,96 @@
 /**
  * Opvolgtool — Google Apps Script backend
- * Spreadsheet-tabbladen: Leerlingen | Taken_Lijst | Registraties | Klassen | Instellingen
  *
- * Deployen als web-app:
- *  - Execute as: User accessing the web app  (nodig voor e-mailcheck docent)
- *  - Who has access: Anyone within the domain / Anyone
+ * ===========================================================================
+ * STAPPENPLAN (eerste keer opzetten)
+ * ===========================================================================
  *
- * URL's:
- *  - Docent:   .../exec?view=docent
- *  - Leerling: .../exec?id=A7X9A7X9
+ * 1. Spreadsheet
+ *    Maak een Google Sheet en koppel dit script eraan.
+ *    Maak tabbladen met exact deze namen.
+ *    Rij 1 = koppen. Volgorde van kolommen is verplicht (code leest op positie).
+ *
+ *    Tab "Leerlingen"
+ *      A id
+ *      B naam
+ *      C klas
+ *      D code              (8 tekens, letter+cijfer × 4; tool vult zelf in)
+ *      E geschraptIn       (vorige klassen, komma-gescheiden; tool vult in)
+ *      F klasSinds
+ *      G verwijderdOp      (leeg = actief; gevuld = in de prullenbak)
+ *      H opvolgingLeerlingOp
+ *      I opvolgingOudersOp
+ *      J opvolgingNablijfOp
+ *      K opvolgingResetOp
+ *    Start leeg (alleen koppen). Leerlingen voeg je toe via het docentscherm.
+ *
+ *    Tab "Taken_Lijst"
+ *      A id
+ *      B naam
+ *      C type              (zie TOEGESTANE_TAAKTYPES)
+ *      D deadline          (yyyy-mm-dd)
+ *      E klas              (lege klas = geldt voor alle klassen; anders die klas)
+ *    Start leeg. Taken maak je in het docentscherm.
+ *
+ *    Tab "Registraties"
+ *      A datumTijd
+ *      B llnId
+ *      C taakId
+ *      D status            (In orde | Niet in orde | Afwezig | Te laat | Te maken | leeg)
+ *      E opmerking
+ *      F klas
+ *    Start leeg. Statussen komen uit de kruistabel.
+ *
+ *    Tab "Klassen"
+ *      A naam
+ *      B vak
+ *
+ *    Tab "Instellingen"
+ *      A sleutel
+ *      B waarde
+ *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf
+ *
+ * 2. Scriptbestanden in Apps Script
+ *    Plak: Code.gs, docent.html, leerling.html
+ *    Vul TOEGANG_EMAIL_DOCENT hieronder in met jullie schoolaccounts.
+ *    SPREADSHEET_ID leeg laten bij een gebonden script; anders het spreadsheet-ID.
+ *
+ * 3. Deployen als web-app
+ *    Deploy > New deployment > Web app
+ *      Execute as: User accessing the web app  (nodig voor e-mailcheck docent)
+ *      Who has access: Anyone within the domain (of Anyone)
+ *    Na elke codewijziging: nieuwe versie publiceren (/exec).
+ *
+ * 4. URL's
+ *    Docent:   .../exec?view=docent
+ *    Leerling: .../exec?id=GEHEIMECODE   (code uit de fiche; iframe in LVS)
+ *
+ * ===========================================================================
  */
 
 // ---------------------------------------------------------------------------
 // Instellingen
 // ---------------------------------------------------------------------------
 
-/** Pas dit aan naar het echte schoolaccount van de bevoegde leerkracht. */
-const TOEGANG_EMAIL_DOCENT = 'jouw.email@school.be';
+/**
+ * Google-accounts die het docentscherm mogen openen.
+ * Eén of meer adressen (kleine/hoofdletters maakt niet uit).
+ * Voorbeeld met meerdere:
+ *   const TOEGANG_EMAIL_DOCENT = [
+ *     'jij@school.be',
+ *     'collega@school.be'
+ *   ];
+ */
+const TOEGANG_EMAIL_DOCENT = [
+  'emailadres1@school.be',
+  'emailadres2@school.be'
+];
 
-const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp | opvolgingLeerlingOp | opvolgingOudersOp | opvolgingNablijfOp | opvolgingResetOp
-const TAB_TAKEN = 'Taken_Lijst'; // kolommen: id | naam | type | deadline | klas
-const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | klas
-const TAB_KLASSEN = 'Klassen'; // kolommen: naam | vak
-const TAB_INSTELLINGEN = 'Instellingen'; // kolommen: sleutel | waarde
+const TAB_LEERLINGEN = 'Leerlingen';
+const TAB_TAKEN = 'Taken_Lijst';
+const TAB_REGISTRATIES = 'Registraties';
+const TAB_KLASSEN = 'Klassen';
+const TAB_INSTELLINGEN = 'Instellingen';
 
 const INST_OPVOLGING_AAN = 'opvolgingAan';
 const INST_OPVOLGING_DREMPEL = 'opvolgingDrempel';
@@ -166,17 +234,34 @@ function doGet(e) {
   );
 }
 
+/** @return {string[]} */
+function toegangsEmailsDocent_() {
+  const bron = TOEGANG_EMAIL_DOCENT;
+  const lijst = Object.prototype.toString.call(bron) === '[object Array]' ? bron : [bron];
+  const resultaat = [];
+  for (let i = 0; i < lijst.length; i++) {
+    const email = String(lijst[i] || '').trim().toLowerCase();
+    if (email && resultaat.indexOf(email) === -1) resultaat.push(email);
+  }
+  return resultaat;
+}
+
+function emailHeeftDocentToegang_(email) {
+  const gezocht = String(email || '').trim().toLowerCase();
+  if (!gezocht) return false;
+  return toegangsEmailsDocent_().indexOf(gezocht) !== -1;
+}
+
 /**
  * Controleert het actieve Google-account en serveert docent.html.
  */
 function serveerDocentPagina_() {
   const email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
-  const toegestaan = TOEGANG_EMAIL_DOCENT.trim().toLowerCase();
 
-  if (!email || email !== toegestaan) {
+  if (!emailHeeftDocentToegang_(email)) {
     return htmlFout_(
       'Geen toegang',
-      'Dit scherm is alleen beschikbaar voor de bevoegde leerkracht.'
+      'Dit scherm is alleen beschikbaar voor bevoegde leerkrachten.'
     );
   }
 
