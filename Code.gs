@@ -62,7 +62,7 @@
  *    Na elke codewijziging: nieuwe versie publiceren (/exec).
  *
  * 4. URL's
- *    Docent:   .../exec?view=docent
+ *    Docent:   .../exec  (of .../exec?view=docent)
  *    Leerling: .../exec?id=GEHEIMECODE   (code uit de fiche; iframe in LVS)
  *
  * ===========================================================================
@@ -232,26 +232,21 @@ function doGet(e) {
   const view = String(params.view || '').trim().toLowerCase();
   const geheimeCode = String(params.id || '').trim();
 
-  if (view === 'docent') {
-    // Blokkeer het docentscherm op de leerling-implementatie.
-    const leerlingUrl = String(LEERLING_IMPLEMENTATIE_URL || '').trim();
-    if (leerlingUrl && ScriptApp.getService().getUrl() === leerlingUrl) {
-      return htmlFout_(
-        'Geen toegang',
-        'Het docentscherm is niet beschikbaar op deze link. Gebruik de aparte docentlink.'
-      );
-    }
-    return serveerDocentPagina_();
-  }
-
+  // Leerlingpagina via ?id=CODE
   if (geheimeCode) {
     return serveerLeerlingPagina_(geheimeCode);
   }
 
-  return htmlFout_(
-    'Ontbrekende parameter',
-    'Gebruik ?view=docent voor het leerkrachtenscherm of ?id=JOUWCODE voor het leerlingenscherm.'
-  );
+  // Docentpagina: expliciet via ?view=docent, of standaard als er geen andere parameter is.
+  // Geblokkeerd op de leerling-implementatie.
+  const leerlingUrl = String(LEERLING_IMPLEMENTATIE_URL || '').trim();
+  if (leerlingUrl && ScriptApp.getService().getUrl() === leerlingUrl) {
+    return htmlFout_(
+      'Ongeldige link',
+      'Gebruik je persoonlijke leerlinglink met de code.'
+    );
+  }
+  return serveerDocentPagina_();
 }
 
 /** @return {string[]} */

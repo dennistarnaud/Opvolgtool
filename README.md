@@ -166,7 +166,7 @@ Een leerling of ouder heeft geen Google-account nodig. Daarom moet de leerlingim
 
 **URL:**
 ```
-https://script.google.com/macros/s/.../exec?view=docent
+https://script.google.com/macros/s/.../exec
 ```
 
 ---
@@ -261,7 +261,7 @@ De `/exec`-URL blijft hetzelfde. Ververs de pagina in de browser om de nieuwe ve
 
 ### Docentscherm
 
-- Open de docent-URL (`?view=docent`) en log in met je schoolaccount
+- Open de docent-URL en log in met je schoolaccount
 - Selecteer een klas via het keuzemenu
 - **Kruistabel:** klik op een cel om de status van een taak te registreren
 - **Leerlingfiche:** klik op een naam voor details, opvolging en de persoonlijke leerlinglink
