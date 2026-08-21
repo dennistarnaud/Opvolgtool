@@ -69,9 +69,6 @@
               <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="leerkans">
                 <span class="w-3 h-0.5 rounded bg-orange-400"></span> Remediëring
               </button>
-              <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="orde">
-                <span class="w-3 h-0.5 rounded bg-rose-400"></span> Materiaal
-              </button>
               <button type="button" class="filter-groep inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-50" data-groep="optioneel">
                 <span class="w-3 h-0.5 rounded bg-slate-400"></span> Optioneel
               </button>
@@ -101,7 +98,6 @@
     const MOCK_TAKEN = [
       { id: 'T001', naam: 'Wiskunde', type: 'Huistaak', deadline: '2026-08-20' },
       { id: 'T002', naam: 'Agenda', type: 'Lesopdracht', deadline: '2026-08-22' },
-      { id: 'T004', naam: 'Materiaal in orde', type: 'Materiaal niet in orde', deadline: '2026-08-18' },
       { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' },
       { id: 'T006', naam: 'Toets geschiedenis', type: 'Schriftelijke voorbereiding', deadline: '2026-08-29' },
       { id: 'T013', naam: 'Burgerschap', type: 'Niet-verplichte taak', deadline: '2026-09-15' }
@@ -119,7 +115,6 @@
     const MOCK_REGISTRATIES = [
       { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:14', llnId: 'L001', taakId: 'T004', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te laat', opmerking: 'Na de deadline ingediend.', uploadUrl: '' },
       { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.', uploadUrl: '' },
       { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '', uploadUrl: '' },
@@ -127,10 +122,8 @@
       { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.', uploadUrl: 'https://drive.google.com/voorbeeld' },
       { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:20', llnId: 'L004', taakId: 'T004', status: 'Niet in orde', opmerking: 'Geen schrijfgerief.', uploadUrl: '' },
       { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' },
-      { datumTijd: '2026-08-18 09:01', llnId: 'L002', taakId: 'T004', status: 'In orde', opmerking: 'Vandaag wel in orde.', uploadUrl: '' }
+      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '', uploadUrl: '' }
     ];
 
     function isGasOmgeving() {
@@ -216,7 +209,6 @@
     const GROEP_KLEUR = {
       huiswerk: 'bg-sky-400',
       leerkans: 'bg-orange-400',
-      orde: 'bg-rose-400',
       optioneel: 'bg-slate-400'
     };
     const TYPE_GROEP = {
@@ -230,7 +222,6 @@
       'Bijles': 'leerkans',
       'Toets verbeteren': 'leerkans',
       'Examen inkijken': 'leerkans',
-      'Materiaal niet in orde': 'orde',
       'Niet-verplichte taak': 'optioneel'
     };
     const staat = {
@@ -246,10 +237,11 @@
 
     function zichtbareRegistraties() {
       let lijst = staat.registraties.filter(function (reg) {
+        if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return false;
         return groepZitInFilter(taakGroep(reg));
       });
       if (staat.sortering === 'soort') {
-        const volgorde = ['huiswerk', 'les', 'leerkans', 'orde', 'optioneel'];
+        const volgorde = ['huiswerk', 'les', 'leerkans', 'optioneel'];
         lijst.sort(function (a, b) {
           const ga = volgorde.indexOf(taakGroep(a));
           const gb = volgorde.indexOf(taakGroep(b));

@@ -1,6 +1,6 @@
 /**
  * Opvolgtool — Google Apps Script backend
- * Spreadsheet-tabbladen: Leerlingen | Taken_Lijst | Registraties | Klassen
+ * Spreadsheet-tabbladen: Leerlingen | Taken_Lijst | Registraties | Klassen | Instellingen
  *
  * Deployen als web-app:
  *  - Execute as: User accessing the web app  (nodig voor e-mailcheck docent)
@@ -18,10 +18,68 @@
 /** Pas dit aan naar het echte schoolaccount van de bevoegde leerkracht. */
 const TOEGANG_EMAIL_DOCENT = 'jouw.email@school.be';
 
-const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp
+const TAB_LEERLINGEN = 'Leerlingen'; // kolommen: id | naam | klas | code | geschraptIn | klasSinds | verwijderdOp | opvolgingLeerlingOp | opvolgingOudersOp | opvolgingNablijfOp | opvolgingResetOp
 const TAB_TAKEN = 'Taken_Lijst'; // kolommen: id | naam | type | deadline | klas
 const TAB_REGISTRATIES = 'Registraties'; // kolommen: datumTijd | llnId | taakId | status | opmerking | uploadUrl | klas
 const TAB_KLASSEN = 'Klassen'; // kolommen: naam | vak
+const TAB_INSTELLINGEN = 'Instellingen'; // kolommen: sleutel | waarde
+
+const INST_OPVOLGING_AAN = 'opvolgingAan';
+const INST_OPVOLGING_DREMPEL = 'opvolgingDrempel';
+const INST_BERICHT_LEERLING = 'berichtLeerling';
+const INST_BERICHT_OUDERS = 'berichtOuders';
+const INST_BERICHT_NABLIJF = 'berichtNablijf';
+const DEFAULT_OPVOLGING_AAN = true;
+const DEFAULT_OPVOLGING_DREMPEL = 3;
+const DREMPEL_MIN = 2;
+const DREMPEL_MAX = 6;
+const BERICHT_MAX = 4000;
+const DEFAULT_BERICHT_LEERLING =
+  'Hallo {voornaam},\n\n' +
+  'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+  '{taken}\n\n' +
+  'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+  'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+  'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we samen kunnen kijken.\n\n' +
+  'Met vriendelijke groeten';
+const DEFAULT_BERICHT_OUDERS =
+  'Beste ouder(s) van {naam},\n\n' +
+  'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+  '{taken}\n\n' +
+  'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
+  'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
+  'Met vriendelijke groeten';
+const DEFAULT_BERICHT_NABLIJF =
+  'Beste ouder(s) van {naam},\n\n' +
+  'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+  '{taken}\n\n' +
+  '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
+  'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+  'Met vriendelijke groeten';
+const OUD_BERICHT_LEERLING = [
+  'Hallo {voornaam},\n\n' +
+  'Je hebt nog taken die niet in orde zijn:\n' +
+  '{taken}\n\n' +
+  'Haal die in tegen de volgende les.\n\n' +
+  'Dankjewel',
+  'Hallo {voornaam},\n\n' +
+  'Voor {klas} zijn er nog taken of afspraken die niet in orde zijn:\n\n' +
+  '{taken}\n\n' +
+  'Breng die tegen de volgende les in orde. Lukt dat niet of is iets onduidelijk, laat het me dan tijdig weten.\n\n' +
+  'Dankjewel'
+];
+const OUD_BERICHT_OUDERS =
+  'Beste ouder(s) van {naam},\n\n' +
+  '{voornaam} heeft meerdere taken die niet in orde zijn:\n' +
+  '{taken}\n\n' +
+  'Ik heb {voornaam} gevraagd dit tegen de volgende les in te halen. Kan u dit thuis mee opvolgen?\n\n' +
+  'Met vriendelijke groeten';
+const OUD_BERICHT_NABLIJF =
+  'Beste ouder(s) van {naam},\n\n' +
+  'De openstaande taken zijn nog niet in orde:\n' +
+  '{taken}\n\n' +
+  '{voornaam} wordt ingeschreven voor nablijfstudie om dit in te halen.\n\n' +
+  'Met vriendelijke groeten';
 
 /**
  * Leeg laten als dit script aan de spreadsheet gekoppeld is (gebonden script).
@@ -39,7 +97,7 @@ const TOEGESTANE_TAAKTYPES = [
   'Lesopdracht', 'Huistaak', 'Huiswerk', 'Bookwidgetsopdracht',
   'Schriftelijke voorbereiding', 'Remediëringstaak', 'Remediëringsopdracht',
   'Bijles', 'Toets verbeteren', 'Examen inkijken',
-  'Materiaal niet in orde', 'Niet-verplichte taak'
+  'Niet-verplichte taak'
 ];
 
 /** Letter-cijfer × 4 (8 tekens). Geen I/O/1/0, om verwarring te vermijden. */
@@ -122,17 +180,19 @@ function serveerLeerlingPagina_(code) {
 
 /**
  * Volledige dataset voor het docentenscherm.
- * @return {{leerlingen: Object[], taken: Object[], registraties: Object[], klassen: Object[], webAppUrl: string}}
+ * @return {{leerlingen: Object[], taken: Object[], registraties: Object[], klassen: Object[], instellingen: Object, webAppUrl: string}}
  */
 function getDocentData() {
   return metScriptLock_(function () {
     normaliseerLeerlingCodes_();
     synchroniseerKlassen_();
+    zorgVoorOpvolgingKolommen_();
     return {
       leerlingen: leesLeerlingen_(),
-      taken: leesTaken_(),
+      taken: leesTaken_().filter(function (taak) { return !isMateriaalTaak_(taak); }),
       registraties: leesRegistraties_(),
       klassen: leesKlassen_(),
+      instellingen: leesInstellingen_(),
       webAppUrl: ScriptApp.getService().getUrl() || ''
     };
   });
@@ -160,6 +220,7 @@ function getLeerlingData(code) {
     .filter(function (reg) {
       if (reg.llnId !== leerling.id) return false;
       if (!taakGeldtVoorKlas_(taakById[reg.taakId], klas)) return false;
+      if (isMateriaalTaak_(taakById[reg.taakId])) return false;
       return registratieKlas_(reg, leerling) === klas;
     })
     .map(function (reg) {
@@ -251,10 +312,14 @@ function saveLeerling(data) {
       code: uniekeLeerlingCode_(leerlingen),
       geschraptIn: [],
       klasSinds: '',
-      verwijderdOp: ''
+      verwijderdOp: '',
+      opvolgingLeerlingOp: '',
+      opvolgingOudersOp: '',
+      opvolgingNablijfOp: '',
+      opvolgingResetOp: ''
     };
 
-    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '']);
+    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '', '', '', '', '']);
 
     return { ok: true, leerling: leerling };
   });
@@ -303,6 +368,94 @@ function updateLeerling(data) {
     return { ok: true, leerling: leerling };
   }
   throw new Error('Leerling niet gevonden.');
+}
+
+/**
+ * Zet of wist een opvolgstap (leerling laten weten, ouders, nablijfstudie).
+ * @param {{id: string, stap: string}} data stap: leerling | ouders | nablijf | reset
+ * @return {{ok: boolean, leerling: Object}}
+ */
+function zetLeerlingOpvolging(data) {
+  const id = String(data && data.id ? data.id : '').trim();
+  const stap = String(data && data.stap ? data.stap : '').trim();
+  if (!id) throw new Error('Id is verplicht.');
+  if (stap !== 'reset' && stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') {
+    throw new Error('Ongeldige opvolgstap.');
+  }
+
+  return metScriptLock_(function () {
+    zorgVoorOpvolgingKolommen_();
+    const sheet = getSheet_(TAB_LEERLINGEN);
+    const rijen = sheet.getDataRange().getValues();
+    for (let i = 1; i < rijen.length; i++) {
+      if (String(rijen[i][0]).trim() !== id) continue;
+      const leerling = leerlingVanRij_(rijen[i]);
+      const gezet = {
+        leerling: !!String(leerling.opvolgingLeerlingOp || '').trim(),
+        ouders: !!String(leerling.opvolgingOudersOp || '').trim(),
+        nablijf: !!String(leerling.opvolgingNablijfOp || '').trim()
+      };
+      const nu = formatDatumTijd_(new Date());
+      if (stap === 'reset') {
+        sheet.getRange(i + 1, 8, 1, 4).setValues([['', '', '', nu]]);
+        leerling.opvolgingLeerlingOp = '';
+        leerling.opvolgingOudersOp = '';
+        leerling.opvolgingNablijfOp = '';
+        leerling.opvolgingResetOp = nu;
+      } else if (gezet[stap]) {
+        if (stap === 'leerling') {
+          sheet.getRange(i + 1, 8, 1, 3).setValues([['', '', '']]);
+          leerling.opvolgingLeerlingOp = '';
+          leerling.opvolgingOudersOp = '';
+          leerling.opvolgingNablijfOp = '';
+        } else if (stap === 'ouders') {
+          sheet.getRange(i + 1, 9, 1, 2).setValues([['', '']]);
+          leerling.opvolgingOudersOp = '';
+          leerling.opvolgingNablijfOp = '';
+        } else {
+          sheet.getRange(i + 1, 10).setValue('');
+          leerling.opvolgingNablijfOp = '';
+        }
+      } else {
+        if (stap === 'ouders' && !gezet.leerling) {
+          throw new Error('Eerst de leerling laten weten.');
+        }
+        if (stap === 'nablijf' && !gezet.ouders) {
+          throw new Error('Eerst de ouders verwittigen.');
+        }
+        if (stap === 'leerling') {
+          sheet.getRange(i + 1, 8).setValue(nu);
+          leerling.opvolgingLeerlingOp = nu;
+        } else if (stap === 'ouders') {
+          sheet.getRange(i + 1, 9).setValue(nu);
+          leerling.opvolgingOudersOp = nu;
+        } else {
+          sheet.getRange(i + 1, 10).setValue(nu);
+          leerling.opvolgingNablijfOp = nu;
+        }
+      }
+      return { ok: true, leerling: leerling };
+    }
+    throw new Error('Leerling niet gevonden.');
+  });
+}
+
+/**
+ * Bewaart docentinstellingen (opvolging aan/uit en drempel).
+ * @param {{opvolgingAan?: boolean, opvolgingDrempel?: number}} data
+ * @return {{ok: boolean, instellingen: Object}}
+ */
+function saveInstellingen(data) {
+  return metScriptLock_(function () {
+    const instellingen = normaliseerInstellingen_(data);
+    const sheet = zorgVoorInstellingenTab_();
+    zetInstellingRij_(sheet, INST_OPVOLGING_AAN, instellingen.opvolgingAan ? 'ja' : 'nee');
+    zetInstellingRij_(sheet, INST_OPVOLGING_DREMPEL, instellingen.opvolgingDrempel);
+    zetInstellingRij_(sheet, INST_BERICHT_LEERLING, instellingen.berichtLeerling);
+    zetInstellingRij_(sheet, INST_BERICHT_OUDERS, instellingen.berichtOuders);
+    zetInstellingRij_(sheet, INST_BERICHT_NABLIJF, instellingen.berichtNablijf);
+    return { ok: true, instellingen: instellingen };
+  });
 }
 
 /**
@@ -513,6 +666,10 @@ function taakGeldtVoorKlas_(taak, klas) {
   return !taakKlas || taakKlas === klas;
 }
 
+function isMateriaalTaak_(taak) {
+  return String(taak && taak.type ? taak.type : '').trim() === 'Materiaal niet in orde';
+}
+
 /** Oude rijen zonder klas blijven bij de klas waar de leerling ze haalde. */
 function registratieKlas_(reg, leerling) {
   const klas = String(reg && reg.klas ? reg.klas : '').trim();
@@ -599,6 +756,112 @@ function zorgVoorKlassenTab_() {
     sheet.getRange(1, 2).setValue('vak');
   }
   return sheet;
+}
+
+function zorgVoorOpvolgingKolommen_() {
+  const sheet = getSheet_(TAB_LEERLINGEN);
+  const last = Math.max(11, sheet.getLastColumn() || 1);
+  const kop = sheet.getRange(1, 1, 1, last).getValues()[0];
+  if (String(kop[7] || '').trim() === '') sheet.getRange(1, 8).setValue('opvolgingLeerlingOp');
+  if (String(kop[8] || '').trim() === '') sheet.getRange(1, 9).setValue('opvolgingOudersOp');
+  if (String(kop[9] || '').trim() === '') sheet.getRange(1, 10).setValue('opvolgingNablijfOp');
+  if (String(kop[10] || '').trim() === '') sheet.getRange(1, 11).setValue('opvolgingResetOp');
+}
+
+function standaardInstellingen_() {
+  return {
+    opvolgingAan: DEFAULT_OPVOLGING_AAN,
+    opvolgingDrempel: DEFAULT_OPVOLGING_DREMPEL,
+    berichtLeerling: DEFAULT_BERICHT_LEERLING,
+    berichtOuders: DEFAULT_BERICHT_OUDERS,
+    berichtNablijf: DEFAULT_BERICHT_NABLIJF
+  };
+}
+
+function isOudStandaardBericht_(waarde, oud) {
+  const tekst = String(waarde == null ? '' : waarde).replace(/\r\n/g, '\n').trim();
+  if (!tekst || oud == null || oud === '') return false;
+  const lijst = Object.prototype.toString.call(oud) === '[object Array]' ? oud : [oud];
+  for (let i = 0; i < lijst.length; i++) {
+    if (tekst === String(lijst[i] || '').replace(/\r\n/g, '\n').trim()) return true;
+  }
+  return false;
+}
+
+function normaliseerBericht_(waarde, fallback, oud) {
+  const tekst = String(waarde == null ? '' : waarde).replace(/\r\n/g, '\n');
+  if (!tekst.trim() || isOudStandaardBericht_(tekst, oud)) return fallback;
+  return tekst.length > BERICHT_MAX ? tekst.substring(0, BERICHT_MAX) : tekst;
+}
+
+function isJaNee_(waarde, fallback) {
+  if (waarde === true || waarde === 1) return true;
+  if (waarde === false || waarde === 0) return false;
+  const s = String(waarde == null ? '' : waarde).trim().toLowerCase();
+  if (!s) return fallback;
+  if (s === 'ja' || s === 'true' || s === '1') return true;
+  if (s === 'nee' || s === 'false' || s === '0') return false;
+  return fallback;
+}
+
+function normaliseerInstellingen_(data) {
+  const basis = standaardInstellingen_();
+  const bron = data && typeof data === 'object' ? data : {};
+  const drempel = parseInt(bron.opvolgingDrempel, 10);
+  return {
+    opvolgingAan: isJaNee_(bron.opvolgingAan, basis.opvolgingAan),
+    opvolgingDrempel: (drempel >= DREMPEL_MIN && drempel <= DREMPEL_MAX)
+      ? drempel
+      : basis.opvolgingDrempel,
+    berichtLeerling: normaliseerBericht_(bron.berichtLeerling, basis.berichtLeerling, OUD_BERICHT_LEERLING),
+    berichtOuders: normaliseerBericht_(bron.berichtOuders, basis.berichtOuders, OUD_BERICHT_OUDERS),
+    berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF)
+  };
+}
+
+function zorgVoorInstellingenTab_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(TAB_INSTELLINGEN);
+  if (!sheet) {
+    sheet = ss.insertSheet(TAB_INSTELLINGEN, ss.getNumSheets());
+    sheet.getRange(1, 1, 3, 2).setValues([
+      ['sleutel', 'waarde'],
+      [INST_OPVOLGING_AAN, DEFAULT_OPVOLGING_AAN ? 'ja' : 'nee'],
+      [INST_OPVOLGING_DREMPEL, DEFAULT_OPVOLGING_DREMPEL]
+    ]);
+  } else if (String(sheet.getRange(1, 1).getValue() || '').trim() === '') {
+    sheet.getRange(1, 1, 1, 2).setValues([['sleutel', 'waarde']]);
+  }
+  return sheet;
+}
+
+function leesInstellingen_() {
+  const sheet = zorgVoorInstellingenTab_();
+  const rijen = sheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < rijen.length; i++) {
+    const sleutel = String(rijen[i][0] || '').trim();
+    if (sleutel) map[sleutel] = rijen[i][1];
+  }
+  return normaliseerInstellingen_({
+    opvolgingAan: map[INST_OPVOLGING_AAN],
+    opvolgingDrempel: map[INST_OPVOLGING_DREMPEL],
+    berichtLeerling: map[INST_BERICHT_LEERLING],
+    berichtOuders: map[INST_BERICHT_OUDERS],
+    berichtNablijf: map[INST_BERICHT_NABLIJF]
+  });
+}
+
+function zetInstellingRij_(sheet, sleutel, waarde) {
+  const last = Math.max(1, sheet.getLastRow());
+  const rijen = sheet.getRange(1, 1, last, 1).getValues();
+  for (let i = 1; i < rijen.length; i++) {
+    if (String(rijen[i][0] || '').trim() === sleutel) {
+      sheet.getRange(i + 1, 2).setValue(waarde);
+      return;
+    }
+  }
+  sheet.appendRow([sleutel, waarde]);
 }
 
 function verzamelKlasnamenUitLeerlingen_() {
@@ -803,7 +1066,11 @@ function leerlingVanRij_(rij) {
     code: String(rij[3] || '').trim(),
     geschraptIn: parseLijst_(rij[4]),
     klasSinds: formatDatumTijd_(rij[5]),
-    verwijderdOp: formatDatumTijd_(rij[6])
+    verwijderdOp: formatDatumTijd_(rij[6]),
+    opvolgingLeerlingOp: formatDatumTijd_(rij[7]),
+    opvolgingOudersOp: formatDatumTijd_(rij[8]),
+    opvolgingNablijfOp: formatDatumTijd_(rij[9]),
+    opvolgingResetOp: formatDatumTijd_(rij[10])
   };
 }
 
