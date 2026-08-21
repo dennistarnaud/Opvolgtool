@@ -140,7 +140,7 @@
       const el = document.getElementById('gas-leerling-payload');
       if (!el) return null;
       const tekst = (el.textContent || '').trim();
-      if (!tekst || tekst.indexOf('<?') !== -1) return null;
+      if (!tekst || tekst.indexOf('<' + '?') !== -1) return null;
       try {
         return JSON.parse(tekst);
       } catch (fout) {
