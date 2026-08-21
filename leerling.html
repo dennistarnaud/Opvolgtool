@@ -311,7 +311,16 @@
     }
 
     function toonRegistraties(data) {
-      staat.registraties = (data && data.registraties) ? data.registraties : [];
+      // Bewaar enkel de meest recente registratie per taak — net zoals de kruistabel.
+      // De server levert al gesorteerd op datumTijd aflopend, dus de eerste per taakId wint.
+      const ruw = (data && data.registraties) ? data.registraties : [];
+      const gezien = {};
+      staat.registraties = ruw.filter(function (reg) {
+        const id = String(reg.taakId || '');
+        if (gezien[id]) return false;
+        gezien[id] = true;
+        return true;
+      });
       tekenLijst();
     }
 
