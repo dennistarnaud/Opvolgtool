@@ -86,6 +86,18 @@ const TOEGANG_EMAIL_DOCENT = [
   'emailadres2@school.be'
 ];
 
+/**
+ * URL van de LEERLING-implementatie (Uitvoeren als: Ik + Iedereen).
+ * Vul dit in na het aanmaken van die implementatie, zodat docent-functies
+ * op die URL geblokkeerd worden — ook al is de uitvoerende gebruiker de eigenaar.
+ *
+ * Voorbeeld:
+ *   const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
+ *
+ * Laat leeg ('') als je nog geen aparte leerling-implementatie hebt.
+ */
+const LEERLING_IMPLEMENTATIE_URL = '';
+
 const TAB_LEERLINGEN = 'Leerlingen';
 const TAB_TAKEN = 'Taken_Lijst';
 const TAB_REGISTRATIES = 'Registraties';
@@ -221,6 +233,14 @@ function doGet(e) {
   const geheimeCode = String(params.id || '').trim();
 
   if (view === 'docent') {
+    // Blokkeer het docentscherm op de leerling-implementatie.
+    const leerlingUrl = String(LEERLING_IMPLEMENTATIE_URL || '').trim();
+    if (leerlingUrl && ScriptApp.getService().getUrl() === leerlingUrl) {
+      return htmlFout_(
+        'Geen toegang',
+        'Het docentscherm is niet beschikbaar op deze link. Gebruik de aparte docentlink.'
+      );
+    }
     return serveerDocentPagina_();
   }
 
@@ -250,6 +270,32 @@ function emailHeeftDocentToegang_(email) {
   const gezocht = String(email || '').trim().toLowerCase();
   if (!gezocht) return false;
   return toegangsEmailsDocent_().indexOf(gezocht) !== -1;
+}
+
+/**
+ * Gooit een fout als de aanroeper geen docent-toegang heeft.
+ *
+ * Beschermingslagen:
+ *  1. URL-check: is dit de leerling-implementatie? → altijd geblokkeerd.
+ *  2. Email-check: is het actieve account in TOEGANG_EMAIL_DOCENT? → anders geblokkeerd.
+ *
+ * Gebruik bij elke server-side functie die docent-data leest of schrijft.
+ */
+function assertDocentToegang_() {
+  // Laag 1: blokkeer docent-aanroepen op de leerling-implementatie.
+  const leerlingUrl = String(LEERLING_IMPLEMENTATIE_URL || '').trim();
+  if (leerlingUrl) {
+    const huidigeUrl = String(ScriptApp.getService().getUrl() || '').trim();
+    if (huidigeUrl === leerlingUrl) {
+      throw new Error('Deze functie is niet beschikbaar op de leerling-implementatie.');
+    }
+  }
+
+  // Laag 2: controleer het e-mailadres van de actieve gebruiker.
+  const email = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  if (!emailHeeftDocentToegang_(email)) {
+    throw new Error('Geen docenttoegang. Meld je aan met een bevoegd account.');
+  }
 }
 
 /**
@@ -302,6 +348,7 @@ function serveerLeerlingPagina_(code) {
  * @return {{leerlingen: Object[], taken: Object[], registraties: Object[], klassen: Object[], instellingen: Object, webAppUrl: string}}
  */
 function getDocentData() {
+  assertDocentToegang_();
   // Lezen heeft geen script-lock nodig; onderhoudstaken lopen eenmalig via initSetup_().
   initSetup_();
   return {
@@ -393,6 +440,7 @@ function getLeerlingData(code) {
  * @return {{ok: boolean, registratie: Object}}
  */
 function saveRegistratie(data) {
+  assertDocentToegang_();
   if (!data || !data.llnId || !data.taakId) {
     throw new Error('Ontbrekende velden: llnId en taakId zijn verplicht.');
   }
@@ -435,6 +483,7 @@ function saveRegistratie(data) {
  * @return {{ok: boolean, leerling: Object}}
  */
 function saveLeerling(data) {
+  assertDocentToegang_();
   if (!data || !String(data.naam || '').trim() || !String(data.klas || '').trim()) {
     throw new Error('Naam en klas zijn verplicht.');
   }
@@ -467,6 +516,7 @@ function saveLeerling(data) {
  * @return {{ok: boolean, leerling: Object}}
  */
 function updateLeerling(data) {
+  assertDocentToegang_();
   const id = String(data && data.id ? data.id : '').trim();
   const heeftNaam = data && data.naam !== undefined;
   const klas = data && data.klas !== undefined ? voegKlasToeAlsNieuw_(data.klas) : '';
@@ -512,6 +562,7 @@ function updateLeerling(data) {
  * @return {{ok: boolean, leerling: Object}}
  */
 function zetLeerlingOpvolging(data) {
+  assertDocentToegang_();
   const id = String(data && data.id ? data.id : '').trim();
   const stap = String(data && data.stap ? data.stap : '').trim();
   if (!id) throw new Error('Id is verplicht.');
@@ -582,6 +633,7 @@ function zetLeerlingOpvolging(data) {
  * @return {{ok: boolean, instellingen: Object}}
  */
 function saveInstellingen(data) {
+  assertDocentToegang_();
   return metScriptLock_(function () {
     const instellingen = normaliseerInstellingen_(data);
     const sheet = zorgVoorInstellingenTab_();
@@ -601,6 +653,7 @@ function saveInstellingen(data) {
  * @return {{ok: boolean, taak: Object, taken: Object[]}}
  */
 function saveTaak(data) {
+  assertDocentToegang_();
   if (!data || !String(data.naam || '').trim()) {
     throw new Error('Naam is verplicht.');
   }
@@ -651,6 +704,7 @@ function saveTaak(data) {
  * @return {{ok: boolean, taak: Object}}
  */
 function updateTaak(data) {
+  assertDocentToegang_();
   const id = String(data && data.id ? data.id : '').trim();
   if (!id) throw new Error('Id is verplicht.');
 
@@ -694,6 +748,7 @@ function updateTaak(data) {
  * @return {{ok: boolean, leerling: Object}}
  */
 function deleteLeerling(id) {
+  assertDocentToegang_();
   return zetLeerlingVerwijderd_(id, formatDatumTijd_(new Date()));
 }
 
@@ -703,6 +758,7 @@ function deleteLeerling(id) {
  * @return {{ok: boolean, leerling: Object}}
  */
 function herstelLeerling(id) {
+  assertDocentToegang_();
   return zetLeerlingVerwijderd_(id, '');
 }
 
@@ -711,6 +767,7 @@ function herstelLeerling(id) {
  * @return {{ok: boolean, aantal: number}}
  */
 function leegPrullenbak() {
+  assertDocentToegang_();
   const weg = {};
   leesLeerlingen_().forEach(function (lln) {
     if (String(lln.verwijderdOp || '').trim()) weg[lln.id] = true;
@@ -729,6 +786,7 @@ function leegPrullenbak() {
  * @return {{ok: boolean, id: string}}
  */
 function deleteTaak(id) {
+  assertDocentToegang_();
   const taakId = String(id || '').trim();
   if (!taakId) throw new Error('Ontbrekend taak-id.');
   if (!verwijderRijOpId_(TAB_TAKEN, taakId)) {
@@ -745,6 +803,7 @@ function deleteTaak(id) {
  * @return {{ok: boolean, klas: string, vak: string}}
  */
 function saveKlas(data) {
+  assertDocentToegang_();
   return metScriptLock_(function () {
     const naam = typeof data === 'string' ? data : (data && data.naam);
     const vak = typeof data === 'string' ? '' : (data && data.vak);
@@ -764,6 +823,7 @@ function saveKlas(data) {
  * @return {{ok: boolean, klas: string, taken: number}}
  */
 function deleteKlas(naam) {
+  assertDocentToegang_();
   return metScriptLock_(function () {
     const klas = bestaandeKlasnaam_(naam);
     if (!klas) throw new Error('Klas niet gevonden.');
