@@ -240,6 +240,7 @@
     }
 
     function zichtbareRegistraties() {
+      // Zelfde sorteerlogica als docent.html → zichtbareTaken().
       let lijst = staat.registraties.filter(function (reg) {
         if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return false;
         return groepZitInFilter(taakGroep(reg));

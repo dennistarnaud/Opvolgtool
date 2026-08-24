@@ -1536,7 +1536,7 @@
       });
     }
 
-    /** Taken voor de kruistabel: filter + sortering (datum standaard, of soort). */
+    /** Taken voor de kruistabel: filter + sortering (zelfde logica als leerling.html → zichtbareRegistraties). */
     function zichtbareTaken() {
       let lijst = takenVanKlas().filter(function (taak) {
         return groepZitInFilter(taakGroep(taak));
@@ -1549,11 +1549,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(a.deadline).localeCompare(String(b.deadline));
+          return String(b.deadline).localeCompare(String(a.deadline));
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(a.deadline).localeCompare(String(b.deadline));
+          return String(b.deadline).localeCompare(String(a.deadline));
         });
       }
       return lijst;
@@ -3330,11 +3330,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.taak.type || '').localeCompare(String(b.taak.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(b.reg.datumTijd || '').localeCompare(String(a.reg.datumTijd || ''));
+          return String(b.taak.deadline || '').localeCompare(String(a.taak.deadline || ''));
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(b.reg.datumTijd || '').localeCompare(String(a.reg.datumTijd || ''));
+          return String(b.taak.deadline || '').localeCompare(String(a.taak.deadline || ''));
         });
       }
       return lijst;

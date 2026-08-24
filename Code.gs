@@ -214,10 +214,7 @@ const TOEGESTANE_TAAKTYPES = [
   'Niet-verplichte taak'
 ];
 
-/** Letter-cijfer × 4 (8 tekens). Geen I/O/1/0, om verwarring te vermijden. */
-const LEERLING_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-const LEERLING_CODE_CIJFERS = '23456789';
-const LEERLING_CODE_PAREN = 4;
+// Leerlingcode-constanten en -functies: zie LeerlingCodes.gs
 
 // ---------------------------------------------------------------------------
 // Web-app entry
@@ -1308,18 +1305,7 @@ function leerlingVanRij_(rij) {
   };
 }
 
-function zoekLeerlingOpCode_(code) {
-  const gezocht = String(code || '').trim().toUpperCase();
-  if (!gezocht) return null;
-  const leerlingen = leesLeerlingen_();
-  for (let i = 0; i < leerlingen.length; i++) {
-    if (String(leerlingen[i].verwijderdOp || '').trim()) continue;
-    if (String(leerlingen[i].code).trim().toUpperCase() === gezocht) {
-      return leerlingen[i];
-    }
-  }
-  return null;
-}
+// zoekLeerlingOpCode_: zie LeerlingCodes.gs
 
 function zetLeerlingVerwijderd_(id, verwijderdOp) {
   const llnId = String(id || '').trim();
@@ -1389,81 +1375,8 @@ function metScriptLock_(fn) {
   }
 }
 
-function leerlingCodeIsGeldig_(code) {
-  const tekst = String(code || '').trim().toUpperCase();
-  if (tekst.length !== LEERLING_CODE_PAREN * 2) return false;
-  for (let i = 0; i < LEERLING_CODE_PAREN; i++) {
-    if (LEERLING_CODE_LETTERS.indexOf(tekst.charAt(i * 2)) === -1) return false;
-    if (LEERLING_CODE_CIJFERS.indexOf(tekst.charAt(i * 2 + 1)) === -1) return false;
-  }
-  return true;
-}
-
-function maakWillekeurigeLeerlingCode_() {
-  let code = '';
-  for (let i = 0; i < LEERLING_CODE_PAREN; i++) {
-    code += LEERLING_CODE_LETTERS.charAt(Math.floor(Math.random() * LEERLING_CODE_LETTERS.length));
-    code += LEERLING_CODE_CIJFERS.charAt(Math.floor(Math.random() * LEERLING_CODE_CIJFERS.length));
-  }
-  return code;
-}
-
-function uniekeLeerlingCodeVanSet_(bestaande) {
-  for (let n = 0; n < 10000; n++) {
-    const code = maakWillekeurigeLeerlingCode_();
-    if (!bestaande[code]) {
-      bestaande[code] = true;
-      return code;
-    }
-  }
-  throw new Error('Kon geen unieke leerlingcode genereren.');
-}
-
-function uniekeLeerlingCode_(leerlingen) {
-  const bestaande = {};
-  leerlingen.forEach(function (lln) {
-    const code = String(lln.code || '').trim().toUpperCase();
-    if (code) bestaande[code] = true;
-  });
-  return uniekeLeerlingCodeVanSet_(bestaande);
-}
-
-/**
- * Zet korte of ongeldige codes om naar unieke 8-teken-codes.
- * Geldige unieke codes blijven staan. Dubbele geldige codes: de eerste blijft, de rest krijgt een nieuwe.
- */
-function normaliseerLeerlingCodes_() {
-  const sheet = getSheet_(TAB_LEERLINGEN);
-  const bereik = sheet.getDataRange();
-  const rijen = bereik.getValues();
-  if (rijen.length < 2) return;
-
-  const bestaande = {};
-  const teVervangen = [];
-  let gewijzigd = false;
-
-  for (let i = 1; i < rijen.length; i++) {
-    if (!rijen[i][0]) continue;
-    const origineel = String(rijen[i][3] || '').trim();
-    const code = origineel.toUpperCase();
-    if (leerlingCodeIsGeldig_(code) && !bestaande[code]) {
-      bestaande[code] = true;
-      if (origineel !== code) {
-        rijen[i][3] = code;
-        gewijzigd = true;
-      }
-    } else {
-      teVervangen.push(i);
-    }
-  }
-
-  teVervangen.forEach(function (i) {
-    rijen[i][3] = uniekeLeerlingCodeVanSet_(bestaande);
-    gewijzigd = true;
-  });
-
-  if (gewijzigd) bereik.setValues(rijen);
-}
+// leerlingCodeIsGeldig_, maakWillekeurigeLeerlingCode_, uniekeLeerlingCodeVanSet_,
+// uniekeLeerlingCode_, normaliseerLeerlingCodes_: zie LeerlingCodes.gs
 
 function vervangSheetZonderIds_(sheetNaam, idKolom, idSet) {
   const sheet = getSheet_(sheetNaam);
