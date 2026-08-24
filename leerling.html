@@ -23,6 +23,11 @@
       background: #e2e8f0;
       color: #0f172a;
     }
+    /* Zorgt dat swipe-scroll binnen de iframe werkt op iOS/Safari. */
+    html, body {
+      -webkit-overflow-scrolling: touch;
+      overflow-y: auto;
+    }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

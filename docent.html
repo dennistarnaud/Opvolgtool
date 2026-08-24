@@ -3613,7 +3613,22 @@
     function leerlingIframeHtml(code) {
       const src = leerlingUrl(code);
       if (!src) return '';
-      return '<iframe src="' + src + '" width="100%" height="600" style="border:0;border-radius:12px;" title="Opvolging leerkansen" loading="lazy"></iframe>';
+      // Laadmelding boven de iframe (blijft zichtbaar tot de pagina geladen is).
+      // max-width + margin:auto centreert op desktop; width:100% vult smartphone.
+      return (
+        '<p style="font-size:0.85em;color:#64748b;margin:0 0 0.4em;">' +
+          'Het overzicht hieronder is aan het laden. Dit kan enkele seconden duren. Ververs de pagina als er niets verschijnt.' +
+        '</p>\n' +
+        '<iframe\n' +
+        '  src="' + src + '"\n' +
+        '  width="100%"\n' +
+        '  height="900"\n' +
+        '  style="border:0;border-radius:12px;height:min(900px,85vh);"\n' +
+        '  title="Opvolging leerkansen"\n' +
+        '  loading="lazy"\n' +
+        '  scrolling="yes">\n' +
+        '</iframe>'
+      );
     }
 
     function webAppBasisUrl() {
