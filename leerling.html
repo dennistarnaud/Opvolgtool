@@ -239,8 +239,16 @@
       return TYPE_GROEP[reg && reg.type] || 'optioneel';
     }
 
+    /** Recentste eerst: deadline aflopend, bij gelijke deadline nieuwste taak eerst. */
+    function vergelijkRecentEerst(deadlineA, deadlineB, idA, idB) {
+      const cmp = String(deadlineB || '').localeCompare(String(deadlineA || ''));
+      if (cmp !== 0) return cmp;
+      return String(idB || '').localeCompare(String(idA || ''));
+    }
+
     function zichtbareRegistraties() {
-      // Zelfde sorteerlogica als docent.html → zichtbareTaken().
+      // Leerlingenview: recentste deadline bovenaan (omgekeerd van de kruistabel).
+      // Later: binnen elke periode dezelfde volgorde, periodes zelf docent-gestuurd.
       let lijst = staat.registraties.filter(function (reg) {
         if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return false;
         return groepZitInFilter(taakGroep(reg));
@@ -253,11 +261,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(b.deadline).localeCompare(String(a.deadline));
+          return vergelijkRecentEerst(a.deadline, b.deadline, a.taakId, b.taakId);
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(b.deadline).localeCompare(String(a.deadline));
+          return vergelijkRecentEerst(a.deadline, b.deadline, a.taakId, b.taakId);
         });
       }
       return lijst;

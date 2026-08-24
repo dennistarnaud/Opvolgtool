@@ -1536,7 +1536,21 @@
       });
     }
 
-    /** Taken voor de kruistabel: filter + sortering (zelfde logica als leerling.html → zichtbareRegistraties). */
+    /** Chronologisch (kruistabel): deadline oplopend, bij gelijke deadline oudste taak eerst. */
+    function vergelijkChronologisch(deadlineA, deadlineB, idA, idB) {
+      const cmp = String(deadlineA || '').localeCompare(String(deadlineB || ''));
+      if (cmp !== 0) return cmp;
+      return String(idA || '').localeCompare(String(idB || ''));
+    }
+
+    /** Recentste eerst (leerlingenview): deadline aflopend, bij gelijke deadline nieuwste taak eerst. */
+    function vergelijkRecentEerst(deadlineA, deadlineB, idA, idB) {
+      const cmp = String(deadlineB || '').localeCompare(String(deadlineA || ''));
+      if (cmp !== 0) return cmp;
+      return String(idB || '').localeCompare(String(idA || ''));
+    }
+
+    /** Taken voor de kruistabel: filter + sortering (datum = chronologisch, oudste eerst). */
     function zichtbareTaken() {
       let lijst = takenVanKlas().filter(function (taak) {
         return groepZitInFilter(taakGroep(taak));
@@ -1549,11 +1563,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(b.deadline).localeCompare(String(a.deadline));
+          return vergelijkChronologisch(a.deadline, b.deadline, a.id, b.id);
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(b.deadline).localeCompare(String(a.deadline));
+          return vergelijkChronologisch(a.deadline, b.deadline, a.id, b.id);
         });
       }
       return lijst;
@@ -3319,6 +3333,7 @@
     }
 
     function zichtbareFicheItems(items) {
+      // Zelfde volgorde als leerling.html → recentste deadline bovenaan.
       let lijst = items.filter(function (item) {
         return groepZitInFilter(taakGroep(item.taak));
       });
@@ -3330,11 +3345,11 @@
           if (ga !== gb) return ga - gb;
           const typeCmp = String(a.taak.type || '').localeCompare(String(b.taak.type || ''), 'nl');
           if (typeCmp !== 0) return typeCmp;
-          return String(b.taak.deadline || '').localeCompare(String(a.taak.deadline || ''));
+          return vergelijkRecentEerst(a.taak.deadline, b.taak.deadline, a.taak.id, b.taak.id);
         });
       } else {
         lijst.sort(function (a, b) {
-          return String(b.taak.deadline || '').localeCompare(String(a.taak.deadline || ''));
+          return vergelijkRecentEerst(a.taak.deadline, b.taak.deadline, a.taak.id, b.taak.id);
         });
       }
       return lijst;
@@ -3344,7 +3359,7 @@
       const groep = taakGroep(taak);
       const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
       const teltNietMee = registratieTeltNietMee(leerling, reg);
-      const meta = [formaatDatum(reg && reg.datumTijd || (taak && taak.deadline)), taak && taak.type]
+      const meta = [formaatDatum(taak && taak.deadline), taak && taak.type]
         .filter(Boolean).join(' · ');
       const opmerking = reg && reg.opmerking
         ? '<p class="text-sm text-slate-600 leading-snug">' + escapeHtml(reg.opmerking) + '</p>'
