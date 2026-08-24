@@ -426,9 +426,11 @@
           <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">2</kbd>
           <span class="w-3 h-3 rounded bg-rose-500"></span> Niet in orde
         </button>
-        <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1" title="Na een reset: het kruisje blijft staan, maar telt niet meer mee">
-          <span class="w-3 h-3 rounded bg-rose-200"></span> Afgehandeld
-        </span>
+        <button type="button" data-actie="al-opgevolgd" class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" title="Niet in orde, al opgevolgd — telt niet meer mee">
+          <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">6</kbd>
+          <span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded bg-rose-200 text-rose-800 text-[8px] font-bold leading-none">✕</span>
+          Al opgevolgd
+        </button>
         <button type="button" class="legende-status inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:bg-slate-50" data-status="Afwezig">
           <kbd class="font-mono text-[10px] bg-slate-100 px-1 rounded">3</kbd>
           <span class="w-3 h-3 rounded bg-slate-400"></span> Afwezig
@@ -877,7 +879,7 @@
 
     const TAB_ACTIEF = 'bg-indigo-600 text-white';
     const TAB_INACTIEF = 'text-slate-600 hover:bg-slate-100';
-    /** Excel-aanpak: vakje selecteren, daarna 1–5 of letter intoetsen. */
+    /** Excel-aanpak: vakje selecteren, daarna 1–6 of letter intoetsen. */
     const STATUS_TOETSEN = {
       '1': 'In orde', i: 'In orde',
       '2': 'Niet in orde', n: 'Niet in orde',
@@ -1114,12 +1116,21 @@
         taakId: data.taakId,
         status: data.status,
         opmerking: data.opmerking || '',
-        klas: String(data.klas || staat.gekozenKlas || '').trim()
+        klas: String(data.klas || staat.gekozenKlas || '').trim(),
+        alOpgevolgd: !!data.alOpgevolgd
       };
+
+      let datumTijd = nieuweTijdstempel();
+      if (payload.alOpgevolgd) {
+        const lln = leerlingOpId(payload.llnId);
+        const reset = String(lln && lln.opvolgingResetOp || '').trim();
+        if (!reset) return false;
+        datumTijd = reset;
+      }
 
       // Optimistisch: registratie meteen lokaal toevoegen en UI hertekenen.
       const tempRij = {
-        datumTijd: nieuweTijdstempel(),
+        datumTijd: datumTijd,
         llnId: payload.llnId,
         taakId: payload.taakId,
         status: payload.status,
@@ -1131,7 +1142,7 @@
 
       if (!isGasOmgeving()) {
         console.log('[LOKAAL] saveRegistratie', tempRij);
-        return;
+        return true;
       }
 
       // Bevestig op de achtergrond; bij fout: alles herladen zodat staat consistent blijft.
@@ -1149,6 +1160,7 @@
           haalDocentData();
         })
         .saveRegistratie(payload);
+      return true;
     }
 
     function nieuweTijdstempel() {
@@ -1748,6 +1760,8 @@
       if (!o.nablijf) return 'nablijf';
       return 'reset';
     }
+
+    const AL_OPGEVOLGD = 'Al opgevolgd';
 
     function opvolgIcoonSvg(stap, px) {
       const s = px || 14;
@@ -2718,7 +2732,7 @@
         STATUS_OPTIES.map(function (status) {
           const actief = status === huidige;
           const teltNietMee = actief && registratieTeltNietMee(lln, huidigeReg);
-          const titel = teltNietMee ? 'Niet in orde (telt niet meer mee)' : status;
+          const titel = teltNietMee ? celStatusLabel(status, true) : status;
           return '<button type="button" class="lijst-status inline-flex items-center justify-center w-9 h-9 rounded-lg text-sm font-bold ' +
             lijstStatusKlasse(status, actief, teltNietMee) + '" data-actie="' + knopActie + '" data-lln="' + escapeAttr(llnId || '') +
             '" data-taak="' + escapeAttr(taakId || '') + '" data-status="' + escapeAttr(status) +
@@ -2755,7 +2769,7 @@
       const delen = [];
       if (t.inOrde) delen.push(t.inOrde + ' in orde');
       if (t.nietOk) delen.push(t.nietOk + ' niet OK');
-      if (t.afgehandeld) delen.push(t.afgehandeld + ' afgehandeld');
+      if (t.afgehandeld) delen.push(t.afgehandeld + ' al opgevolgd');
       if (t.teLaat) delen.push(t.teLaat + ' te laat');
       if (t.teMaken) delen.push(t.teMaken + ' te maken');
       if (t.afwezig) delen.push(t.afwezig + ' afwezig');
@@ -3249,9 +3263,9 @@
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
-      const tekst = teltNietMee ? 'Niet in orde · afgehandeld' : (status || 'Nog geen registratie');
+      const tekst = teltNietMee ? 'Niet in orde · al opgevolgd' : (status || 'Nog geen registratie');
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '" title="' +
-        escapeAttr(teltNietMee ? 'Telt niet meer mee voor de volgende cyclus' : tekst) + '">' +
+        escapeAttr(teltNietMee ? AL_OPGEVOLGD : tekst) + '">' +
         escapeHtml(tekst) + '</span>';
     }
 
@@ -3316,7 +3330,7 @@
 
       document.getElementById('fiche-samenvatting').textContent =
         inOrde + ' in orde · ' + nietOk + ' niet OK · ' +
-        (afgehandeld ? afgehandeld + ' afgehandeld · ' : '') +
+        (afgehandeld ? afgehandeld + ' al opgevolgd · ' : '') +
         teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       const lijst = document.getElementById('fiche-lijst');
@@ -4117,7 +4131,7 @@
     }
 
     function celStatusLabel(status, teltNietMee) {
-      if (teltNietMee) return 'Niet in orde (telt niet meer mee)';
+      if (teltNietMee) return 'Niet in orde — al opgevolgd';
       return status || 'Nog geen registratie';
     }
 
@@ -4384,9 +4398,28 @@
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       if (!staat.geselecteerd && !(staat.selectie && staat.selectie.length)) return;
       const doel = event.target;
-      if (doel && doel.closest && doel.closest('.legende-status')) return;
+      if (doel && doel.closest && (doel.closest('.legende-status') || doel.closest('[data-actie="al-opgevolgd"]'))) return;
       if (klikInKruisGrid(event)) return;
       selecteerCel(null);
+    }
+
+    function werkCelNaRegistratie(cel, reg, status) {
+      const knop = zoekCelKnop(cel.llnId, cel.taakId);
+      if (!knop) return;
+      const lln = leerlingOpId(cel.llnId);
+      const taak = taakOpId(cel.taakId);
+      const teltNietMee = registratieTeltNietMee(lln, reg);
+      const statusLabel = celStatusLabel(status, teltNietMee);
+      const actief = celInSelectie(cel.llnId, cel.taakId) ? ' cel-actief' : '';
+      knop.className = 'cel-status' + actief + ' ' + celKlassen(status, teltNietMee);
+      knop.textContent = celTekst(status);
+      knop.setAttribute('title', taak
+        ? [taakTitel(taak), statusLabel].concat(reg && reg.opmerking ? [reg.opmerking] : []).join(' — ')
+        : statusLabel);
+      knop.setAttribute('aria-label', (lln && taak)
+        ? lln.naam + ': ' + taakTitel(taak) + ', ' + statusLabel
+        : statusLabel);
+      verversOpvolgSein(cel.llnId);
     }
 
     function pasGeselecteerdeStatus(status) {
@@ -4403,25 +4436,43 @@
           status: status || '',
           opmerking: leeg ? '' : (vorige ? vorige.opmerking : '')
         }, function (reg) {
-          const knop = zoekCelKnop(cel.llnId, cel.taakId);
-          if (knop) {
-            const lln = leerlingOpId(cel.llnId);
-            const taak = taakOpId(cel.taakId);
-            const teltNietMee = registratieTeltNietMee(lln, reg);
-            const statusLabel = celStatusLabel(status, teltNietMee);
-            const actief = celInSelectie(cel.llnId, cel.taakId) ? ' cel-actief' : '';
-            knop.className = 'cel-status' + actief + ' ' + celKlassen(status, teltNietMee);
-            knop.textContent = celTekst(status);
-            knop.setAttribute('title', taak
-              ? [taakTitel(taak), statusLabel].concat(reg && reg.opmerking ? [reg.opmerking] : []).join(' — ')
-              : statusLabel);
-            knop.setAttribute('aria-label', (lln && taak)
-              ? lln.naam + ': ' + taakTitel(taak) + ', ' + statusLabel
-              : statusLabel);
-          }
-          verversOpvolgSein(cel.llnId);
+          werkCelNaRegistratie(cel, reg, status);
         });
       });
+    }
+
+    function pasGeselecteerdeAlOpgevolgd() {
+      const cellen = staat.selectie && staat.selectie.length
+        ? staat.selectie
+        : (staat.geselecteerd ? [staat.geselecteerd] : []);
+      if (!cellen.length) return;
+
+      const geenReset = [];
+      cellen.forEach(function (cel) {
+        const lln = leerlingOpId(cel.llnId);
+        if (!String(lln && lln.opvolgingResetOp || '').trim()) {
+          if (lln) geenReset.push(lln.naam);
+          return;
+        }
+        const vorige = laatsteRegistratieVoorKlas(lln, taakOpId(cel.taakId), staat.gekozenKlas);
+        slaRegistratieOp({
+          llnId: cel.llnId,
+          taakId: cel.taakId,
+          status: 'Niet in orde',
+          opmerking: vorige ? vorige.opmerking : '',
+          alOpgevolgd: true
+        }, function (reg) {
+          werkCelNaRegistratie(cel, reg, 'Niet in orde');
+        });
+      });
+
+      if (geenReset.length) {
+        const uniek = geenReset.filter(function (naam, i, arr) { return arr.indexOf(naam) === i; });
+        toonMelding(
+          'Al opgevolgd kan pas nadat je de opvolging hebt afgerond voor: ' + uniek.join(', ') + '.',
+          'fout'
+        );
+      }
     }
 
     function verplaatsSelectie(richting) {
@@ -4477,6 +4528,11 @@
       if (toets === 'backspace' || toets === 'delete') {
         event.preventDefault();
         pasGeselecteerdeStatus('');
+        return;
+      }
+      if (toets === '6') {
+        event.preventDefault();
+        pasGeselecteerdeAlOpgevolgd();
         return;
       }
       if (STATUS_TOETSEN[toets]) {
@@ -4558,6 +4614,7 @@
       if (!doel) return;
       const actie = doel.getAttribute('data-actie');
       if (actie === 'taak-toevoegen') openTaakModal();
+      else if (actie === 'al-opgevolgd') pasGeselecteerdeAlOpgevolgd();
       else if (actie === 'filter-wissel') wisselFilterPaneel(doel);
       else if (actie === 'sort-zetten') zetSortering(doel.getAttribute('data-sort'));
       else if (actie === 'filter-groep') wisselGroepFilter(doel.getAttribute('data-groep'));

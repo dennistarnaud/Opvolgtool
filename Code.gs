@@ -51,8 +51,8 @@
  *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf
  *
  * 2. Scriptbestanden in Apps Script
- *    Plak: Code.gs, docent.html, leerling.html
- *    Vul TOEGANG_EMAIL_DOCENT hieronder in met jullie schoolaccounts.
+ *    Plak: Config.gs, Code.gs, LeerlingCodes.gs, docent.html, leerling.html
+ *    Vul Config.gs in: emailadressen, leerling-URL en eventueel spreadsheet-ID.
  *    SPREADSHEET_ID leeg laten bij een gebonden script; anders het spreadsheet-ID.
  *
  * 3. Deployen als web-app
@@ -68,35 +68,7 @@
  * ===========================================================================
  */
 
-// ---------------------------------------------------------------------------
-// Instellingen
-// ---------------------------------------------------------------------------
-
-/**
- * Google-accounts die het docentscherm mogen openen.
- * Eén of meer adressen (kleine/hoofdletters maakt niet uit).
- * Voorbeeld met meerdere:
- *   const TOEGANG_EMAIL_DOCENT = [
- *     'jij@school.be',
- *     'collega@school.be'
- *   ];
- */
-const TOEGANG_EMAIL_DOCENT = [
-  'emailadres1@school.be',
-  'emailadres2@school.be'
-];
-
-/**
- * URL van de LEERLING-implementatie (Uitvoeren als: Ik + Iedereen).
- * Vul dit in na het aanmaken van die implementatie, zodat docent-functies
- * op die URL geblokkeerd worden — ook al is de uitvoerende gebruiker de eigenaar.
- *
- * Voorbeeld:
- *   const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
- *
- * Laat leeg ('') als je nog geen aparte leerling-implementatie hebt.
- */
-const LEERLING_IMPLEMENTATIE_URL = '';
+// TOEGANG_EMAIL_DOCENT, LEERLING_IMPLEMENTATIE_URL en SPREADSHEET_ID → zie Config.gs
 
 const TAB_LEERLINGEN = 'Leerlingen';
 const TAB_TAKEN = 'Taken_Lijst';
@@ -195,11 +167,6 @@ const OUD_BERICHT_NABLIJF = [
   'Met vriendelijke groeten'
 ];
 
-/**
- * Leeg laten als dit script aan de spreadsheet gekoppeld is (gebonden script).
- * Vul een ID in als het een standalone script is.
- */
-const SPREADSHEET_ID = '';
 
 const STATUS_IN_ORDE = 'In orde';
 const STATUS_NIET_IN_ORDE = 'Niet in orde';
@@ -439,7 +406,7 @@ function getLeerlingData(code) {
 
 /**
  * Schrijft een nieuwe rij naar tabblad Registraties.
- * @param {{llnId: string, taakId: string, status: string, opmerking?: string, klas?: string}} data
+ * @param {{llnId: string, taakId: string, status: string, opmerking?: string, klas?: string, alOpgevolgd?: boolean}} data
  * @return {{ok: boolean, registratie: Object}}
  */
 function saveRegistratie(data) {
@@ -452,10 +419,26 @@ function saveRegistratie(data) {
   if (status && TOEGESTANE_STATUSSEN.indexOf(status) === -1) {
     throw new Error('Ongeldige status. Gebruik: ' + TOEGESTANE_STATUSSEN.join(', ') + ' (of leeg).');
   }
+  if (data.alOpgevolgd && status !== 'Niet in orde') {
+    throw new Error('Al opgevolgd kan enkel als status Niet in orde.');
+  }
 
   const klas = String(data.klas || '').trim();
+  let nu = new Date();
+  if (data.alOpgevolgd) {
+    const leerling = leerlingOpId_(String(data.llnId).trim());
+    const reset = String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim();
+    if (!reset) {
+      throw new Error('Al opgevolgd kan pas nadat de opvolging is afgerond voor deze leerling.');
+    }
+    const parsed = parseDatumTijd_(reset);
+    if (!parsed || isNaN(parsed.getTime())) {
+      throw new Error('Ongeldige opvolgingsreset voor deze leerling.');
+    }
+    nu = parsed;
+  }
+
   const sheet = getSheet_(TAB_REGISTRATIES);
-  const nu = new Date();
   const rij = [
     nu,
     String(data.llnId).trim(),
@@ -1322,6 +1305,16 @@ function zetLeerlingVerwijderd_(id, verwijderdOp) {
   throw new Error('Leerling niet gevonden.');
 }
 
+function leerlingOpId_(id) {
+  const gezocht = String(id || '').trim();
+  if (!gezocht) return null;
+  const leerlingen = leesLeerlingen_();
+  for (let i = 0; i < leerlingen.length; i++) {
+    if (String(leerlingen[i].id).trim() === gezocht) return leerlingen[i];
+  }
+  return null;
+}
+
 function formatDatumTijd_(waarde) {
   if (waarde instanceof Date && !isNaN(waarde.getTime())) {
     return Utilities.formatDate(waarde, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
@@ -1334,6 +1327,19 @@ function formatDatum_(waarde) {
     return Utilities.formatDate(waarde, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return String(waarde || '');
+}
+
+function parseDatumTijd_(waarde) {
+  const m = String(waarde || '').match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2}))?$/);
+  if (!m) return null;
+  return new Date(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4] || 0),
+    Number(m[5] || 0),
+    Number(m[6] || 0)
+  );
 }
 
 function parseIsoDatum_(waarde) {
