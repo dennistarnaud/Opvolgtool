@@ -490,7 +490,7 @@ function saveLeerling(data) {
       opvolgingResetOp: ''
     };
 
-    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '', '', '', '', '']);
+    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '', '', '', '', '', '', '']);
 
     return { ok: true, leerling: leerling };
   });
@@ -543,8 +543,9 @@ function updateLeerling(data) {
 }
 
 /**
- * Zet of wist een opvolgstap (leerling laten weten, ouders, nablijfstudie).
- * @param {{id: string, stap: string}} data stap: leerling | ouders | nablijf | reset
+ * Zet of wist een opvolgstap.
+ * @param {{id: string, stap: string, blokkeerTaken?: string[]}} data
+ *   stap: leerling | ouders | nablijf | reset | pauzeer | pauze-wissen | pauze-opheffen
  * @return {{ok: boolean, leerling: Object}}
  */
 function zetLeerlingOpvolging(data) {
@@ -552,9 +553,8 @@ function zetLeerlingOpvolging(data) {
   const id = String(data && data.id ? data.id : '').trim();
   const stap = String(data && data.stap ? data.stap : '').trim();
   if (!id) throw new Error('Id is verplicht.');
-  if (stap !== 'reset' && stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') {
-    throw new Error('Ongeldige opvolgstap.');
-  }
+  const geldigeStappen = ['reset', 'leerling', 'ouders', 'nablijf', 'pauzeer', 'pauze-wissen', 'pauze-opheffen'];
+  if (geldigeStappen.indexOf(stap) === -1) throw new Error('Ongeldige opvolgstap.');
 
   return metScriptLock_(function () {
     zorgVoorOpvolgingKolommen_();
@@ -565,37 +565,67 @@ function zetLeerlingOpvolging(data) {
       const leerling = leerlingVanRij_(rijen[i]);
       const gezet = {
         leerling: !!String(leerling.opvolgingLeerlingOp || '').trim(),
-        ouders: !!String(leerling.opvolgingOudersOp || '').trim(),
-        nablijf: !!String(leerling.opvolgingNablijfOp || '').trim()
+        ouders:   !!String(leerling.opvolgingOudersOp   || '').trim(),
+        nablijf:  !!String(leerling.opvolgingNablijfOp  || '').trim()
       };
       const nu = formatDatumTijd_(new Date());
+
       if (stap === 'reset') {
-        sheet.getRange(i + 1, 8, 1, 4).setValues([['', '', '', nu]]);
+        // Wis alle opvolgstappen + pauze, registreer resetmoment.
+        sheet.getRange(i + 1, 8, 1, 6).setValues([['', '', '', nu, '', '']]);
         leerling.opvolgingLeerlingOp = '';
-        leerling.opvolgingOudersOp = '';
-        leerling.opvolgingNablijfOp = '';
-        leerling.opvolgingResetOp = nu;
+        leerling.opvolgingOudersOp   = '';
+        leerling.opvolgingNablijfOp  = '';
+        leerling.opvolgingResetOp    = nu;
+        leerling.opvolgingGepauzeerd = '';
+        leerling.opvolgingBlokkeerTaken = [];
+
+      } else if (stap === 'pauzeer') {
+        // Sla de pauze op: datum + welke taken nog uitstaan.
+        if (!gezet.nablijf) throw new Error('Avondstudie moet al ingepland zijn voor pauze.');
+        const blokkeerTaken = Array.isArray(data.blokkeerTaken)
+          ? data.blokkeerTaken.filter(Boolean)
+          : parseLijst_(data.blokkeerTaken);
+        sheet.getRange(i + 1, 12).setValue(nu);
+        sheet.getRange(i + 1, 13).setValue(blokkeerTaken.join(', '));
+        leerling.opvolgingGepauzeerd = nu;
+        leerling.opvolgingBlokkeerTaken = blokkeerTaken;
+
+      } else if (stap === 'pauze-wissen') {
+        // Wis alleen de pauze (ga terug naar evaluatiescherm, nablijf blijft staan).
+        sheet.getRange(i + 1, 12, 1, 2).setValues([['', '']]);
+        leerling.opvolgingGepauzeerd = '';
+        leerling.opvolgingBlokkeerTaken = [];
+
+      } else if (stap === 'pauze-opheffen') {
+        // Handmatig opheffen: volledige reset (cyclus afgerond).
+        sheet.getRange(i + 1, 8, 1, 6).setValues([['', '', '', nu, '', '']]);
+        leerling.opvolgingLeerlingOp = '';
+        leerling.opvolgingOudersOp   = '';
+        leerling.opvolgingNablijfOp  = '';
+        leerling.opvolgingResetOp    = nu;
+        leerling.opvolgingGepauzeerd = '';
+        leerling.opvolgingBlokkeerTaken = [];
+
       } else if (gezet[stap]) {
+        // Wis de stap (en alles erna).
         if (stap === 'leerling') {
           sheet.getRange(i + 1, 8, 1, 3).setValues([['', '', '']]);
           leerling.opvolgingLeerlingOp = '';
-          leerling.opvolgingOudersOp = '';
-          leerling.opvolgingNablijfOp = '';
+          leerling.opvolgingOudersOp   = '';
+          leerling.opvolgingNablijfOp  = '';
         } else if (stap === 'ouders') {
           sheet.getRange(i + 1, 9, 1, 2).setValues([['', '']]);
-          leerling.opvolgingOudersOp = '';
+          leerling.opvolgingOudersOp  = '';
           leerling.opvolgingNablijfOp = '';
         } else {
           sheet.getRange(i + 1, 10).setValue('');
           leerling.opvolgingNablijfOp = '';
         }
       } else {
-        if (stap === 'ouders' && !gezet.leerling) {
-          throw new Error('Eerst de leerling laten weten.');
-        }
-        if (stap === 'nablijf' && !gezet.ouders) {
-          throw new Error('Eerst de ouders verwittigen.');
-        }
+        // Zet de stap.
+        if (stap === 'ouders' && !gezet.leerling) throw new Error('Eerst de leerling laten weten.');
+        if (stap === 'nablijf' && !gezet.ouders) throw new Error('Eerst de ouders verwittigen.');
         if (stap === 'leerling') {
           sheet.getRange(i + 1, 8).setValue(nu);
           leerling.opvolgingLeerlingOp = nu;
@@ -975,12 +1005,14 @@ function zorgVoorKlassenTab_() {
 
 function zorgVoorOpvolgingKolommen_() {
   const sheet = getSheet_(TAB_LEERLINGEN);
-  const last = Math.max(11, sheet.getLastColumn() || 1);
+  const last = Math.max(13, sheet.getLastColumn() || 1);
   const kop = sheet.getRange(1, 1, 1, last).getValues()[0];
-  if (String(kop[7] || '').trim() === '') sheet.getRange(1, 8).setValue('opvolgingLeerlingOp');
-  if (String(kop[8] || '').trim() === '') sheet.getRange(1, 9).setValue('opvolgingOudersOp');
-  if (String(kop[9] || '').trim() === '') sheet.getRange(1, 10).setValue('opvolgingNablijfOp');
+  if (String(kop[7]  || '').trim() === '') sheet.getRange(1, 8).setValue('opvolgingLeerlingOp');
+  if (String(kop[8]  || '').trim() === '') sheet.getRange(1, 9).setValue('opvolgingOudersOp');
+  if (String(kop[9]  || '').trim() === '') sheet.getRange(1, 10).setValue('opvolgingNablijfOp');
   if (String(kop[10] || '').trim() === '') sheet.getRange(1, 11).setValue('opvolgingResetOp');
+  if (String(kop[11] || '').trim() === '') sheet.getRange(1, 12).setValue('opvolgingGepauzeerd');
+  if (String(kop[12] || '').trim() === '') sheet.getRange(1, 13).setValue('opvolgingBlokkeerTaken');
 }
 
 function standaardInstellingen_() {
@@ -1284,7 +1316,9 @@ function leerlingVanRij_(rij) {
     opvolgingLeerlingOp: formatDatumTijd_(rij[7]),
     opvolgingOudersOp: formatDatumTijd_(rij[8]),
     opvolgingNablijfOp: formatDatumTijd_(rij[9]),
-    opvolgingResetOp: formatDatumTijd_(rij[10])
+    opvolgingResetOp: formatDatumTijd_(rij[10]),
+    opvolgingGepauzeerd: formatDatumTijd_(rij[11]),
+    opvolgingBlokkeerTaken: parseLijst_(rij[12])
   };
 }
 

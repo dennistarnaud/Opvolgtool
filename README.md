@@ -50,6 +50,8 @@ Maak een nieuwe Google Sheet en maak de volgende tabbladen aan met **exact** dez
 | I | `opvolgingOudersOp` | Datum stap 2 opvolging, tool beheert zelf |
 | J | `opvolgingNablijfOp` | Datum stap 3 opvolging, tool beheert zelf |
 | K | `opvolgingResetOp` | Datum reset opvolging, tool beheert zelf |
+| L | `opvolgingGepauzeerd` | Datum pauze-modus (stap 4), tool beheert zelf |
+| M | `opvolgingBlokkeerTaken` | Komma-gescheiden taak-IDs die de pauze blokkeren, tool beheert zelf |
 
 Start met **alleen de koprij**. Leerlingen voeg je toe via het docentscherm.
 
