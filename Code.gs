@@ -279,10 +279,19 @@ function serveerDocentPagina_() {
     );
   }
 
-  return HtmlService.createHtmlOutputFromFile('docent')
+  return HtmlService.createTemplateFromFile('docent')
+    .evaluate()
     .setTitle('Opvolgtool — Docent')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/**
+ * Hulpfunctie voor <?!= include('bestandsnaam'); ?> in HTML-templates.
+ * Laadt een .html-bestand en geeft de inhoud terug als ruwe string.
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 /**
@@ -461,6 +470,72 @@ function saveRegistratie(data) {
       klas: klas
     }
   };
+}
+
+/**
+ * Slaat meerdere registraties in één keer op (batch).
+ * Gebruikt een script-lock en een atomische schrijfoperatie zodat concurrent
+ * klikken op meerdere cellen nooit data verliest.
+ * @param {Array<{llnId, taakId, status, opmerking, klas}>} arrayData
+ * @return {{ok: boolean, registraties: Object[]}}
+ */
+function saveRegistraties(arrayData) {
+  assertDocentToegang_();
+  if (!Array.isArray(arrayData) || !arrayData.length) return { ok: true, registraties: [] };
+
+  const nu = new Date();
+  const resultaten = [];
+
+  return metScriptLock_(function () {
+    const sheet = getSheet_(TAB_REGISTRATIES);
+    const rijen = [];
+
+    arrayData.forEach(function (data) {
+      if (!data || !data.llnId || !data.taakId) throw new Error('Ontbrekende velden: llnId en taakId zijn verplicht.');
+      const status = String(data.status == null ? '' : data.status).trim();
+      if (status && TOEGESTANE_STATUSSEN.indexOf(status) === -1) {
+        throw new Error('Ongeldige status: ' + status);
+      }
+
+      let tijdstip = new Date(nu.getTime());
+      if (data.alOpgevolgd) {
+        const leerling = leerlingOpId_(String(data.llnId).trim());
+        const reset = String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim();
+        if (!reset) throw new Error('Al opgevolgd vereist een afgeronde opvolging.');
+        const parsed = parseDatumTijd_(reset);
+        if (!parsed || isNaN(parsed.getTime())) throw new Error('Ongeldig resetmoment.');
+        tijdstip = parsed;
+      }
+
+      const rij = [
+        tijdstip,
+        String(data.llnId).trim(),
+        String(data.taakId).trim(),
+        status,
+        String(data.opmerking || ''),
+        String(data.klas || '').trim()
+      ];
+      rijen.push(rij);
+      resultaten.push({
+        datumTijd: formatDatumTijd_(tijdstip),
+        llnId: rij[1],
+        taakId: rij[2],
+        status: rij[3],
+        opmerking: rij[4],
+        klas: rij[5]
+      });
+    });
+
+    if (rijen.length === 1) {
+      sheet.appendRow(rijen[0]);
+    } else {
+      // Atomische batch-schrijf: één setValues() in plaats van meerdere appendRow()-aanroepen.
+      const eersteLegeRij = sheet.getLastRow() + 1;
+      sheet.getRange(eersteLegeRij, 1, rijen.length, rijen[0].length).setValues(rijen);
+    }
+
+    return { ok: true, registraties: resultaten };
+  });
 }
 
 /**
