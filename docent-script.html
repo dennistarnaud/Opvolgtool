@@ -213,6 +213,8 @@
       bevestigActie: null,
       taakBewerkenId: '',
       nieuweLeerlingTekst: '',
+      registratieWachtrij: [],
+      opvolgingDoorgaan: {},
       webAppUrl: '',
       leerlingUrl: ''
     };
@@ -307,7 +309,72 @@
      * naSucces(savedItems[]) wordt aangeroepen na bevestiging (optioneel).
      * Optimistische updates worden al door de aanroeper gedaan via slaRegistratieOp().
      */
-    function slaRegistratiesOp(items, tempRijen, naSucces) {
+    function isTijdelijkId(id) {
+      return String(id || '').indexOf('__temp_') === 0;
+    }
+
+    function registratieHeeftTijdelijkeIds(payload) {
+      return isTijdelijkId(payload.llnId) || isTijdelijkId(payload.taakId);
+    }
+
+    function vervangIdInSelectie(type, oudId, nieuwId) {
+      function mapCel(cel) {
+        if (!cel) return cel;
+        if (type === 'lln' && cel.llnId === oudId) return { llnId: nieuwId, taakId: cel.taakId };
+        if (type === 'taak' && cel.taakId === oudId) return { llnId: cel.llnId, taakId: nieuwId };
+        return cel;
+      }
+      staat.geselecteerd = mapCel(staat.geselecteerd);
+      staat.selectieAnker = mapCel(staat.selectieAnker);
+      staat.selectie = (staat.selectie || []).map(mapCel);
+      if (staat.naLeerling && type === 'lln' && staat.naLeerling.llnId === oudId) {
+        staat.naLeerling.llnId = nieuwId;
+      }
+      if (type === 'lln' && staat.lijstLeerlingId === oudId) staat.lijstLeerlingId = nieuwId;
+      if (type === 'taak' && staat.lijstTaakId === oudId) staat.lijstTaakId = nieuwId;
+    }
+
+    function vervangTijdelijkLeerlingId(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      staat.registraties.forEach(function (r) {
+        if (r.llnId === oudId) r.llnId = nieuwId;
+      });
+      staat.registratieWachtrij.forEach(function (item) {
+        if (item.payload.llnId === oudId) item.payload.llnId = nieuwId;
+      });
+      vervangIdInSelectie('lln', oudId, nieuwId);
+      verwerkRegistratieWachtrij();
+    }
+
+    function vervangTijdelijkTaakId(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      staat.registraties.forEach(function (r) {
+        if (r.taakId === oudId) r.taakId = nieuwId;
+      });
+      staat.registratieWachtrij.forEach(function (item) {
+        if (item.payload.taakId === oudId) item.payload.taakId = nieuwId;
+      });
+      vervangIdInSelectie('taak', oudId, nieuwId);
+      verwerkRegistratieWachtrij();
+    }
+
+    function verwerkRegistratieWachtrij() {
+      if (!staat.registratieWachtrij.length) return;
+      const klaar = [];
+      const rest = [];
+      staat.registratieWachtrij.forEach(function (item) {
+        if (registratieHeeftTijdelijkeIds(item.payload)) rest.push(item);
+        else klaar.push(item);
+      });
+      staat.registratieWachtrij = rest;
+      if (!klaar.length) return;
+      slaRegistratiesOpDirect(
+        klaar.map(function (item) { return item.payload; }),
+        klaar.map(function (item) { return item.tempRij; })
+      );
+    }
+
+    function slaRegistratiesOpDirect(items, tempRijen, naSucces) {
       if (!items.length) return;
       if (!isGasOmgeving()) {
         console.log('[LOKAAL] saveRegistraties batch', items);
@@ -331,6 +398,21 @@
           haalDocentData();
         })
         .saveRegistraties(items);
+    }
+
+    function slaRegistratiesOp(items, tempRijen, naSucces) {
+      if (!items.length) return;
+      const directItems = [];
+      const directRijen = [];
+      items.forEach(function (item, i) {
+        if (registratieHeeftTijdelijkeIds(item)) {
+          staat.registratieWachtrij.push({ payload: item, tempRij: tempRijen[i] });
+        } else {
+          directItems.push(item);
+          directRijen.push(tempRijen[i]);
+        }
+      });
+      if (directItems.length) slaRegistratiesOpDirect(directItems, directRijen, naSucces);
     }
 
     function slaRegistratieOp(data, naSucces) {
@@ -365,6 +447,11 @@
 
       if (!isGasOmgeving()) {
         console.log('[LOKAAL] saveRegistratie', tempRij);
+        return true;
+      }
+
+      if (registratieHeeftTijdelijkeIds(payload)) {
+        staat.registratieWachtrij.push({ payload: payload, tempRij: tempRij });
         return true;
       }
 
@@ -457,18 +544,27 @@
 
       gasRun()
         .withSuccessHandler(function (antwoord) {
-          // Vervang de tijdelijke leerling door de server-versie (met echt ID en code).
+          const tempId = tempLeerling.id;
+          vervangTijdelijkLeerlingId(tempId, antwoord.leerling.id);
           const idx = staat.leerlingen.indexOf(tempLeerling);
           if (idx !== -1) staat.leerlingen.splice(idx, 1, antwoord.leerling);
           else staat.leerlingen.push(antwoord.leerling);
           voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
           tekenActieveWeergave();
+          tekenSelectie();
         })
         .withFailureHandler(function (fout) {
           staat.bezigLeerling = false;
           toonMelding('Leerling toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          const tempId = tempLeerling.id;
           const idx = staat.leerlingen.indexOf(tempLeerling);
           if (idx !== -1) staat.leerlingen.splice(idx, 1);
+          staat.registratieWachtrij = staat.registratieWachtrij.filter(function (item) {
+            return item.payload.llnId !== tempId;
+          });
+          staat.registraties = staat.registraties.filter(function (r) {
+            return r.llnId !== tempId;
+          });
           tekenActieveWeergave();
         })
         .saveLeerling(data);
@@ -499,18 +595,28 @@
 
       gasRun()
         .withSuccessHandler(function (antwoord) {
-          // Vervang tijdelijke taken door server-versies (met echte IDs).
           const lijst = antwoord.taken || (antwoord.taak ? [antwoord.taak] : []);
-          tempTaken.forEach(function (temp) {
+          tempTaken.forEach(function (temp, i) {
+            const nieuw = lijst[i];
+            if (!nieuw) return;
+            vervangTijdelijkTaakId(temp.id, nieuw.id);
             const idx = staat.taken.indexOf(temp);
-            if (idx !== -1) staat.taken.splice(idx, 1);
+            if (idx !== -1) staat.taken.splice(idx, 1, nieuw);
+            else staat.taken.push(nieuw);
           });
-          lijst.forEach(function (taak) { staat.taken.push(taak); });
           tekenActieveWeergave();
+          tekenSelectie();
         })
         .withFailureHandler(function (fout) {
           toonMelding('Taak toevoegen mislukt: ' + (fout.message || fout), 'fout');
           tempTaken.forEach(function (temp) {
+            const tempId = temp.id;
+            staat.registratieWachtrij = staat.registratieWachtrij.filter(function (item) {
+              return item.payload.taakId !== tempId;
+            });
+            staat.registraties = staat.registraties.filter(function (r) {
+              return r.taakId !== tempId;
+            });
             const idx = staat.taken.indexOf(temp);
             if (idx !== -1) staat.taken.splice(idx, 1);
           });
@@ -991,6 +1097,20 @@
       };
     }
 
+    function heeftLopendeOpvolging(lln) {
+      if (!lln) return false;
+      const o = opvolgingVan(lln);
+      return !!(o.leerling || o.ouders || o.nablijf || o.gepauzeerd);
+    }
+
+    /** Wis opvolgingsstappen stil zodra er geen openstaande tekorten meer zijn. */
+    function wisOpvolgingBijGeenTekorten(lln) {
+      if (!lln || !opvolgingAan()) return;
+      if (aantalOpenstaandeTaken(lln) > 0) return;
+      if (!heeftLopendeOpvolging(lln)) return;
+      slaOpvolgingOp(lln.id, 'afronden', { stil: true });
+    }
+
     /** True als alle oorspronkelijk blokkerende taken expliciet 'In orde' zijn. */
     function isPauzeKlaar(lln) {
       const o = opvolgingVan(lln);
@@ -1008,8 +1128,17 @@
     /**
      * Bepaalt de volgende actie voor een leerling.
      * Mogelijke waarden: '' | 'leerling' | 'ouders' | 'nablijf' | 'evaluatie'
-     *                  | 'gepauzeerd' | 'pauze-klaar' | 'reset'
+     *                  | 'gepauzeerd' | 'pauze-klaar' | 'afronden'
      */
+    /** Volgende ladderstap, zonder drempelcheck (voor "Toch doorgaan"). */
+    function opvolgLadderStap(lln) {
+      const o = opvolgingVan(lln);
+      if (!o.leerling) return 'leerling';
+      if (!o.ouders)   return 'ouders';
+      if (!o.nablijf)  return 'nablijf';
+      return 'evaluatie';
+    }
+
     function opvolgActieNodig(lln) {
       if (!opvolgingAan()) return '';
       const o = opvolgingVan(lln);
@@ -1020,12 +1149,32 @@
         return isPauzeKlaar(lln) ? 'pauze-klaar' : '';
       }
 
-      // Geen openstaande tekorten → geen actie (ook niet 'reset' of verder in de ladder).
-      if (openstaand === 0) return '';
+      // Geen openstaande tekorten → geen actie (ook niet 'afronden' of verder in de ladder).
+      if (openstaand === 0) {
+        if (staat.opvolgingDoorgaan && staat.opvolgingDoorgaan[lln.id]) {
+          delete staat.opvolgingDoorgaan[lln.id];
+        }
+        return '';
+      }
 
       const drempel = drempelNietInOrde();
       const heeftStap = !!(o.leerling || o.ouders || o.nablijf);
-      if (openstaand < drempel) return heeftStap ? 'reset' : '';
+
+      // Boven drempel: normale ladder; wis eventuele "toch doorgaan"-vlag.
+      if (openstaand >= drempel) {
+        if (staat.opvolgingDoorgaan && staat.opvolgingDoorgaan[lln.id]) {
+          delete staat.opvolgingDoorgaan[lln.id];
+        }
+      } else if (heeftStap) {
+        // Onder drempel met lopende opvolging → afrondingsmodus, tenzij docent doorgaat.
+        if (staat.opvolgingDoorgaan && staat.opvolgingDoorgaan[lln.id]) {
+          return opvolgLadderStap(lln);
+        }
+        return 'afronden';
+      } else {
+        return '';
+      }
+
       if (!o.leerling) return 'leerling';
       if (!o.ouders)   return 'ouders';
       if (!o.nablijf)  return 'nablijf';
@@ -1048,7 +1197,7 @@
       if (stap === 'nablijf') {
         return kop + '<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>';
       }
-      if (stap === 'reset' || stap === 'pauze-opheffen') {
+      if (stap === 'afronden' || stap === 'reset' || stap === 'pauze-opheffen') {
         return kop + '<polyline points="20 6 9 17 4 12" /></svg>';
       }
       if (stap === 'evaluatie') {
@@ -1070,7 +1219,7 @@
         evaluatie:    'Evalueer het resultaat van de avondstudie',
         gepauzeerd:   'Opvolging gepauzeerd — taken moeten in orde worden gebracht',
         'pauze-klaar':'Taken in orde — opvolging kan worden afgerond',
-        reset:        'Opvolging afronden'
+        afronden:     'Opvolging kan worden afgesloten'
       }[stap];
       return '<span class="opvolg-sein" title="' + escapeAttr(titel || '') + '">' + opvolgIcoonSvg(stap, 14) + '</span>';
     }
@@ -1142,7 +1291,8 @@
         const status = reg ? reg.status : '';
         const teltNietMee = registratieTeltNietMee(lln, reg);
         const statusLabel = celStatusLabel(status, teltNietMee);
-        knop.className = 'cel-status ' + celKlassen(status, teltNietMee);
+        const actief = celInSelectie(lln.id, taakId) ? ' cel-actief' : '';
+        knop.className = 'cel-status' + actief + ' ' + celKlassen(status, teltNietMee);
         knop.textContent = celTekst(status);
         const titelDelen = [taakTitel(taak), statusLabel];
         if (reg && reg.opmerking) titelDelen.push(reg.opmerking);
@@ -1236,6 +1386,23 @@
         'Gedaan</button>';
     }
 
+    function htmlOpvolgAfrondingsBlok(leerling) {
+      const afrondenKnop =
+        '<button type="button" class="inline-flex items-center justify-center gap-1.5 rounded-lg px-4 h-9 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700" ' +
+        'data-actie="opvolging-zet" data-stap="afronden" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'title="Opvolging afronden" aria-label="Opvolging afronden">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
+        'Opvolging afronden</button>';
+      const doorgaanKnop =
+        '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-9 text-xs font-semibold text-amber-950 bg-white border border-amber-200 hover:bg-amber-50" ' +
+        'data-actie="opvolging-doorgaan" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'title="Doorgaan met de lopende opvolging" aria-label="Toch doorgaan">Toch doorgaan</button>';
+      return '<div class="flex items-center justify-between gap-2">' +
+        '<div>' + doorgaanKnop + '</div>' +
+        '<div>' + afrondenKnop + '</div>' +
+      '</div>';
+    }
+
     function htmlOpvolgAfrondenKnop(leerling) {
       return '<button type="button" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-800 hover:bg-amber-100" ' +
         'data-actie="opvolging-zet" data-stap="reset" data-id="' + escapeAttr(leerling.id) + '" ' +
@@ -1317,6 +1484,9 @@
         // Pauze-modus: toon blokkerende taken + opheffenknop.
         const terug = htmlOpvolgTerugKnop(leerling);
         delen.push(htmlOpvolgPauzeBlok(leerling, volgende, terug));
+
+      } else if (volgende === 'afronden') {
+        delen.push(htmlOpvolgAfrondingsBlok(leerling));
 
       } else {
         // Normale stappen: leerling / ouders / nablijf / reset.
@@ -1460,6 +1630,12 @@
       });
     }
 
+    function tekstAfrondingsModus(openstaand, drempel) {
+      const en = openstaand === 1 ? '' : 'en';
+      return 'De leerling heeft nu ' + openstaand + ' openstaande tekort' + en +
+        ' (drempel: ' + drempel + '). De lopende opvolging is niet meer nodig.';
+    }
+
     function tekenFicheOpvolging(leerling) {
       const wrap = document.getElementById('fiche-opvolging');
       if (!wrap) return;
@@ -1480,6 +1656,20 @@
         return;
       }
       const n = aantalNietInOrde(leerling);
+      const stappenEl = document.getElementById('fiche-opvolging-stappen');
+      const reset = document.getElementById('knop-opvolging-reset');
+
+      if (volgende === 'afronden') {
+        document.getElementById('fiche-opvolging-titel').textContent = 'Opvolging kan worden afgesloten';
+        document.getElementById('fiche-opvolging-uitleg').textContent = tekstAfrondingsModus(openstaand, drempel);
+        stappenEl.innerHTML = '';
+        stappenEl.className = 'hidden';
+        if (actieEl) actieEl.innerHTML = htmlOpvolgAfrondingsBlok(leerling);
+        reset.classList.add('hidden');
+        reset.removeAttribute('data-id');
+        return;
+      }
+
       document.getElementById('fiche-opvolging-titel').textContent =
         (o.gepauzeerd ? '⏸ Gepauzeerd — ' : '') +
         (o.gepauzeerd ? openstaand : n) + '× niet in orde (drempel ' + drempel + ')';
@@ -1490,24 +1680,15 @@
       else if (volgende === 'evaluatie') uitleg = 'Alle stappen gezet. Evalueer het resultaat van de avondstudie: kies "Pauzeren" als de taken nog niet in orde zijn, of "Opgevolgd" als de cyclus afgerond kan worden.';
       else if (volgende === 'gepauzeerd') uitleg = 'Opvolging gepauzeerd. Nieuwe tekorten tellen niet mee — wacht tot de leerling komt tonen dat het in orde is.';
       else if (volgende === 'pauze-klaar') uitleg = 'Alle openstaande taken zijn in orde. Klik op "Cyclus afronden" om de opvolging te beëindigen.';
-      else if (volgende === 'reset') uitleg = 'Onder de drempel. Rond af met het vinkje als deze cyclus klaar is.';
       document.getElementById('fiche-opvolging-uitleg').textContent = uitleg;
       // Stappen-grid: 4 kolommen wanneer de evaluatiestap zichtbaar is.
-      const stappenEl = document.getElementById('fiche-opvolging-stappen');
       const toonEvaluatie = !!(o.nablijf || o.gepauzeerd ||
         volgende === 'evaluatie' || volgende === 'pauze-klaar' || volgende === 'gepauzeerd');
       stappenEl.className = 'mt-2 grid ' + (toonEvaluatie ? 'grid-cols-4' : 'grid-cols-3') + ' gap-1.5';
       stappenEl.innerHTML = htmlOpvolgingStappen(leerling);
       if (actieEl) actieEl.innerHTML = htmlOpvolgingActiePaneel(leerling);
-      // Reset-knop enkel tonen bij 'reset' (onder drempel) — niet bij evaluatie of pauze.
-      const reset = document.getElementById('knop-opvolging-reset');
-      const toonReset = volgende === 'reset';
-      reset.classList.toggle('hidden', !toonReset);
-      if (!toonReset) {
-        reset.removeAttribute('data-id');
-      } else {
-        reset.setAttribute('data-id', leerling.id);
-      }
+      reset.classList.add('hidden');
+      reset.removeAttribute('data-id');
     }
 
     function htmlOpvolgingBalk(leerling) {
@@ -1517,6 +1698,16 @@
       const volgende = opvolgActieNodig(leerling);
       if (!volgende && openstaand < drempelNietInOrde()) return '';
       const n = aantalNietInOrde(leerling);
+      const drempel = drempelNietInOrde();
+
+      if (volgende === 'afronden') {
+        return '<div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5">' +
+          '<p class="text-[11px] font-semibold text-amber-950">Opvolging kan worden afgesloten</p>' +
+          '<p class="text-[11px] text-amber-900/80 mt-0.5">' + escapeHtml(tekstAfrondingsModus(openstaand, drempel)) + '</p>' +
+          '<div class="mt-2">' + htmlOpvolgAfrondingsBlok(leerling) + '</div>' +
+          '</div>';
+      }
+
       let uitleg = '';
       if (volgende === 'leerling')     uitleg = 'Spreek de leerling aan: opdrachten in orde tegen de volgende les.';
       else if (volgende === 'ouders')      uitleg = 'Kopieer het bericht naar ouders, markeer daarna Gedaan.';
@@ -1524,9 +1715,6 @@
       else if (volgende === 'evaluatie')   uitleg = 'Pauzeren of opgevolgd markeren.';
       else if (volgende === 'gepauzeerd')  uitleg = 'Gepauzeerd — ' + openstaand + ' openstaande taken.';
       else if (volgende === 'pauze-klaar') uitleg = 'Taken in orde — rond de cyclus af.';
-      else if (volgende === 'reset') uitleg = 'Rond af met het vinkje als deze cyclus klaar is.';
-      // Afrondenknop enkel tonen bij 'reset' (onder drempel) — niet bij evaluatie of pauze.
-      const toonAfronden = volgende === 'reset';
       const titelTekst = (o.gepauzeerd ? '⏸ ' : '') + (o.gepauzeerd ? openstaand : n) + '× niet in orde';
       const toonEvaluatie = !!(o.nablijf || o.gepauzeerd ||
         volgende === 'evaluatie' || volgende === 'pauze-klaar' || volgende === 'gepauzeerd');
@@ -1537,7 +1725,6 @@
             '<p class="text-[11px] font-semibold text-amber-950">' + escapeHtml(titelTekst) + '</p>' +
             (uitleg ? '<p class="text-[11px] text-amber-900/80 mt-0.5">' + escapeHtml(uitleg) + '</p>' : '') +
           '</div>' +
-          (toonAfronden ? htmlOpvolgAfrondenKnop(leerling) : '') +
         '</div>' +
         '<div class="mt-2 grid ' + cols + ' gap-1.5">' + htmlOpvolgingStappen(leerling) + '</div>' +
         '<div class="mt-2">' + htmlOpvolgingActiePaneel(leerling) + '</div>' +
@@ -1562,12 +1749,30 @@
       }
     }
 
+    function zetOpvolgingDoorgaan(id) {
+      if (!id) return;
+      if (!staat.opvolgingDoorgaan) staat.opvolgingDoorgaan = {};
+      staat.opvolgingDoorgaan[id] = true;
+      const lln = leerlingOpId(id);
+      if (lln) verversOpvolgingUI(lln);
+    }
+
     function vraagOpvolging(id, stap) {
       if (!opvolgingAan()) return;
+      if (stap === 'afronden') {
+        openBevestig(
+          'Opvolging afronden?',
+          'De lopende opvolging wordt stopgezet. Bestaande kruisjes blijven gewoon rood en tellen mee tot de drempel opnieuw bereikt is.',
+          function () { slaOpvolgingOp(id, 'afronden'); },
+          'Afronden',
+          'bg-emerald-600 text-white hover:bg-emerald-700'
+        );
+        return;
+      }
       if (stap === 'reset') {
         openBevestig(
           'Opvolging afronden?',
-          'Deze cyclus is klaar. Bestaande kruisjes blijven staan, maar tellen niet mee voor de volgende cyclus.',
+          'Deze cyclus is klaar. Bestaande kruisjes blijven staan, maar tellen niet meer mee voor de volgende cyclus.',
           function () { slaOpvolgingOp(id, 'reset'); },
           'Afronden',
           'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -1604,10 +1809,11 @@
       slaOpvolgingOp(id, stap);
     }
 
-    function slaOpvolgingOp(id, stap) {
+    function slaOpvolgingOp(id, stap, opties) {
+      opties = opties || {};
       const leerling = leerlingOpId(id);
       if (!leerling) return;
-      const isSpeciaalStap = stap === 'pauzeer' || stap === 'pauze-wissen' || stap === 'pauze-opheffen';
+      const isSpeciaalStap = stap === 'pauzeer' || stap === 'pauze-wissen' || stap === 'pauze-opheffen' || stap === 'afronden';
       const wissen = !isSpeciaalStap && stap !== 'reset' && stapOpvolgingGezet(leerling, stap);
 
       // Sla de huidige opvolgingstoestand op voor rollback bij fout.
@@ -1629,6 +1835,14 @@
         leerling.opvolgingResetOp       = nu;
         leerling.opvolgingGepauzeerd    = '';
         leerling.opvolgingBlokkeerTaken = [];
+        if (staat.opvolgingDoorgaan) delete staat.opvolgingDoorgaan[id];
+      } else if (stap === 'afronden') {
+        leerling.opvolgingLeerlingOp    = '';
+        leerling.opvolgingOudersOp      = '';
+        leerling.opvolgingNablijfOp     = '';
+        leerling.opvolgingGepauzeerd    = '';
+        leerling.opvolgingBlokkeerTaken = [];
+        if (staat.opvolgingDoorgaan) delete staat.opvolgingDoorgaan[id];
       } else if (stap === 'pauzeer') {
         leerling.opvolgingGepauzeerd    = nu;
         leerling.opvolgingBlokkeerTaken = verzamelBlokkeerTaken(leerling);
@@ -1651,11 +1865,14 @@
       verversOpvolgingUI(leerling);
       const berichten = {
         reset:          'Opvolging afgerond.',
+        afronden:       'Opvolging afgesloten.',
         pauzeer:        'Opvolging gepauzeerd — nieuwe tekorten tellen niet meer mee.',
         'pauze-wissen': 'Pauze ongedaan gemaakt.',
         'pauze-opheffen': 'Opvolging afgerond.'
       };
-      toonMelding(berichten[stap] || (wissen ? 'Stap ongedaan gemaakt.' : 'Stap genoteerd.'), 'ok');
+      if (!opties.stil) {
+        toonMelding(berichten[stap] || (wissen ? 'Stap ongedaan gemaakt.' : 'Stap genoteerd.'), 'ok');
+      }
 
       if (!isGasOmgeving()) {
         console.log('[LOKAAL] zetLeerlingOpvolging', leerling);
@@ -1694,6 +1911,12 @@
               huidig.opvolgingGepauzeerd    = bevestigd.opvolgingGepauzeerd;
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             } else if (stap === 'pauze-wissen') {
+              huidig.opvolgingGepauzeerd    = bevestigd.opvolgingGepauzeerd;
+              huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
+            } else if (stap === 'afronden') {
+              huidig.opvolgingLeerlingOp    = bevestigd.opvolgingLeerlingOp;
+              huidig.opvolgingOudersOp      = bevestigd.opvolgingOudersOp;
+              huidig.opvolgingNablijfOp     = bevestigd.opvolgingNablijfOp;
               huidig.opvolgingGepauzeerd    = bevestigd.opvolgingGepauzeerd;
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             } else {
@@ -2553,6 +2776,11 @@
         tempRijen.push(tempRij);
         item._payload = payload;
       });
+      const llnIds = {};
+      items.forEach(function (item) { llnIds[item.llnId] = true; });
+      Object.keys(llnIds).forEach(function (llnId) {
+        wisOpvolgingBijGeenTekorten(leerlingOpId(llnId));
+      });
       tekenMetScroll(tekenTaakWeergave);
 
       // Één GAS-call voor alle registraties.
@@ -2587,6 +2815,7 @@
         status: nieuw,
         opmerking: nieuw ? (vorige ? vorige.opmerking : '') : ''
       }, function () {
+        wisOpvolgingBijGeenTekorten(lln);
         tekenMetScroll(tekenActieveWeergave);
       });
     }
@@ -3955,6 +4184,7 @@
         ? lln.naam + ': ' + taakTitel(taak) + ', ' + statusLabel
         : statusLabel);
       if (lln) {
+        wisOpvolgingBijGeenTekorten(lln);
         verversOpvolgingUI(lln);
         if (staat.modal === 'fiche') {
           const ficheKnop = document.getElementById('knop-leerling-verwijderen');
@@ -3991,6 +4221,7 @@
         payloads.push(payload);
         werkCelNaRegistratie(cel, tempRij, status);
       });
+      tekenSelectie();
 
       // Één GAS-call voor alle wijzigingen.
       slaRegistratiesOp(payloads, tempRijen);
@@ -4028,6 +4259,7 @@
         payloads.push(payload);
         werkCelNaRegistratie(cel, tempRij, 'Niet in orde');
       });
+      tekenSelectie();
 
       if (payloads.length) slaRegistratiesOp(payloads, tempRijen);
 
@@ -4200,6 +4432,7 @@
       else if (actie === 'fiche-klas-bewerken') openFicheKlasBewerken();
       else if (actie === 'fiche-klas-annuleren') sluitFicheKlasBewerken();
       else if (actie === 'opvolging-zet') vraagOpvolging(doel.getAttribute('data-id'), doel.getAttribute('data-stap'));
+      else if (actie === 'opvolging-doorgaan') zetOpvolgingDoorgaan(doel.getAttribute('data-id'));
       else if (actie === 'opvolging-bericht') kopieerOpvolgBericht(doel.getAttribute('data-id'), doel.getAttribute('data-stap'));
       else if (actie === 'fiche-naam-bewerken') openFicheNaamBewerken();
       else if (actie === 'fiche-naam-annuleren') sluitFicheNaamBewerken();

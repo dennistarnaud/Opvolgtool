@@ -620,7 +620,7 @@ function updateLeerling(data) {
 /**
  * Zet of wist een opvolgstap.
  * @param {{id: string, stap: string, blokkeerTaken?: string[]}} data
- *   stap: leerling | ouders | nablijf | reset | pauzeer | pauze-wissen | pauze-opheffen
+ *   stap: leerling | ouders | nablijf | reset | afronden | pauzeer | pauze-wissen | pauze-opheffen
  * @return {{ok: boolean, leerling: Object}}
  */
 function zetLeerlingOpvolging(data) {
@@ -628,7 +628,7 @@ function zetLeerlingOpvolging(data) {
   const id = String(data && data.id ? data.id : '').trim();
   const stap = String(data && data.stap ? data.stap : '').trim();
   if (!id) throw new Error('Id is verplicht.');
-  const geldigeStappen = ['reset', 'leerling', 'ouders', 'nablijf', 'pauzeer', 'pauze-wissen', 'pauze-opheffen'];
+  const geldigeStappen = ['reset', 'afronden', 'leerling', 'ouders', 'nablijf', 'pauzeer', 'pauze-wissen', 'pauze-opheffen'];
   if (geldigeStappen.indexOf(stap) === -1) throw new Error('Ongeldige opvolgstap.');
 
   return metScriptLock_(function () {
@@ -652,6 +652,16 @@ function zetLeerlingOpvolging(data) {
         leerling.opvolgingOudersOp   = '';
         leerling.opvolgingNablijfOp  = '';
         leerling.opvolgingResetOp    = nu;
+        leerling.opvolgingGepauzeerd = '';
+        leerling.opvolgingBlokkeerTaken = [];
+
+      } else if (stap === 'afronden') {
+        // Sluit lopende opvolging af zonder reset-tijdstempel: kruisjes blijven normaal rood.
+        sheet.getRange(i + 1, 8, 1, 3).setValues([['', '', '']]);
+        sheet.getRange(i + 1, 12, 1, 2).setValues([['', '']]);
+        leerling.opvolgingLeerlingOp = '';
+        leerling.opvolgingOudersOp   = '';
+        leerling.opvolgingNablijfOp  = '';
         leerling.opvolgingGepauzeerd = '';
         leerling.opvolgingBlokkeerTaken = [];
 
