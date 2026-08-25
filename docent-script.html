@@ -3403,21 +3403,14 @@
     function leerlingIframeHtml(code) {
       const src = leerlingUrl(code);
       if (!src) return '';
-      // Laadmelding boven de iframe (blijft zichtbaar tot de pagina geladen is).
-      // max-width + margin:auto centreert op desktop; width:100% vult smartphone.
+      // Vaste hoogte (900px) want LMS laat geen scripts buiten de iframe-tag toe.
+      // max-width in px zodat de breedte consistent is ongeacht de LMS-basislettergrootte.
       return (
-        '<p style="font-size:0.85em;color:#64748b;margin:0 0 0.4em;">' +
+        '<p style="font-size:0.85em;color:#64748b;margin:0 0 0.5em 0;">' +
           'Het overzicht hieronder is aan het laden. Dit kan enkele seconden duren. Ververs de pagina als er niets verschijnt.' +
         '</p>\n' +
-        '<iframe\n' +
-        '  src="' + src + '"\n' +
-        '  width="100%"\n' +
-        '  height="900"\n' +
-        '  style="border:0;border-radius:12px;height:min(900px,85vh);"\n' +
-        '  title="Opvolging leerkansen"\n' +
-        '  loading="lazy"\n' +
-        '  scrolling="yes">\n' +
-        '</iframe>'
+        '<iframe src="' + src + '" title="Opvolging leerkansen" loading="lazy" scrolling="yes" ' +
+        'style="display:block;width:100%;max-width:520px;height:900px;border:0;border-radius:12px;"></iframe>'
       );
     }
 

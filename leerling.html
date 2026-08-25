@@ -431,6 +431,16 @@
     document.getElementById('knop-filter-wissen').addEventListener('click', wisFilters);
 
     haalLeerlingData();
+
+    // Stuur de paginahoogte naar de bovenliggende pagina (voor auto-hoogte in iframe).
+    function stuurHoogte() {
+      if (window.parent === window) return;
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'ot-hoogte', hoogte: h }, '*');
+    }
+    // Na laden + na hertekenen hoogte doorgeven.
+    window.addEventListener('load', stuurHoogte);
+    new MutationObserver(stuurHoogte).observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 </html>
