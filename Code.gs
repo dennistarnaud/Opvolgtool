@@ -331,6 +331,7 @@ function getDocentData() {
   assertDocentToegang_();
   // Lezen heeft geen script-lock nodig; onderhoudstaken lopen eenmalig via initSetup_().
   initSetup_();
+  herstelDubbeleTaakIds_();
   return {
     leerlingen: leesLeerlingen_(),
     taken: leesTaken_().filter(function (taak) { return !isMateriaalTaak_(taak); }),
@@ -785,28 +786,30 @@ function saveTaak(data) {
     throw new Error('Klas is verplicht.');
   }
 
-  const bestaande = leesTaken_();
-  const gemaakt = [];
-  const deadline = parseIsoDatum_(data.deadline);
-  klassen.forEach(function (klas) {
-    const taak = {
-      id: volgendeId_(bestaande.concat(gemaakt), 'T'),
-      naam: String(data.naam).trim(),
-      type: type,
-      deadline: formatDatum_(deadline),
-      klas: klas
-    };
-    gemaakt.push(taak);
-  });
+  return metScriptLock_(function () {
+    const bestaande = leesTaken_();
+    const gemaakt = [];
+    const deadline = parseIsoDatum_(data.deadline);
+    klassen.forEach(function (klas) {
+      const taak = {
+        id: volgendeId_(bestaande.concat(gemaakt), 'T'),
+        naam: String(data.naam).trim(),
+        type: type,
+        deadline: formatDatum_(deadline),
+        klas: klas
+      };
+      gemaakt.push(taak);
+    });
 
-  const sheet = getSheet_(TAB_TAKEN);
-  const start = sheet.getLastRow() + 1;
-  const rijen = gemaakt.map(function (taak) {
-    return [taak.id, taak.naam, taak.type, deadline, taak.klas];
-  });
-  sheet.getRange(start, 1, rijen.length, 5).setValues(rijen);
+    const sheet = getSheet_(TAB_TAKEN);
+    const start = sheet.getLastRow() + 1;
+    const rijen = gemaakt.map(function (taak) {
+      return [taak.id, taak.naam, taak.type, deadline, taak.klas];
+    });
+    sheet.getRange(start, 1, rijen.length, 5).setValues(rijen);
 
-  return { ok: true, taken: gemaakt, taak: gemaakt[0] };
+    return { ok: true, taken: gemaakt, taak: gemaakt[0] };
+  });
 }
 
 /**
@@ -1370,6 +1373,56 @@ function leesLeerlingen_() {
     resultaat.push(leerlingVanRij_(rij));
   }
   return resultaat;
+}
+
+function herstelDubbeleTaakIds_() {
+  const sheet = getSheet_(TAB_TAKEN);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const gezien = {};
+  let max = 0;
+  for (let i = 1; i < rijen.length; i++) {
+    const match = String(rijen[i][0] || '').trim().match(/^T(\d+)$/i);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  const kopieen = [];
+  for (let i = 1; i < rijen.length; i++) {
+    const id = String(rijen[i][0] || '').trim();
+    if (!id) continue;
+    if (!gezien[id]) {
+      gezien[id] = true;
+      continue;
+    }
+    max += 1;
+    const nieuw = 'T' + String(max).padStart(3, '0');
+    sheet.getRange(i + 1, 1).setValue(nieuw);
+    gezien[nieuw] = true;
+    kopieen.push({ oud: id, nieuw: nieuw });
+  }
+  if (kopieen.length) kopieerRegistratiesVoorNieuweTaakIds_(kopieen);
+}
+
+function kopieerRegistratiesVoorNieuweTaakIds_(kopieen) {
+  const sheet = getSheet_(TAB_REGISTRATIES);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const extra = [];
+  const map = {};
+  kopieen.forEach(function (item) {
+    if (!map[item.oud]) map[item.oud] = [];
+    map[item.oud].push(item.nieuw);
+  });
+  for (let i = 1; i < rijen.length; i++) {
+    const nieuwen = map[String(rijen[i][2] || '').trim()];
+    if (!nieuwen) continue;
+    nieuwen.forEach(function (nieuw) {
+      const kopie = rijen[i].slice();
+      kopie[2] = nieuw;
+      extra.push(kopie);
+    });
+  }
+  if (!extra.length) return;
+  sheet.getRange(rijen.length + 1, 1, extra.length, extra[0].length).setValues(extra);
 }
 
 function leesTaken_() {

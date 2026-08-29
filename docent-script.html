@@ -203,6 +203,7 @@
       sleepModus: '',
       sleepBasis: [],
       sleepVerplaatst: false,
+      sleepPunt: null,
       sortering: 'datum',
       groepFilters: [],
       avondstudieDatum: '',
@@ -1995,6 +1996,26 @@
         .zetLeerlingOpvolging(payload);
     }
 
+    function herstelLokaleDubbeleTaakIds(taken) {
+      const gezien = {};
+      let max = 0;
+      (taken || []).forEach(function (taak) {
+        const match = String(taak && taak.id ? taak.id : '').match(/^T(\d+)$/i);
+        if (match) max = Math.max(max, parseInt(match[1], 10));
+      });
+      return (taken || []).map(function (taak) {
+        const id = String(taak && taak.id ? taak.id : '');
+        if (!id || !gezien[id]) {
+          if (id) gezien[id] = true;
+          return taak;
+        }
+        max += 1;
+        const nieuw = 'T' + String(max).padStart(3, '0');
+        gezien[nieuw] = true;
+        return Object.assign({}, taak, { id: nieuw });
+      });
+    }
+
     function taakOpId(id) {
       return staat.taken.filter(function (taak) { return taak.id === id; })[0] || null;
     }
@@ -2035,7 +2056,7 @@
 
     function verwerkData(data) {
       staat.leerlingen = data.leerlingen || [];
-      staat.taken = data.taken || [];
+      staat.taken = herstelLokaleDubbeleTaakIds(data.taken || []);
       staat.registraties = data.registraties || [];
       staat.klassen = (data.klassen || []).map(function (item) {
         if (item && typeof item === 'object') {
@@ -3963,7 +3984,19 @@
       if (!rij) return;
       event.stopPropagation();
       knop.setPointerCapture(event.pointerId);
-      staat.leerlingSleep = { id: rij.getAttribute('data-lln'), rij: rij, knop: knop };
+      const rijen = leerlingSleepRijen(rij);
+      const startIndex = rijen.indexOf(rij);
+      const kader = rij.getBoundingClientRect();
+      staat.leerlingSleep = {
+        id: rij.getAttribute('data-lln'),
+        rij: rij,
+        knop: knop,
+        startY: event.clientY,
+        startIndex: startIndex,
+        naar: startIndex,
+        hoogte: Math.max(kader.height, 1),
+        startIds: rijen.map(function (item) { return item.getAttribute('data-lln'); })
+      };
       rij.classList.add('leerling-sleepend');
       document.body.classList.add('leerling-aan-het-slepen');
       knop.addEventListener('pointermove', onLeerlingSleepBeweeg);
@@ -3971,19 +4004,32 @@
       knop.addEventListener('pointercancel', onLeerlingSleepEinde);
     }
 
+    function tekenLeerlingSleepDoel(sleep) {
+      const rijen = leerlingSleepRijen(sleep.rij);
+      rijen.forEach(function (rij, i) {
+        rij.classList.toggle('leerling-drop-doel', i === sleep.naar && i !== sleep.startIndex);
+      });
+    }
+
     function onLeerlingSleepBeweeg(event) {
       const sleep = staat.leerlingSleep;
       if (!sleep) return;
-      const onder = document.elementFromPoint(event.clientX, event.clientY);
-      const doel = onder && onder.closest ? onder.closest('[data-leerling-rij]') : null;
-      if (!doel || doel === sleep.rij) return;
-      if (doel.parentNode !== sleep.rij.parentNode) return;
+      const n = sleep.startIds.length;
+      if (n < 2) return;
+      const delta = event.clientY - sleep.startY;
+      sleep.rij.style.transform = 'translateY(' + delta + 'px)';
+      const naar = Math.max(0, Math.min(n - 1, sleep.startIndex + Math.round(delta / sleep.hoogte)));
+      if (naar === sleep.naar) return;
+      sleep.naar = naar;
+      tekenLeerlingSleepDoel(sleep);
+    }
+
+    function wisLeerlingSleepStijl(sleep) {
+      if (!sleep || !sleep.rij) return;
+      sleep.rij.classList.remove('leerling-sleepend', 'leerling-drop-doel');
+      sleep.rij.style.transform = '';
       const rijen = leerlingSleepRijen(sleep.rij);
-      const van = rijen.indexOf(sleep.rij);
-      const naar = rijen.indexOf(doel);
-      if (van < 0 || naar < 0 || van === naar) return;
-      if (van < naar) doel.parentNode.insertBefore(sleep.rij, doel.nextSibling);
-      else doel.parentNode.insertBefore(sleep.rij, doel);
+      rijen.forEach(function (rij) { rij.classList.remove('leerling-drop-doel'); });
     }
 
     function onLeerlingSleepEinde(event) {
@@ -3996,11 +4042,12 @@
       staat.leerlingSleep = null;
       document.body.classList.remove('leerling-aan-het-slepen');
       if (!sleep) return;
-      sleep.rij.classList.remove('leerling-sleepend');
-      const ids = leerlingSleepRijen(sleep.rij).map(function (rij) {
-        return rij.getAttribute('data-lln');
-      }).filter(Boolean);
-      pasLeerlingVolgordeToe(ids, false);
+      wisLeerlingSleepStijl(sleep);
+      if (sleep.naar === sleep.startIndex || sleep.startIds.length < 2) return;
+      const ids = sleep.startIds.slice();
+      ids.splice(sleep.startIndex, 1);
+      ids.splice(sleep.naar, 0, sleep.id);
+      pasLeerlingVolgordeToe(ids, true);
     }
 
     function onLeerlingSleepToets(event) {
@@ -4242,6 +4289,7 @@
         staat.slepen = true;
         staat.sleepModus = 'toevoegen';
         staat.sleepStart = cel;
+        staat.sleepPunt = { x: event.clientX, y: event.clientY };
         staat.sleepBasis = (staat.selectie || []).slice();
         staat.sleepVerplaatst = false;
         staat.geselecteerd = cel;
@@ -4261,6 +4309,7 @@
         staat.geselecteerd = cel;
         staat.selectie = rechthoekSelectie(anker, cel);
         staat.slepen = true;
+        staat.sleepPunt = { x: event.clientX, y: event.clientY };
         staat.sleepStart = anker;
         tekenSelectie();
         document.body.classList.add('kruis-slepen');
@@ -4273,6 +4322,7 @@
       staat.sleepModus = '';
       staat.sleepBasis = [];
       staat.sleepVerplaatst = false;
+      staat.sleepPunt = { x: event.clientX, y: event.clientY };
       staat.sleepStart = cel;
       staat.geselecteerd = cel;
       staat.selectie = [cel];
@@ -4286,6 +4336,11 @@
     function onDocumentPointerMove(event) {
       if (!staat.slepen || !staat.sleepStart) return;
       event.preventDefault();
+      if (!staat.sleepVerplaatst && staat.sleepPunt) {
+        const dx = event.clientX - staat.sleepPunt.x;
+        const dy = event.clientY - staat.sleepPunt.y;
+        if ((dx * dx) + (dy * dy) < 64) return;
+      }
       const knop = knopOnderPunt(event.clientX, event.clientY);
       if (!knop) return;
       const einde = celVanKnop(knop);
@@ -4315,6 +4370,7 @@
       staat.sleepModus = '';
       staat.sleepBasis = [];
       staat.sleepVerplaatst = false;
+      staat.sleepPunt = null;
       document.body.classList.remove('kruis-slepen');
     }
 

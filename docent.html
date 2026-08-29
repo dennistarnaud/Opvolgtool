@@ -228,7 +228,15 @@
     }
     tr.leerling-sleepend,
     .leerling-lijst-rij.leerling-sleepend {
-      opacity: 0.55;
+      position: relative;
+      z-index: 6;
+      pointer-events: none;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+    }
+    tr.leerling-drop-doel th,
+    .leerling-lijst-rij.leerling-drop-doel {
+      box-shadow: inset 0 2px 0 #4f46e5;
     }
     body.leerling-aan-het-slepen {
       cursor: grabbing;
