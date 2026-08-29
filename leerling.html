@@ -17,32 +17,70 @@
     };
   </script>
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #fff;
+      overflow: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .embed-shell {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+    }
+    .embed-kaart {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: #fff;
+      overflow: hidden;
+    }
+    .embed-kop {
+      flex-shrink: 0;
+    }
+    #lijst {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     .sort-knop.actief,
     .filter-groep.actief,
     #knop-filter[aria-expanded="true"] {
       background: #e2e8f0;
       color: #0f172a;
     }
-    /* Zorgt dat swipe-scroll binnen de iframe werkt op iOS/Safari. */
-    html, body {
-      -webkit-overflow-scrolling: touch;
-      overflow-y: auto;
+    @keyframes ot-draai {
+      to { transform: rotate(360deg); }
+    }
+    .ot-spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid #e2e8f0;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: ot-draai 0.7s linear infinite;
     }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+<body class="text-slate-900 font-sans">
   <!--
     GAS-scriplet: bij deploy wordt dit echte JSON.
     Lokaal (Live Server) blijft de placeholder staan en valt JS terug op mockdata.
   -->
   <script id="gas-leerling-payload" type="application/json"><?!= typeof leerlingJson !== 'undefined' ? leerlingJson : '' ?></script>
 
-  <div class="max-w-lg mx-auto p-3 sm:p-4 space-y-3">
-    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-3 py-2.5 border-b border-slate-100">
+  <div class="embed-shell">
+    <section class="embed-kaart">
+      <div class="embed-kop px-3 py-2.5 border-b border-slate-100">
         <h1 class="text-sm font-semibold">Opvolging leerkansen</h1>
         <div class="mt-2 space-y-1 text-[12px] text-slate-600 leading-relaxed">
           <p>Het onderstaande overzicht geeft weer welke leerkansen er werden aangeboden en in welke mate erop werd ingegaan.
@@ -88,7 +126,10 @@
         </div>
       </div>
       <div id="lijst" class="divide-y divide-slate-100">
-        <p class="p-4 text-sm text-slate-500">Gegevens laden…</p>
+        <div id="laad-indicator" class="flex flex-col items-center justify-center gap-3 p-10 text-slate-500">
+          <div class="ot-spinner" role="status" aria-label="Laden"></div>
+          <p class="text-sm">Gegevens laden…</p>
+        </div>
       </div>
     </section>
   </div>
@@ -231,8 +272,7 @@
     const staat = {
       registraties: [],
       sortering: 'datum',
-      groepFilters: [],
-      lijstMinHoogte: 0
+      groepFilters: []
     };
 
     function taakGroep(reg) {
@@ -338,24 +378,10 @@
       tekenLijst();
     }
 
-    function borgLijstHoogte(el, voorTekenen) {
-      if (!el) return;
-      if (voorTekenen) {
-        if (staat.lijstMinHoogte) el.style.minHeight = staat.lijstMinHoogte + 'px';
-        return;
-      }
-      const hoogte = el.offsetHeight;
-      if (hoogte > (staat.lijstMinHoogte || 0)) {
-        staat.lijstMinHoogte = hoogte;
-        el.style.minHeight = hoogte + 'px';
-      }
-    }
-
     function tekenLijst() {
       const lijst = document.getElementById('lijst');
       const regs = zichtbareRegistraties();
       tekenSorteerFilterKnoppen();
-      borgLijstHoogte(lijst, true);
 
       const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
       const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
@@ -367,12 +393,10 @@
 
       if (!staat.registraties.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties.</p>';
-        borgLijstHoogte(lijst, false);
         return;
       }
       if (!regs.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Geen registraties voor deze filter.</p>';
-        borgLijstHoogte(lijst, false);
         return;
       }
 
@@ -399,7 +423,6 @@
           '</article>'
         );
       }).join('');
-      borgLijstHoogte(lijst, false);
     }
 
     function statusBadge(status) {
@@ -431,16 +454,6 @@
     document.getElementById('knop-filter-wissen').addEventListener('click', wisFilters);
 
     haalLeerlingData();
-
-    // Stuur de paginahoogte naar de bovenliggende pagina (voor auto-hoogte in iframe).
-    function stuurHoogte() {
-      if (window.parent === window) return;
-      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
-      window.parent.postMessage({ type: 'ot-hoogte', hoogte: h }, '*');
-    }
-    // Na laden + na hertekenen hoogte doorgeven.
-    window.addEventListener('load', stuurHoogte);
-    new MutationObserver(stuurHoogte).observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 </html>

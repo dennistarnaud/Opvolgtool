@@ -215,6 +215,7 @@
       nieuweLeerlingTekst: '',
       registratieWachtrij: [],
       opvolgingDoorgaan: {},
+      leerlingSleep: null,
       webAppUrl: '',
       leerlingUrl: ''
     };
@@ -531,7 +532,8 @@
         opvolgingNablijfOp:     '',
         opvolgingResetOp:       '',
         opvolgingGepauzeerd:    '',
-        opvolgingBlokkeerTaken: []
+        opvolgingBlokkeerTaken: [],
+        volgorde: volgendeLeerlingVolgorde(String(data.klas || '').trim())
       };
       voegKlasAanStaat(tempLeerling.klas);
       staat.leerlingen.push(tempLeerling);
@@ -762,9 +764,16 @@
       const geschraptIn = volgendeGeschraptIn(leerling, klas);
       const data = { id: id, klas: klas, geschraptIn: geschraptIn, klasSinds: nieuweTijdstempel() };
       const oudKlas = leerling.klas, oudGeschraptIn = leerling.geschraptIn, oudKlasSinds = leerling.klasSinds;
+      const oudVolgorde = leerling.volgorde;
       leerling.klas = String(klas || '').trim();
       leerling.geschraptIn = geschraptIn;
       leerling.klasSinds = data.klasSinds;
+      leerling.volgorde = volgendeLeerlingVolgorde(leerling.klas);
+      const plek = staat.leerlingen.indexOf(leerling);
+      if (plek !== -1) {
+        staat.leerlingen.splice(plek, 1);
+        staat.leerlingen.push(leerling);
+      }
       wijsOpenRegistratiesToeAanKlas(id, vorigeKlas);
       if (naSucces) naSucces(leerling);
       if (!isGasOmgeving()) { console.log('[LOKAAL] updateLeerling', leerling); return; }
@@ -772,6 +781,7 @@
         .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.leerling) werkLeerlingBij(antwoord.leerling); })
         .withFailureHandler(function (fout) {
           leerling.klas = oudKlas; leerling.geschraptIn = oudGeschraptIn; leerling.klasSinds = oudKlasSinds;
+          leerling.volgorde = oudVolgorde;
           tekenActieveWeergave();
           toonMelding('Klas wijzigen mislukt: ' + (fout.message || fout), 'fout');
         })
@@ -850,10 +860,40 @@
       return String(vak || '').trim().replace(/\s+/g, ' ').slice(0, 32);
     }
 
+    function leerlingVolgordeGetal(lln) {
+      const n = parseInt(lln && lln.volgorde, 10);
+      return n > 0 ? n : 0;
+    }
+
+    function volgendeLeerlingVolgorde(klas) {
+      const doel = String(klas || '').trim();
+      let max = 0;
+      let heeft = false;
+      staat.leerlingen.forEach(function (lln) {
+        if (String(lln.klas || '').trim() !== doel) return;
+        if (leerlingVerwijderd(lln)) return;
+        const n = leerlingVolgordeGetal(lln);
+        if (n) {
+          heeft = true;
+          if (n > max) max = n;
+        }
+      });
+      return heeft ? max + 1 : 0;
+    }
+
+    function vergelijkLeerlingVolgorde(a, b) {
+      const va = leerlingVolgordeGetal(a);
+      const vb = leerlingVolgordeGetal(b);
+      if (va && vb && va !== vb) return va - vb;
+      if (va && !vb) return -1;
+      if (!va && vb) return 1;
+      return 0;
+    }
+
     function leerlingenVanKlas() {
       return actieveLeerlingen().filter(function (lln) {
         return lln.klas === staat.gekozenKlas;
-      });
+      }).sort(vergelijkLeerlingVolgorde);
     }
 
     function geschrapteLeerlingenVanKlas() {
@@ -2552,6 +2592,7 @@
       tekenSorteerFilterKnoppen();
       herstelFilterPaneel();
       zetLijstDetailChrome();
+      koppelLeerlingSleep(doel);
     }
 
     function htmlLeerlingLijst() {
@@ -2561,15 +2602,17 @@
         const extra = t.nietOk || t.afgehandeld || t.teLaat || t.teMaken || t.leeg
           ? tellingTekst({ inOrde: 0, nietOk: t.nietOk, afgehandeld: t.afgehandeld, teLaat: t.teLaat, teMaken: t.teMaken, afwezig: 0, leeg: t.leeg, totaal: t.totaal })
           : (t.totaal ? 'Alles in orde' : 'Nog geen taken');
-        return '<button type="button" data-actie="lijst-leerling" data-id="' + escapeAttr(lln.id) + '" class="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50 min-h-[3rem]">' +
-          '<span class="min-w-0">' +
-            '<span class="flex items-center gap-1.5 text-sm font-semibold text-slate-900">' +
-              '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) +
+        return '<div class="leerling-lijst-rij flex items-stretch hover:bg-slate-50" data-leerling-rij data-lln="' + escapeAttr(lln.id) + '">' +
+          leerlingSleepKnopHtml(lln) +
+          '<button type="button" data-actie="lijst-leerling" data-id="' + escapeAttr(lln.id) + '" class="min-w-0 flex-1 text-left px-3 py-3 flex items-center justify-between gap-3 min-h-[3rem]">' +
+            '<span class="min-w-0">' +
+              '<span class="flex items-center gap-1.5 text-sm font-semibold text-slate-900">' +
+                '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) +
+              '</span>' +
+              '<span class="block text-[11px] text-slate-500 mt-0.5">' + escapeHtml(extra) + '</span>' +
             '</span>' +
-            '<span class="block text-[11px] text-slate-500 mt-0.5">' + escapeHtml(extra) + '</span>' +
-          '</span>' +
-          '<span class="shrink-0 text-slate-300" aria-hidden="true">›</span>' +
-        '</button>';
+            '<span class="shrink-0 text-slate-300" aria-hidden="true">›</span>' +
+          '</button></div>';
       }).join('');
       const acties = htmlOpvolgActies();
       return '<div class="px-4 py-3 border-b border-slate-100">' +
@@ -3403,14 +3446,21 @@
     function leerlingIframeHtml(code) {
       const src = leerlingUrl(code);
       if (!src) return '';
-      // Vaste hoogte (900px) want LMS laat geen scripts buiten de iframe-tag toe.
-      // max-width in px zodat de breedte consistent is ongeacht de LMS-basislettergrootte.
+      const spinner = encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
+        '<circle cx="20" cy="20" r="14" fill="none" stroke="#e2e8f0" stroke-width="4"/>' +
+        '<path d="M20 6a14 14 0 0 1 14 14" fill="none" stroke="#6366f1" stroke-width="4" stroke-linecap="round">' +
+        '<animateTransform attributeName="transform" type="rotate" from="0 20 20" to="360 20 20" dur="0.8s" repeatCount="indefinite"/>' +
+        '</path></svg>'
+      );
       return (
         '<p style="font-size:0.85em;color:#64748b;margin:0 0 0.5em 0;">' +
           'Het overzicht hieronder is aan het laden. Dit kan enkele seconden duren. Ververs de pagina als er niets verschijnt.' +
         '</p>\n' +
-        '<iframe src="' + src + '" title="Opvolging leerkansen" loading="lazy" scrolling="yes" ' +
-        'style="display:block;width:100%;max-width:520px;height:900px;border:0;border-radius:12px;"></iframe>'
+        '<iframe src="' + src + '" title="Opvolging leerkansen" loading="lazy" ' +
+        'width="520" height="1100" frameborder="0" scrolling="no" ' +
+        'style="display:block;width:100%;max-width:520px;height:1100px;border:0;' +
+        'background:#fff url(\'data:image/svg+xml,' + spinner + '\') center 38% no-repeat;"></iframe>'
       );
     }
 
@@ -3764,17 +3814,31 @@
       );
     }
 
+    function leerlingSleepKnopHtml(lln) {
+      return '<button type="button" class="leerling-sleep" data-lln="' + escapeAttr(lln.id) + '" ' +
+        'title="Versleep of gebruik ↑↓ om van plaats te veranderen" ' +
+        'aria-label="' + escapeAttr('Volgorde van ' + lln.naam + ' wijzigen') + '">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">' +
+          '<circle cx="3" cy="3" r="1.3"/><circle cx="9" cy="3" r="1.3"/>' +
+          '<circle cx="3" cy="8" r="1.3"/><circle cx="9" cy="8" r="1.3"/>' +
+          '<circle cx="3" cy="13" r="1.3"/><circle cx="9" cy="13" r="1.3"/>' +
+        '</svg></button>';
+    }
+
     function kruisLeerlingRij(lln, taken, geschrapt) {
       const rijKlasse = geschrapt
         ? 'rij-geschrapt border-t border-slate-100'
         : 'border-t border-slate-100';
       const naamKlasse = geschrapt ? 'naam-tekst geschrapt' : 'naam-tekst';
       const thBg = geschrapt ? 'bg-slate-50' : 'bg-white';
-      let html = '<tr class="' + rijKlasse + '">';
+      const sleepAttr = geschrapt ? '' : ' data-leerling-rij data-lln="' + escapeAttr(lln.id) + '"';
+      let html = '<tr class="' + rijKlasse + '"' + sleepAttr + '>';
       html += '<th class="naam-cel sticky left-0 z-10 ' + thBg + ' px-3 py-1.5 text-left text-sm font-medium">' +
+        '<div class="naam-cel-binnen">' +
+        (geschrapt ? '' : leerlingSleepKnopHtml(lln)) +
         '<button type="button" class="' + naamKlasse + '" data-actie="leerling-fiche" data-id="' + escapeAttr(lln.id) + '" aria-label="' + escapeAttr('Fiche van ' + lln.naam) + '">' +
         '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) + '</button>' +
-        '</th>';
+        '</div></th>';
       taken.forEach(function (taak) {
         const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
         const status = reg ? reg.status : '';
@@ -3866,9 +3930,134 @@
         veldNieuw.addEventListener('blur', onNieuweLeerlingBlur);
         veldNieuw.addEventListener('focus', function () { selecteerCel(null); });
       }
+      koppelLeerlingSleep(wrapper);
       lijnKoppenOpTabel(wrapper);
       requestAnimationFrame(function () { lijnKoppenOpTabel(wrapper); });
       if (!herstelNaLeerling()) herstelSelectie();
+    }
+
+    function koppelLeerlingSleep(root) {
+      if (!root) return;
+      root.querySelectorAll('.leerling-sleep').forEach(function (knop) {
+        knop.addEventListener('pointerdown', onLeerlingSleepStart);
+        knop.addEventListener('keydown', onLeerlingSleepToets);
+      });
+    }
+
+    function leerlingSleepRijen(startEl) {
+      const tabelRij = startEl && startEl.closest ? startEl.closest('tr[data-leerling-rij]') : null;
+      if (tabelRij && tabelRij.parentNode) {
+        return Array.prototype.slice.call(tabelRij.parentNode.querySelectorAll('tr[data-leerling-rij]'));
+      }
+      const lijstRij = startEl && startEl.closest ? startEl.closest('.leerling-lijst-rij') : null;
+      if (lijstRij && lijstRij.parentNode) {
+        return Array.prototype.slice.call(lijstRij.parentNode.querySelectorAll('.leerling-lijst-rij'));
+      }
+      return [];
+    }
+
+    function onLeerlingSleepStart(event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const knop = event.currentTarget;
+      const rij = knop.closest('[data-leerling-rij]');
+      if (!rij) return;
+      event.stopPropagation();
+      knop.setPointerCapture(event.pointerId);
+      staat.leerlingSleep = { id: rij.getAttribute('data-lln'), rij: rij, knop: knop };
+      rij.classList.add('leerling-sleepend');
+      document.body.classList.add('leerling-aan-het-slepen');
+      knop.addEventListener('pointermove', onLeerlingSleepBeweeg);
+      knop.addEventListener('pointerup', onLeerlingSleepEinde);
+      knop.addEventListener('pointercancel', onLeerlingSleepEinde);
+    }
+
+    function onLeerlingSleepBeweeg(event) {
+      const sleep = staat.leerlingSleep;
+      if (!sleep) return;
+      const onder = document.elementFromPoint(event.clientX, event.clientY);
+      const doel = onder && onder.closest ? onder.closest('[data-leerling-rij]') : null;
+      if (!doel || doel === sleep.rij) return;
+      if (doel.parentNode !== sleep.rij.parentNode) return;
+      const rijen = leerlingSleepRijen(sleep.rij);
+      const van = rijen.indexOf(sleep.rij);
+      const naar = rijen.indexOf(doel);
+      if (van < 0 || naar < 0 || van === naar) return;
+      if (van < naar) doel.parentNode.insertBefore(sleep.rij, doel.nextSibling);
+      else doel.parentNode.insertBefore(sleep.rij, doel);
+    }
+
+    function onLeerlingSleepEinde(event) {
+      const knop = event.currentTarget;
+      knop.removeEventListener('pointermove', onLeerlingSleepBeweeg);
+      knop.removeEventListener('pointerup', onLeerlingSleepEinde);
+      knop.removeEventListener('pointercancel', onLeerlingSleepEinde);
+      try { knop.releasePointerCapture(event.pointerId); } catch (e) { /* negeren */ }
+      const sleep = staat.leerlingSleep;
+      staat.leerlingSleep = null;
+      document.body.classList.remove('leerling-aan-het-slepen');
+      if (!sleep) return;
+      sleep.rij.classList.remove('leerling-sleepend');
+      const ids = leerlingSleepRijen(sleep.rij).map(function (rij) {
+        return rij.getAttribute('data-lln');
+      }).filter(Boolean);
+      pasLeerlingVolgordeToe(ids, false);
+    }
+
+    function onLeerlingSleepToets(event) {
+      const toets = String(event.key || '').toLowerCase();
+      if (toets !== 'arrowup' && toets !== 'arrowdown') return;
+      event.preventDefault();
+      event.stopPropagation();
+      const id = event.currentTarget.getAttribute('data-lln');
+      const ids = leerlingenVanKlas().map(function (lln) { return lln.id; });
+      const van = ids.indexOf(id);
+      const naar = toets === 'arrowup' ? van - 1 : van + 1;
+      if (van < 0 || naar < 0 || naar >= ids.length) return;
+      ids.splice(van, 1);
+      ids.splice(naar, 0, id);
+      pasLeerlingVolgordeToe(ids, true);
+      requestAnimationFrame(function () {
+        const knoppen = document.querySelectorAll('.leerling-sleep');
+        for (let i = 0; i < knoppen.length; i++) {
+          if (knoppen[i].getAttribute('data-lln') === id) {
+            knoppen[i].focus();
+            break;
+          }
+        }
+      });
+    }
+
+    function pasLeerlingVolgordeToe(ids, herteken) {
+      if (!ids || ids.length < 2) return;
+      const klas = staat.gekozenKlas;
+      const plaats = {};
+      ids.forEach(function (id, i) { plaats[id] = i + 1; });
+      let gewijzigd = false;
+      staat.leerlingen.forEach(function (lln) {
+        if (lln.klas !== klas || leerlingVerwijderd(lln)) return;
+        const n = plaats[lln.id];
+        if (!n) return;
+        if (leerlingVolgordeGetal(lln) !== n) {
+          lln.volgorde = n;
+          gewijzigd = true;
+        }
+      });
+      if (!gewijzigd) return;
+      slaLeerlingVolgordeOp(klas, ids);
+      if (herteken) tekenActieveWeergave();
+      else tekenOpvolgActies();
+    }
+
+    function slaLeerlingVolgordeOp(klas, ids) {
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveLeerlingVolgorde', klas, ids);
+        return;
+      }
+      gasRun()
+        .withFailureHandler(function (fout) {
+          toonMelding('Volgorde opslaan mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .saveLeerlingVolgorde({ klas: klas, ids: ids });
     }
 
     /** Naamkolom volgt de langste naam; vakkolommen blijven vast op --vak. */
@@ -4309,6 +4498,7 @@
       const actief = document.activeElement;
       const tag = ((actief && actief.tagName) || '').toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (actief && actief.closest && actief.closest('.leerling-sleep')) return;
       if (modalOpen()) {
         if (String(event.key || '').toLowerCase() === 'escape') sluitModal();
         return;

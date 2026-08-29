@@ -22,6 +22,9 @@
  *      I opvolgingOudersOp
  *      J opvolgingNablijfOp
  *      K opvolgingResetOp
+ *      L opvolgingGepauzeerd
+ *      M opvolgingBlokkeerTaken
+ *      N volgorde            (positie in de klaslijst; tool vult in)
  *    Start leeg (alleen koppen). Leerlingen voeg je toe via het docentscherm.
  *
  *    Tab "Taken_Lijst"
@@ -358,6 +361,7 @@ function initSetup_() {
     normaliseerLeerlingCodes_();
     synchroniseerKlassen_();
     zorgVoorOpvolgingKolommen_();
+    zorgVoorVolgordeKolom_();
     cache.put(SLEUTEL, '1', 6 * 3600); // 6 uur geldig
   } finally {
     lock.releaseLock();
@@ -551,10 +555,11 @@ function saveLeerling(data) {
 
   return metScriptLock_(function () {
     const leerlingen = leesLeerlingen_();
+    const klas = voegKlasToeAlsNieuw_(data.klas);
     const leerling = {
       id: volgendeId_(leerlingen, 'L'),
       naam: String(data.naam).trim(),
-      klas: voegKlasToeAlsNieuw_(data.klas),
+      klas: klas,
       code: uniekeLeerlingCode_(leerlingen),
       geschraptIn: [],
       klasSinds: '',
@@ -562,10 +567,12 @@ function saveLeerling(data) {
       opvolgingLeerlingOp: '',
       opvolgingOudersOp: '',
       opvolgingNablijfOp: '',
-      opvolgingResetOp: ''
+      opvolgingResetOp: '',
+      volgorde: volgendeVolgordeVoorKlas_(klas, leerlingen)
     };
 
-    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '', '', '', '', '', '', '']);
+    zorgVoorVolgordeKolom_();
+    getSheet_(TAB_LEERLINGEN).appendRow([leerling.id, leerling.naam, leerling.klas, leerling.code, '', '', '', '', '', '', '', '', '', leerling.volgorde || '']);
 
     return { ok: true, leerling: leerling };
   });
@@ -607,6 +614,10 @@ function updateLeerling(data) {
       sheet.getRange(i + 1, 6).setValue(klasSinds);
       if (vorigeKlas && vorigeKlas !== klas) {
         wijsOpenRegistratiesToeAanKlas_(id, vorigeKlas);
+        zorgVoorVolgordeKolom_();
+        const volgorde = volgendeVolgordeVoorKlas_(klas, leesLeerlingen_());
+        sheet.getRange(i + 1, 14).setValue(volgorde || '');
+        leerling.volgorde = volgorde;
       }
       leerling.klas = klas;
       leerling.geschraptIn = geschraptIn;
@@ -1100,6 +1111,13 @@ function zorgVoorOpvolgingKolommen_() {
   if (String(kop[12] || '').trim() === '') sheet.getRange(1, 13).setValue('opvolgingBlokkeerTaken');
 }
 
+function zorgVoorVolgordeKolom_() {
+  const sheet = getSheet_(TAB_LEERLINGEN);
+  const last = Math.max(14, sheet.getLastColumn() || 1);
+  const kop = sheet.getRange(1, 1, 1, last).getValues()[0];
+  if (String(kop[13] || '').trim() === '') sheet.getRange(1, 14).setValue('volgorde');
+}
+
 function standaardInstellingen_() {
   return {
     opvolgingAan: DEFAULT_OPVOLGING_AAN,
@@ -1403,8 +1421,67 @@ function leerlingVanRij_(rij) {
     opvolgingNablijfOp: formatDatumTijd_(rij[9]),
     opvolgingResetOp: formatDatumTijd_(rij[10]),
     opvolgingGepauzeerd: formatDatumTijd_(rij[11]),
-    opvolgingBlokkeerTaken: parseLijst_(rij[12])
+    opvolgingBlokkeerTaken: parseLijst_(rij[12]),
+    volgorde: leerlingVolgordeGetal_(rij[13])
   };
+}
+
+function leerlingVolgordeGetal_(waarde) {
+  const n = parseInt(waarde, 10);
+  return n > 0 ? n : 0;
+}
+
+function volgendeVolgordeVoorKlas_(klas, leerlingen) {
+  const doel = String(klas || '').trim();
+  let max = 0;
+  let heeft = false;
+  (leerlingen || []).forEach(function (lln) {
+    if (String(lln.klas || '').trim() !== doel) return;
+    if (String(lln.verwijderdOp || '').trim()) return;
+    const n = leerlingVolgordeGetal_(lln.volgorde);
+    if (n) {
+      heeft = true;
+      if (n > max) max = n;
+    }
+  });
+  return heeft ? max + 1 : 0;
+}
+
+/**
+ * Slaat de volgorde van leerlingen in één klas op.
+ * @param {{klas: string, ids: string[]}} data
+ * @return {{ok: boolean}}
+ */
+function saveLeerlingVolgorde(data) {
+  assertDocentToegang_();
+  const klas = String(data && data.klas ? data.klas : '').trim();
+  const ids = data && data.ids ? data.ids : [];
+  if (!klas) throw new Error('Klas is verplicht.');
+  if (!ids || !ids.length) throw new Error('Leerlingenlijst is verplicht.');
+
+  return metScriptLock_(function () {
+    zorgVoorVolgordeKolom_();
+    const sheet = getSheet_(TAB_LEERLINGEN);
+    const rijen = sheet.getDataRange().getValues();
+    const plaats = {};
+    ids.forEach(function (id, i) {
+      const sleutel = String(id || '').trim();
+      if (sleutel) plaats[sleutel] = i + 1;
+    });
+
+    const waarden = [];
+    for (let i = 1; i < rijen.length; i++) {
+      const id = String(rijen[i][0] || '').trim();
+      const rijKlas = String(rijen[i][2] || '').trim();
+      let waarde = rijen[i][13];
+      if (rijKlas === klas && plaats[id]) waarde = plaats[id];
+      waarden.push([waarde]);
+    }
+    if (waarden.length) {
+      sheet.getRange(2, 14, waarden.length, 1).setValues(waarden);
+    }
+    return { ok: true };
+  });
 }
 
 // zoekLeerlingOpCode_: zie LeerlingCodes.gs

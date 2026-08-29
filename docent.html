@@ -187,6 +187,53 @@
       width: var(--naam);
       white-space: nowrap;
     }
+    .naam-cel-binnen {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      min-width: 0;
+    }
+    .leerling-sleep {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.6rem;
+      margin-left: -0.15rem;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: #cbd5e1;
+      cursor: grab;
+      touch-action: none;
+      border-radius: 0.3rem;
+    }
+    .leerling-lijst-rij .leerling-sleep {
+      margin: 0;
+      width: 1.75rem;
+      align-self: stretch;
+      height: auto;
+    }
+    .leerling-sleep:hover,
+    .leerling-sleep:focus {
+      color: #64748b;
+      background: #f1f5f9;
+      outline: none;
+    }
+    .leerling-sleep:active,
+    .leerling-sleepend .leerling-sleep {
+      cursor: grabbing;
+      color: #4f46e5;
+    }
+    tr.leerling-sleepend,
+    .leerling-lijst-rij.leerling-sleepend {
+      opacity: 0.55;
+    }
+    body.leerling-aan-het-slepen {
+      cursor: grabbing;
+      user-select: none;
+    }
     .naam-tekst {
       min-width: 0;
       display: inline-flex;
