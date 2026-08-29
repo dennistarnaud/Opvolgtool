@@ -188,6 +188,7 @@
       },
       gekozenKlas: '',
       klasTeVerwijderen: '',
+      klasTeHernoemen: '',
       actieveTab: 'kruistabel',
       mobieleTab: 'leerling',
       lijstLeerlingId: null,
@@ -334,6 +335,16 @@
       }
       if (type === 'lln' && staat.lijstLeerlingId === oudId) staat.lijstLeerlingId = nieuwId;
       if (type === 'taak' && staat.lijstTaakId === oudId) staat.lijstTaakId = nieuwId;
+    }
+
+    function vervangLeerlingIdInDom(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      document.querySelectorAll('[data-lln]').forEach(function (el) {
+        if (el.getAttribute('data-lln') === oudId) el.setAttribute('data-lln', nieuwId);
+      });
+      document.querySelectorAll('[data-id]').forEach(function (el) {
+        if (el.getAttribute('data-id') === oudId) el.setAttribute('data-id', nieuwId);
+      });
     }
 
     function vervangTijdelijkLeerlingId(oudId, nieuwId) {
@@ -553,7 +564,7 @@
           if (idx !== -1) staat.leerlingen.splice(idx, 1, antwoord.leerling);
           else staat.leerlingen.push(antwoord.leerling);
           voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
-          tekenActieveWeergave();
+          vervangLeerlingIdInDom(tempId, antwoord.leerling.id);
           tekenSelectie();
         })
         .withFailureHandler(function (fout) {
@@ -2139,6 +2150,15 @@
         knop.textContent = klasLabel(klas);
         knop.addEventListener('click', function () { kiesKlas(klas); });
 
+        const hernoem = document.createElement('button');
+        hernoem.type = 'button';
+        hernoem.className = 'px-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600';
+        hernoem.setAttribute('data-actie', 'klas-hernoemen');
+        hernoem.setAttribute('data-klas', klas);
+        hernoem.setAttribute('title', 'Klasnaam wijzigen');
+        hernoem.setAttribute('aria-label', 'Klasnaam van ' + klasLabel(klas) + ' wijzigen');
+        hernoem.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>';
+
         const wis = document.createElement('button');
         wis.type = 'button';
         wis.className = 'px-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 text-lg leading-none';
@@ -2149,6 +2169,7 @@
         wis.textContent = '×';
 
         groep.appendChild(knop);
+        groep.appendChild(hernoem);
         groep.appendChild(wis);
         knoppen.appendChild(groep);
       });
@@ -2252,6 +2273,91 @@
         .saveKlas({ naam: naam, vak: vak });
     }
 
+    function openKlasHernoemen(klas) {
+      const naam = bestaandeKlasnaam(klas) || normaliseerKlasnaam(klas) || staat.gekozenKlas;
+      if (!naam) return;
+      staat.klasTeHernoemen = naam;
+      staat.modal = 'klas-hernoemen';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas-hernoemen');
+      const veld = document.getElementById('veld-klas-hernoemen');
+      veld.value = naam;
+      verbergModalInhoud();
+      document.getElementById('form-klas-hernoemen').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      veld.focus();
+      veld.select();
+    }
+
+    function vervangKlasnaamInStaat(oud, nieuw) {
+      (staat.klassen || []).forEach(function (item) {
+        if (klasNaamVan(item).toUpperCase() !== oud.toUpperCase()) return;
+        if (typeof item === 'string') return;
+        item.naam = nieuw;
+      });
+      staat.leerlingen.forEach(function (lln) {
+        if (String(lln.klas || '').trim() === oud) lln.klas = nieuw;
+        lln.geschraptIn = geschraptInVan(lln).map(function (item) {
+          return item === oud ? nieuw : item;
+        });
+      });
+      staat.taken.forEach(function (taak) {
+        if (String(taak.klas || '').trim() === oud) taak.klas = nieuw;
+      });
+      staat.registraties.forEach(function (reg) {
+        if (String(reg.klas || '').trim() === oud) reg.klas = nieuw;
+      });
+      if (staat.gekozenKlas === oud) staat.gekozenKlas = nieuw;
+      try {
+        if (sessionStorage.getItem(KLAS_OPSLag) === oud) sessionStorage.setItem(KLAS_OPSLag, nieuw);
+      } catch (e) { /* negeren */ }
+    }
+
+    function slaKlasHernoemen(event) {
+      event.preventDefault();
+      const oud = staat.klasTeHernoemen;
+      const nieuw = normaliseerKlasnaam(document.getElementById('veld-klas-hernoemen').value);
+      if (!oud) return;
+      if (!nieuw) {
+        toonMelding('Vul een klasnaam in.', 'fout');
+        return;
+      }
+      const botsing = bestaandeKlasnaam(nieuw);
+      if (botsing && botsing.toUpperCase() !== oud.toUpperCase()) {
+        toonMelding('Klas ' + klasLabel(botsing) + ' bestaat al.', 'fout');
+        return;
+      }
+      if (nieuw === oud) {
+        sluitModal();
+        return;
+      }
+      vervangKlasnaamInStaat(oud, nieuw);
+      sluitModal();
+      vulKlasKeuze();
+      tekenScherm();
+      toonMelding('Klas hernoemd naar ' + klasLabel(nieuw) + '.', 'ok');
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] updateKlas', { oud: oud, nieuw: nieuw });
+        return;
+      }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const serverNieuw = antwoord && antwoord.nieuw;
+          if (serverNieuw && serverNieuw !== nieuw) {
+            vervangKlasnaamInStaat(nieuw, serverNieuw);
+            vulKlasKeuze();
+            tekenScherm();
+          }
+        })
+        .withFailureHandler(function (fout) {
+          vervangKlasnaamInStaat(nieuw, oud);
+          vulKlasKeuze();
+          tekenScherm();
+          toonMelding('Klas hernoemen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateKlas({ oud: oud, nieuw: nieuw });
+    }
+
     function vraagKlasVerwijderen(klas) {
       const naam = bestaandeKlasnaam(klas) || normaliseerKlasnaam(klas) || staat.gekozenKlas;
       if (!naam) return;
@@ -2353,6 +2459,8 @@
         return;
       }
       document.getElementById('kruis-klaslabel').textContent = klasLabel(staat.gekozenKlas);
+      const hernoem = document.getElementById('knop-kruis-klas-hernoemen');
+      if (hernoem) hernoem.setAttribute('data-klas', staat.gekozenKlas);
       const wis = document.getElementById('knop-kruis-klas-verwijderen');
       if (wis) wis.setAttribute('data-klas', staat.gekozenKlas);
       tekenActieveWeergave();
@@ -2892,6 +3000,7 @@
       staat.modal = null;
       staat.bevestigActie = null;
       staat.klasTeVerwijderen = '';
+      staat.klasTeHernoemen = '';
       staat.taakBewerkenId = '';
       zetModalTopVast(false);
       document.getElementById('modal-toevoegen').classList.add('hidden');
@@ -2906,6 +3015,7 @@
       document.getElementById('form-fiche').classList.add('hidden');
       document.getElementById('form-prullenbak').classList.add('hidden');
       document.getElementById('form-klas').classList.add('hidden');
+      document.getElementById('form-klas-hernoemen').classList.add('hidden');
       document.getElementById('form-klas-verwijderen').classList.add('hidden');
       document.getElementById('form-instellingen').classList.add('hidden');
     }
@@ -3255,7 +3365,8 @@
       document.getElementById('fiche-naam-edit').classList.remove('hidden');
       veld.value = leerling.naam || '';
       veld.focus();
-      veld.select();
+      const einde = veld.value.length;
+      try { veld.setSelectionRange(einde, einde); } catch (e) { /* negeren */ }
     }
 
     function sluitFicheNaamBewerken() {
@@ -3298,24 +3409,26 @@
     }
 
     function slaLeerlingNaamOp(id, naam, naSucces) {
-      const data = { id: id, naam: naam };
-      if (isGasOmgeving()) {
-        gasRun()
-          .withSuccessHandler(function (antwoord) {
-            werkLeerlingBij(antwoord.leerling);
-            if (naSucces) naSucces(antwoord.leerling);
-          })
-          .withFailureHandler(function (fout) {
-            toonMelding('Naam wijzigen mislukt: ' + (fout.message || fout), 'fout');
-          })
-          .updateLeerling(data);
-        return;
-      }
       const leerling = leerlingOpId(id);
       if (!leerling) return;
+      const oud = leerling.naam;
       leerling.naam = naam;
-      console.log('[LOKAAL] updateLeerling', leerling);
       if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] updateLeerling', leerling);
+        return;
+      }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          if (antwoord && antwoord.leerling) werkLeerlingBij(antwoord.leerling);
+        })
+        .withFailureHandler(function (fout) {
+          leerling.naam = oud;
+          tekenScherm();
+          if (staat.modal === 'fiche') tekenLeerlingFiche(leerling);
+          toonMelding('Naam wijzigen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateLeerling({ id: id, naam: naam });
     }
 
     function zetFicheKlasWeergave(leerling) {
@@ -3879,6 +3992,9 @@
 
     function tekenKruistabel() {
       const wrapper = document.getElementById('kruistabel-wrapper');
+      const actiefNieuw = document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains('veld-nieuwe-leerling');
+      const caret = actiefNieuw ? document.activeElement.selectionStart : null;
       const leerlingen = leerlingenVanKlas();
       const taken = zichtbareTaken();
       tekenSorteerFilterKnoppen();
@@ -3899,7 +4015,9 @@
 
       lichaam += '<tr class="rij-nieuw border-t border-slate-100">';
       lichaam += '<th class="naam-cel sticky left-0 z-10 bg-white px-3 py-1.5 text-left">' +
-        '<input type="text" class="veld-nieuwe-leerling" placeholder="Nieuwe leerling…" autocomplete="off" aria-label="Nieuwe leerling"></th>';
+        '<span class="nieuwe-leerling-vak">' +
+        '<input type="text" class="veld-nieuwe-leerling" placeholder="Nieuwe leerling…" autocomplete="off" aria-label="Nieuwe leerling">' +
+        '</span></th>';
       taken.forEach(function () {
         lichaam += '<td class="td-nieuw"></td>';
       });
@@ -3954,7 +4072,15 @@
       koppelLeerlingSleep(wrapper);
       lijnKoppenOpTabel(wrapper);
       requestAnimationFrame(function () { lijnKoppenOpTabel(wrapper); });
-      if (!herstelNaLeerling()) herstelSelectie();
+      if (!herstelNaLeerling()) {
+        if (actiefNieuw && veldNieuw) {
+          veldNieuw.focus();
+          const pos = caret == null ? veldNieuw.value.length : Math.min(caret, veldNieuw.value.length);
+          try { veldNieuw.setSelectionRange(pos, pos); } catch (e) { /* negeren */ }
+        } else {
+          herstelSelectie();
+        }
+      }
     }
 
     function koppelLeerlingSleep(root) {
@@ -4604,6 +4730,7 @@
 
     document.getElementById('form-taak').addEventListener('submit', slaTaakForm);
     document.getElementById('form-klas').addEventListener('submit', voegKlasToe);
+    document.getElementById('form-klas-hernoemen').addEventListener('submit', slaKlasHernoemen);
     document.getElementById('form-instellingen').addEventListener('submit', slaInstellingenOp);
     document.getElementById('veld-opvolging-aan').addEventListener('change', function () {
       document.getElementById('veld-opvolging-drempel').disabled = !document.getElementById('veld-opvolging-aan').checked;
@@ -4681,6 +4808,7 @@
       else if (actie === 'reset-schooljaar') bevestigResetSchooljaar();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
       else if (actie === 'klas-nieuw') openNieuweKlasModal();
+      else if (actie === 'klas-hernoemen') openKlasHernoemen(doel.getAttribute('data-klas'));
       else if (actie === 'klas-verwijderen') vraagKlasVerwijderen(doel.getAttribute('data-klas'));
       else if (actie === 'klas-verwijderen-bevestigen') bevestigKlasVerwijderen();
       else if (actie === 'modal-sluiten') sluitModal();

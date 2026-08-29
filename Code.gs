@@ -985,6 +985,30 @@ function deleteKlas(naam) {
   return { ok: true, klas: klas, taken: aantalTaken };
 }
 
+/**
+ * Hernoemt een klas overal: Klassen-tab, leerlingen, geschraptIn, taken en registraties.
+ * Dit is geen klaswijziging van een leerling: klasSinds blijft ongewijzigd.
+ * @param {{oud: string, nieuw: string}} data
+ * @return {{ok: boolean, oud: string, nieuw: string}}
+ */
+function updateKlas(data) {
+  assertDocentToegang_();
+  const oud = bestaandeKlasnaam_(data && data.oud);
+  const nieuw = normaliseerKlasnaam_(data && data.nieuw);
+  if (!oud) throw new Error('Klas niet gevonden.');
+  if (!nieuw) throw new Error('Nieuwe klasnaam is verplicht.');
+  const botsing = bestaandeKlasnaam_(nieuw);
+  if (botsing && botsing.toUpperCase() !== oud.toUpperCase()) {
+    throw new Error('Klas ' + botsing + ' bestaat al.');
+  }
+  if (nieuw === oud) return { ok: true, oud: oud, nieuw: nieuw };
+
+  return metScriptLock_(function () {
+    vervangKlasnaamOveral_(oud, nieuw);
+    return { ok: true, oud: oud, nieuw: nieuw };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Sheet-helpers
 // ---------------------------------------------------------------------------
@@ -1318,6 +1342,52 @@ function voegKlasToeAlsNieuw_(naam, vak) {
   lijst.push({ naam: bestaand || klas, vak: vakNaam });
   schrijfKlassen_(lijst);
   return bestaand || klas;
+}
+
+function vervangKlasnaamOveral_(oud, nieuw) {
+  const klassen = leesKlassen_().map(function (item) {
+    if (item.naam.toUpperCase() !== oud.toUpperCase()) return item;
+    return { naam: nieuw, vak: item.vak };
+  });
+  schrijfKlassen_(klassen);
+  vervangKlasnaamInKolom_(TAB_LEERLINGEN, 2, oud, nieuw);
+  vervangKlasnaamInGeschraptIn_(oud, nieuw);
+  vervangKlasnaamInKolom_(TAB_TAKEN, 4, oud, nieuw);
+  vervangKlasnaamInKolom_(TAB_REGISTRATIES, 5, oud, nieuw);
+}
+
+function vervangKlasnaamInKolom_(sheetNaam, kolomIndex, oud, nieuw) {
+  const sheet = getSheet_(sheetNaam);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const waarden = [];
+  let gewijzigd = false;
+  for (let i = 1; i < rijen.length; i++) {
+    let waarde = rijen[i][kolomIndex];
+    if (String(waarde || '').trim() === oud) {
+      waarde = nieuw;
+      gewijzigd = true;
+    }
+    waarden.push([waarde]);
+  }
+  if (gewijzigd) sheet.getRange(2, kolomIndex + 1, waarden.length, 1).setValues(waarden);
+}
+
+function vervangKlasnaamInGeschraptIn_(oud, nieuw) {
+  const sheet = getSheet_(TAB_LEERLINGEN);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const waarden = [];
+  let gewijzigd = false;
+  for (let i = 1; i < rijen.length; i++) {
+    const lijst = parseLijst_(rijen[i][4]).map(function (item) {
+      return String(item || '').trim() === oud ? nieuw : item;
+    });
+    const tekst = lijst.join(', ');
+    if (tekst !== String(rijen[i][4] || '').trim()) gewijzigd = true;
+    waarden.push([tekst]);
+  }
+  if (gewijzigd) sheet.getRange(2, 5, waarden.length, 1).setValues(waarden);
 }
 
 function verwijderKlasnaam_(naam) {
