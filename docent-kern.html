@@ -115,8 +115,13 @@
         'We verwachten dat {voornaam} daar aanwezig is, om onder toezicht aan deze opdrachten te werken en ze af te ronden. Gelieve ervoor te zorgen dat {voornaam} het nodige lesmateriaal meeneemt om zelfstandig aan de slag te kunnen.\n\n' +
         'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
         'Bedankt voor uw medewerking.\n\n' +
-        'Met vriendelijke groeten'
+        'Met vriendelijke groeten',
+      periodes: []
     };
+    const PERIODES_MAX = 20;
+    const PERIODE_NAAM_MAX = 40;
+    const PERIODE_OVERIGE = '__overige__';
+    const PERIODE_OPSLag = 'opvolgtool-periode-open';
     const OUD_BERICHT_LEERLING = [
       'Hallo {voornaam},\n\n' +
       'Je hebt nog taken die niet in orde zijn:\n' +
@@ -186,7 +191,8 @@
         opvolgingDrempel: 3,
         berichtLeerling: '',
         berichtOuders: '',
-        berichtNablijf: ''
+        berichtNablijf: '',
+        periodes: []
       },
       gekozenKlas: '',
       klasTeVerwijderen: '',
@@ -983,7 +989,7 @@
     }
 
     function gesorteerdeTaken() {
-      return zichtbareTaken();
+      return kruisTaken();
     }
 
     function korteDatum(iso) {
@@ -1075,8 +1081,135 @@
           : DEFAULT_OPVOLGING.opvolgingDrempel,
         berichtLeerling: normaliseerBericht(bron.berichtLeerling, DEFAULT_OPVOLGING.berichtLeerling, OUD_BERICHT_LEERLING),
         berichtOuders: normaliseerBericht(bron.berichtOuders, DEFAULT_OPVOLGING.berichtOuders, OUD_BERICHT_OUDERS),
-        berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF)
+        berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF),
+        periodes: normaliseerPeriodes(bron.periodes)
       };
+    }
+
+    function normaliseerIsoDatum(waarde) {
+      const s = String(waarde == null ? '' : waarde).trim();
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+    }
+
+    function normaliseerPeriodes(waarde) {
+      let lijst = waarde;
+      if (typeof waarde === 'string') {
+        const ruw = waarde.trim();
+        if (!ruw) return [];
+        try { lijst = JSON.parse(ruw); } catch (e) { return []; }
+      }
+      if (!lijst || Object.prototype.toString.call(lijst) !== '[object Array]') return [];
+      const result = [];
+      const gezien = {};
+      lijst.forEach(function (item, i) {
+        if (!item || typeof item !== 'object') return;
+        const naam = String(item.naam || '').trim().substring(0, PERIODE_NAAM_MAX);
+        const van = normaliseerIsoDatum(item.van);
+        const tot = normaliseerIsoDatum(item.tot);
+        if (!naam || !van || !tot || van > tot) return;
+        let id = String(item.id || '').trim();
+        if (!/^[a-zA-Z0-9_-]{1,24}$/.test(id) || gezien[id]) {
+          id = 'p' + String(i + 1);
+          while (gezien[id]) id += 'x';
+        }
+        gezien[id] = true;
+        result.push({ id: id, naam: naam, van: van, tot: tot });
+      });
+      result.sort(function (a, b) {
+        const cmp = a.van.localeCompare(b.van);
+        return cmp !== 0 ? cmp : a.tot.localeCompare(b.tot);
+      });
+      return result.slice(0, PERIODES_MAX);
+    }
+
+    function periodesUitInstellingen() {
+      return (staat.instellingen && staat.instellingen.periodes) || [];
+    }
+
+    function periodeVoorDeadline(deadline) {
+      const d = normaliseerIsoDatum(deadline);
+      if (!d) return null;
+      const periodes = periodesUitInstellingen();
+      for (let i = 0; i < periodes.length; i++) {
+        const p = periodes[i];
+        if (p.van <= d && d <= p.tot) return p;
+      }
+      return null;
+    }
+
+    function periodeGroepenVan(taken) {
+      const periodes = periodesUitInstellingen();
+      if (!periodes.length) return null;
+      const bakken = {};
+      periodes.forEach(function (p) { bakken[p.id] = []; });
+      const overige = [];
+      (taken || []).forEach(function (taak) {
+        const p = periodeVoorDeadline(taak && taak.deadline);
+        if (p) bakken[p.id].push(taak);
+        else overige.push(taak);
+      });
+      const groepen = [];
+      periodes.forEach(function (p) {
+        if (bakken[p.id].length) {
+          groepen.push({ id: p.id, naam: p.naam, van: p.van, tot: p.tot, taken: bakken[p.id] });
+        }
+      });
+      if (overige.length) {
+        groepen.push({ id: PERIODE_OVERIGE, naam: 'Overige', van: '', tot: '', taken: overige });
+      }
+      return groepen;
+    }
+
+    function leesPeriodeOpenMap() {
+      try {
+        const ruw = sessionStorage.getItem(PERIODE_OPSLag);
+        if (!ruw) return {};
+        const map = JSON.parse(ruw);
+        return map && typeof map === 'object' ? map : {};
+      } catch (e) { return {}; }
+    }
+
+    function schrijfPeriodeOpenMap(map) {
+      try { sessionStorage.setItem(PERIODE_OPSLag, JSON.stringify(map || {})); } catch (e) { /* negeren */ }
+    }
+
+    function periodeStandaardOpen(id) {
+      if (id === PERIODE_OVERIGE) return true;
+      const periodes = periodesUitInstellingen();
+      for (let i = 0; i < periodes.length; i++) {
+        if (periodes[i].id === id) return periodes[i].tot >= isoVandaag();
+      }
+      return true;
+    }
+
+    function periodeIsOpen(id) {
+      const map = leesPeriodeOpenMap();
+      if (Object.prototype.hasOwnProperty.call(map, id)) return !!map[id];
+      return periodeStandaardOpen(id);
+    }
+
+    function wisselPeriodeOpen(id) {
+      if (!id) return;
+      const map = leesPeriodeOpenMap();
+      map[id] = !periodeIsOpen(id);
+      schrijfPeriodeOpenMap(map);
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      const scroll = wrapper ? wrapper.scrollLeft : 0;
+      tekenScherm();
+      const opnieuw = document.getElementById('kruistabel-wrapper');
+      if (opnieuw) opnieuw.scrollLeft = scroll;
+    }
+
+    function kruisTaken() {
+      const alle = zichtbareTaken();
+      const groepen = periodeGroepenVan(alle);
+      if (!groepen) return alle;
+      const lijst = [];
+      groepen.forEach(function (groep) {
+        if (!periodeIsOpen(groep.id)) return;
+        groep.taken.forEach(function (taak) { lijst.push(taak); });
+      });
+      return lijst;
     }
 
     function isOudStandaardBericht(waarde, oud) {
@@ -1105,7 +1238,8 @@
         opvolgingDrempel: DEFAULT_OPVOLGING.opvolgingDrempel,
         berichtLeerling: DEFAULT_OPVOLGING.berichtLeerling,
         berichtOuders: DEFAULT_OPVOLGING.berichtOuders,
-        berichtNablijf: DEFAULT_OPVOLGING.berichtNablijf
+        berichtNablijf: DEFAULT_OPVOLGING.berichtNablijf,
+        periodes: []
       };
     }
 
@@ -1288,11 +1422,6 @@
       nieuw.setAttribute('data-actie', 'klas-nieuw');
       nieuw.textContent = 'Nieuwe klas';
       knoppen.appendChild(nieuw);
-
-      const optNieuw = document.createElement('option');
-      optNieuw.value = '__nieuw__';
-      optNieuw.textContent = 'Nieuwe klas…';
-      select.appendChild(optNieuw);
 
       if (leeg) leeg.classList.toggle('hidden', klassen.length > 0);
       if (staat.gekozenKlas) select.value = staat.gekozenKlas;

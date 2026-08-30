@@ -1223,6 +1223,72 @@
       document.getElementById('veld-bericht-leerling').value = inst.berichtLeerling || DEFAULT_OPVOLGING.berichtLeerling;
       document.getElementById('veld-bericht-ouders').value = inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
       document.getElementById('veld-bericht-nablijf').value = inst.berichtNablijf || DEFAULT_OPVOLGING.berichtNablijf;
+      tekenPeriodeRijen(inst.periodes || []);
+    }
+
+    function periodeRijHtml(periode) {
+      const p = periode || {};
+      return '<div class="periode-rij flex flex-wrap items-center gap-2" data-id="' + escapeAttr(p.id || '') + '">' +
+        '<input type="text" class="veld-periode-naam flex-1 min-w-[8rem] rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" maxlength="40" placeholder="Naam" value="' + escapeAttr(p.naam || '') + '">' +
+        '<input type="date" class="veld-periode-van rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value="' + escapeAttr(p.van || '') + '" aria-label="Van">' +
+        '<input type="date" class="veld-periode-tot rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value="' + escapeAttr(p.tot || '') + '" aria-label="Tot">' +
+        '<button type="button" data-actie="periode-rij-wissen" class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Periode verwijderen" aria-label="Periode verwijderen">&times;</button>' +
+        '</div>';
+    }
+
+    function tekenPeriodeRijen(periodes) {
+      const lijst = document.getElementById('lijst-periodes');
+      if (!lijst) return;
+      const rijen = (periodes && periodes.length) ? periodes : [];
+      lijst.innerHTML = rijen.map(periodeRijHtml).join('') || periodeRijHtml({});
+    }
+
+    function voegPeriodeRijToe() {
+      const lijst = document.getElementById('lijst-periodes');
+      if (!lijst) return;
+      const wrap = document.createElement('div');
+      wrap.innerHTML = periodeRijHtml({});
+      lijst.appendChild(wrap.firstChild);
+      const veld = lijst.querySelector('.periode-rij:last-child .veld-periode-naam');
+      if (veld) veld.focus();
+    }
+
+    function wisPeriodeRij(knop) {
+      const rij = knop && knop.closest ? knop.closest('.periode-rij') : null;
+      const lijst = document.getElementById('lijst-periodes');
+      if (!rij || !lijst) return;
+      rij.remove();
+      if (!lijst.querySelector('.periode-rij')) lijst.innerHTML = periodeRijHtml({});
+    }
+
+    function leesPeriodesUitFormulier() {
+      const rijen = document.querySelectorAll('#lijst-periodes .periode-rij');
+      const lijst = [];
+      let fout = '';
+      rijen.forEach(function (rij) {
+        const naam = rij.querySelector('.veld-periode-naam');
+        const van = rij.querySelector('.veld-periode-van');
+        const tot = rij.querySelector('.veld-periode-tot');
+        const naamTekst = naam ? String(naam.value || '').trim() : '';
+        const vanTekst = van ? String(van.value || '').trim() : '';
+        const totTekst = tot ? String(tot.value || '').trim() : '';
+        if (!naamTekst && !vanTekst && !totTekst) return;
+        if (!naamTekst || !vanTekst || !totTekst) {
+          fout = 'Vul bij elke periode een naam, startdatum en einddatum in.';
+          return;
+        }
+        if (vanTekst > totTekst) {
+          fout = 'De einddatum van een periode moet op of na de startdatum liggen.';
+          return;
+        }
+        lijst.push({
+          id: rij.getAttribute('data-id') || '',
+          naam: naamTekst,
+          van: vanTekst,
+          tot: totTekst
+        });
+      });
+      return { lijst: lijst, fout: fout };
     }
 
     function openInstellingen() {
@@ -1237,12 +1303,18 @@
 
     function slaInstellingenOp(event) {
       if (event) event.preventDefault();
+      const periodes = leesPeriodesUitFormulier();
+      if (periodes.fout) {
+        toonMelding(periodes.fout, 'fout');
+        return;
+      }
       const inst = normaliseerInstellingen({
         opvolgingAan: document.getElementById('veld-opvolging-aan').checked,
         opvolgingDrempel: document.getElementById('veld-opvolging-drempel').value,
         berichtLeerling: document.getElementById('veld-bericht-leerling').value,
         berichtOuders: document.getElementById('veld-bericht-ouders').value,
-        berichtNablijf: document.getElementById('veld-bericht-nablijf').value
+        berichtNablijf: document.getElementById('veld-bericht-nablijf').value,
+        periodes: periodes.lijst
       });
       if (isGasOmgeving()) {
         gasRun()
@@ -1509,6 +1581,9 @@
       else if (actie === 'fiche-naam-annuleren') sluitFicheNaamBewerken();
       else if (actie === 'prullenbak-openen') openPrullenbak();
       else if (actie === 'instellingen-openen') openInstellingen();
+      else if (actie === 'periode-rij-toevoegen') voegPeriodeRijToe();
+      else if (actie === 'periode-rij-wissen') wisPeriodeRij(doel);
+      else if (actie === 'periode-wissel') wisselPeriodeOpen(doel.getAttribute('data-periode'));
       else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
       else if (actie === 'reset-schooljaar') bevestigResetSchooljaar();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
@@ -1543,14 +1618,8 @@
     });
 
     document.getElementById('veld-klas').addEventListener('change', function (event) {
-      const waarde = event.target.value;
-      if (waarde === '__nieuw__') {
-        event.target.value = staat.gekozenKlas || '';
-        openNieuweKlasModal();
-        return;
-      }
       event.target.blur();
-      kiesKlas(waarde);
+      kiesKlas(event.target.value);
     });
     document.getElementById('tab-leerling').addEventListener('click', function () { wisselTab('leerling'); });
     document.getElementById('tab-taak').addEventListener('click', function () { wisselTab('taak'); });

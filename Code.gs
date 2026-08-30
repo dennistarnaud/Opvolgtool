@@ -51,7 +51,7 @@
  *    Tab "Instellingen"
  *      A sleutel
  *      B waarde
- *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf
+ *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf, periodes
  *
  * 2. Scriptbestanden in Apps Script
  *    Plak: Config.gs, Code.gs, LeerlingCodes.gs
@@ -86,6 +86,9 @@ const INST_OPVOLGING_DREMPEL = 'opvolgingDrempel';
 const INST_BERICHT_LEERLING = 'berichtLeerling';
 const INST_BERICHT_OUDERS = 'berichtOuders';
 const INST_BERICHT_NABLIJF = 'berichtNablijf';
+const INST_PERIODES = 'periodes';
+const PERIODES_MAX = 20;
+const PERIODE_NAAM_MAX = 40;
 const DEFAULT_OPVOLGING_AAN = true;
 const DEFAULT_OPVOLGING_DREMPEL = 3;
 const DREMPEL_MIN = 2;
@@ -743,8 +746,8 @@ function zetLeerlingOpvolging(data) {
 }
 
 /**
- * Bewaart docentinstellingen (opvolging aan/uit en drempel).
- * @param {{opvolgingAan?: boolean, opvolgingDrempel?: number}} data
+ * Bewaart docentinstellingen (opvolging, berichten en periodes).
+ * @param {{opvolgingAan?: boolean, opvolgingDrempel?: number, periodes?: Object[]}} data
  * @return {{ok: boolean, instellingen: Object}}
  */
 function saveInstellingen(data) {
@@ -757,6 +760,7 @@ function saveInstellingen(data) {
     zetInstellingRij_(sheet, INST_BERICHT_LEERLING, instellingen.berichtLeerling);
     zetInstellingRij_(sheet, INST_BERICHT_OUDERS, instellingen.berichtOuders);
     zetInstellingRij_(sheet, INST_BERICHT_NABLIJF, instellingen.berichtNablijf);
+    zetInstellingRij_(sheet, INST_PERIODES, JSON.stringify(instellingen.periodes || []));
     return { ok: true, instellingen: instellingen };
   });
 }
@@ -1153,8 +1157,49 @@ function standaardInstellingen_() {
     opvolgingDrempel: DEFAULT_OPVOLGING_DREMPEL,
     berichtLeerling: DEFAULT_BERICHT_LEERLING,
     berichtOuders: DEFAULT_BERICHT_OUDERS,
-    berichtNablijf: DEFAULT_BERICHT_NABLIJF
+    berichtNablijf: DEFAULT_BERICHT_NABLIJF,
+    periodes: []
   };
+}
+
+function normaliseerIsoDatum_(waarde) {
+  if (waarde instanceof Date && !isNaN(waarde.getTime())) {
+    const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return waarde.getFullYear() + '-' + pad(waarde.getMonth() + 1) + '-' + pad(waarde.getDate());
+  }
+  const s = String(waarde == null ? '' : waarde).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+function normaliseerPeriodes_(waarde) {
+  let lijst = waarde;
+  if (typeof waarde === 'string') {
+    const ruw = waarde.trim();
+    if (!ruw) return [];
+    try { lijst = JSON.parse(ruw); } catch (e) { return []; }
+  }
+  if (!lijst || Object.prototype.toString.call(lijst) !== '[object Array]') return [];
+  const result = [];
+  const gezien = {};
+  lijst.forEach(function (item, i) {
+    if (!item || typeof item !== 'object') return;
+    const naam = String(item.naam || '').trim().substring(0, PERIODE_NAAM_MAX);
+    const van = normaliseerIsoDatum_(item.van);
+    const tot = normaliseerIsoDatum_(item.tot);
+    if (!naam || !van || !tot || van > tot) return;
+    let id = String(item.id || '').trim();
+    if (!/^[a-zA-Z0-9_-]{1,24}$/.test(id) || gezien[id]) {
+      id = 'p' + String(i + 1);
+      while (gezien[id]) id += 'x';
+    }
+    gezien[id] = true;
+    result.push({ id: id, naam: naam, van: van, tot: tot });
+  });
+  result.sort(function (a, b) {
+    const cmp = a.van.localeCompare(b.van);
+    return cmp !== 0 ? cmp : a.tot.localeCompare(b.tot);
+  });
+  return result.slice(0, PERIODES_MAX);
 }
 
 function isOudStandaardBericht_(waarde, oud) {
@@ -1194,7 +1239,8 @@ function normaliseerInstellingen_(data) {
       : basis.opvolgingDrempel,
     berichtLeerling: normaliseerBericht_(bron.berichtLeerling, basis.berichtLeerling, OUD_BERICHT_LEERLING),
     berichtOuders: normaliseerBericht_(bron.berichtOuders, basis.berichtOuders, OUD_BERICHT_OUDERS),
-    berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF)
+    berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF),
+    periodes: normaliseerPeriodes_(bron.periodes)
   };
 }
 
@@ -1227,7 +1273,8 @@ function leesInstellingen_() {
     opvolgingDrempel: map[INST_OPVOLGING_DREMPEL],
     berichtLeerling: map[INST_BERICHT_LEERLING],
     berichtOuders: map[INST_BERICHT_OUDERS],
-    berichtNablijf: map[INST_BERICHT_NABLIJF]
+    berichtNablijf: map[INST_BERICHT_NABLIJF],
+    periodes: map[INST_PERIODES]
   });
 }
 

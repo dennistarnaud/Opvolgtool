@@ -29,7 +29,7 @@
       staat.bezigLeerling = true;
       staat.nieuweLeerlingTekst = '';
       slaLeerlingOp({ naam: naam, klas: staat.gekozenKlas }, function (leerling) {
-        const taken = zichtbareTaken();
+        const taken = kruisTaken();
         if (naAfloop === 'omlaag') {
           staat.naLeerling = { focus: 'input' };
         } else if (naAfloop === 'omhoog') {
@@ -68,7 +68,7 @@
         if (toets === 'arrowup') {
           event.preventDefault();
           const leerlingen = leerlingenVanKlas();
-          const taken = zichtbareTaken();
+          const taken = kruisTaken();
           if (leerlingen.length && taken.length) {
             selecteerCel(zoekCelKnop(leerlingen[leerlingen.length - 1].id, taken[0].id));
           }
@@ -153,13 +153,44 @@
       return html;
     }
 
+    function tekenPeriodeBalk(groepen) {
+      const balk = document.getElementById('kruis-periodes');
+      if (!balk) return;
+      if (!groepen || !groepen.length) {
+        balk.innerHTML = '';
+        balk.classList.add('hidden');
+        return;
+      }
+      balk.classList.remove('hidden');
+      balk.innerHTML = groepen.map(function (groep) {
+        const open = periodeIsOpen(groep.id);
+        const chevron = open
+          ? '<path d="m6 9 6 6 6-6"/>'
+          : '<path d="m9 6 6 6-6 6"/>';
+        const bereik = (groep.van && groep.tot)
+          ? korteDatum(groep.van) + '–' + korteDatum(groep.tot)
+          : '';
+        const titel = groep.naam + (bereik ? ' · ' + bereik : '') + ' · ' + groep.taken.length +
+          (groep.taken.length === 1 ? ' taak' : ' taken');
+        return '<button type="button" class="kruis-periode-knop" data-actie="periode-wissel" data-periode="' +
+          escapeAttr(groep.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '" title="' + escapeAttr(titel) + '">' +
+          '<svg class="periode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          chevron + '</svg>' +
+          '<span>' + escapeHtml(groep.naam) + '</span>' +
+          '<span class="text-slate-400 font-medium">' + groep.taken.length + '</span>' +
+          '</button>';
+      }).join('');
+    }
+
     function tekenKruistabel() {
       const wrapper = document.getElementById('kruistabel-wrapper');
       const actiefNieuw = document.activeElement && document.activeElement.classList &&
         document.activeElement.classList.contains('veld-nieuwe-leerling');
       const caret = actiefNieuw ? document.activeElement.selectionStart : null;
       const leerlingen = leerlingenVanKlas();
-      const taken = zichtbareTaken();
+      const groepen = periodeGroepenVan(zichtbareTaken());
+      const taken = kruisTaken();
+      tekenPeriodeBalk(groepen);
       tekenSorteerFilterKnoppen();
       tekenOpvolgActies();
 
@@ -460,7 +491,7 @@
 
     function rechthoekSelectie(start, einde) {
       const leerlingen = leerlingenInKruistabel();
-      const taken = zichtbareTaken();
+      const taken = kruisTaken();
       let r1 = leerlingen.findIndex(function (l) { return l.id === start.llnId; });
       let r2 = leerlingen.findIndex(function (l) { return l.id === einde.llnId; });
       let c1 = taken.findIndex(function (t) { return t.id === start.taakId; });
