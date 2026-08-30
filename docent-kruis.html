@@ -350,7 +350,6 @@
       knop.setPointerCapture(event.pointerId);
       const rijen = leerlingSleepRijen(rij);
       const startIndex = rijen.indexOf(rij);
-      const kader = rij.getBoundingClientRect();
       staat.leerlingSleep = {
         id: rij.getAttribute('data-lln'),
         rij: rij,
@@ -358,7 +357,6 @@
         startY: event.clientY,
         startIndex: startIndex,
         naar: startIndex,
-        hoogte: Math.max(kader.height, 1),
         startIds: rijen.map(function (item) { return item.getAttribute('data-lln'); })
       };
       rij.classList.add('leerling-sleepend');
@@ -368,10 +366,34 @@
       knop.addEventListener('pointercancel', onLeerlingSleepEinde);
     }
 
+    function leerlingSleepBestemming(sleep, clientY) {
+      const rijen = leerlingSleepRijen(sleep.rij);
+      const n = rijen.length;
+      if (n < 2) return sleep.startIndex;
+      let invoegenVoor = n;
+      for (let i = 0; i < n; i++) {
+        if (i === sleep.startIndex) continue;
+        const kader = rijen[i].getBoundingClientRect();
+        if (clientY < kader.top + kader.height / 2) {
+          invoegenVoor = i;
+          break;
+        }
+      }
+      if (invoegenVoor === sleep.startIndex || invoegenVoor === sleep.startIndex + 1) {
+        return sleep.startIndex;
+      }
+      return invoegenVoor > sleep.startIndex ? invoegenVoor - 1 : invoegenVoor;
+    }
+
     function tekenLeerlingSleepDoel(sleep) {
       const rijen = leerlingSleepRijen(sleep.rij);
+      const n = rijen.length;
+      const invoegenVoor = sleep.naar >= sleep.startIndex ? sleep.naar + 1 : sleep.naar;
       rijen.forEach(function (rij, i) {
-        rij.classList.toggle('leerling-drop-doel', i === sleep.naar && i !== sleep.startIndex);
+        const lijnVoor = sleep.naar !== sleep.startIndex && invoegenVoor < n && i === invoegenVoor;
+        const lijnNa = sleep.naar !== sleep.startIndex && invoegenVoor === n && i === n - 1;
+        rij.classList.toggle('leerling-drop-doel', lijnVoor);
+        rij.classList.toggle('leerling-drop-doel-onder', lijnNa);
       });
     }
 
@@ -382,7 +404,7 @@
       if (n < 2) return;
       const delta = event.clientY - sleep.startY;
       sleep.rij.style.transform = 'translateY(' + delta + 'px)';
-      const naar = Math.max(0, Math.min(n - 1, sleep.startIndex + Math.round(delta / sleep.hoogte)));
+      const naar = leerlingSleepBestemming(sleep, event.clientY);
       if (naar === sleep.naar) return;
       sleep.naar = naar;
       tekenLeerlingSleepDoel(sleep);
@@ -390,10 +412,12 @@
 
     function wisLeerlingSleepStijl(sleep) {
       if (!sleep || !sleep.rij) return;
-      sleep.rij.classList.remove('leerling-sleepend', 'leerling-drop-doel');
+      sleep.rij.classList.remove('leerling-sleepend', 'leerling-drop-doel', 'leerling-drop-doel-onder');
       sleep.rij.style.transform = '';
       const rijen = leerlingSleepRijen(sleep.rij);
-      rijen.forEach(function (rij) { rij.classList.remove('leerling-drop-doel'); });
+      rijen.forEach(function (rij) {
+        rij.classList.remove('leerling-drop-doel', 'leerling-drop-doel-onder');
+      });
     }
 
     function onLeerlingSleepEinde(event) {
