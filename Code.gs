@@ -5,53 +5,24 @@
  * STAPPENPLAN (eerste keer opzetten)
  * ===========================================================================
  *
- * 1. Spreadsheet
+ * 1. Spreadsheet (alleen structuur — niets invullen onder de koppen)
  *    Maak een Google Sheet en koppel dit script eraan.
- *    Maak tabbladen met exact deze namen.
- *    Rij 1 = koppen. Volgorde van kolommen is verplicht (code leest op positie).
+ *    Vijf tabbladen met exact deze namen. Rij 1 = koppen in deze volgorde.
+ *    Leerlingen, taken en statussen komen uit het docentscherm, niet uit de Sheet.
  *
  *    Tab "Leerlingen"
- *      A id
- *      B naam
- *      C klas
- *      D code              (8 tekens, letter+cijfer × 4; tool vult zelf in)
- *      E geschraptIn       (vorige klassen, komma-gescheiden; tool vult in)
- *      F klasSinds
- *      G verwijderdOp      (leeg = actief; gevuld = in de prullenbak)
- *      H opvolgingLeerlingOp
- *      I opvolgingOudersOp
- *      J opvolgingNablijfOp
- *      K opvolgingResetOp
- *      L opvolgingGepauzeerd
- *      M opvolgingBlokkeerTaken
- *      N volgorde            (positie in de klaslijst; tool vult in)
- *    Start leeg (alleen koppen). Leerlingen voeg je toe via het docentscherm.
- *
+ *      A id  B naam  C klas  D code  E geschraptIn  F klasSinds
+ *      G verwijderdOp  H–M opvolging*  N volgorde
  *    Tab "Taken_Lijst"
- *      A id
- *      B naam
- *      C type              (zie TOEGESTANE_TAAKTYPES)
- *      D deadline          (yyyy-mm-dd)
- *      E klas              (lege klas = geldt voor alle klassen; anders die klas)
- *    Start leeg. Taken maak je in het docentscherm.
- *
+ *      A id  B naam  C type  D deadline  E klas
  *    Tab "Registraties"
- *      A datumTijd
- *      B llnId
- *      C taakId
- *      D status            (In orde | Niet in orde | Afwezig | Te laat | Te maken | leeg)
- *      E opmerking
- *      F klas
- *    Start leeg. Statussen komen uit de kruistabel.
- *
+ *      A datumTijd  B llnId  C taakId  D status  E opmerking  F klas
  *    Tab "Klassen"
- *      A naam
- *      B vak
- *
+ *      A naam  B vak
  *    Tab "Instellingen"
- *      A sleutel
- *      B waarde
- *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf, periodes
+ *      A sleutel  B waarde
+ *      (opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders,
+ *       berichtNablijf, periodes — tool schrijft dit zelf)
  *
  * 2. Scriptbestanden in Apps Script
  *    Plak: Config.gs, Code.gs, LeerlingCodes.gs

@@ -20,7 +20,9 @@
  */
 
 /**
- * Google-accounts die het docentscherm mogen openen.
+ * Google-accounts die het DOCENTSCHERM mogen openen en bewerken.
+ * Dit is geen lijst van wie het leerlingscherm mag zien: dat kan iedereen
+ * met de persoonlijke leerlinglink, zonder login.
  * Kleine/hoofdletters maakt niet uit.
  *
  * Eén adres:
