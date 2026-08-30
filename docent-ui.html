@@ -63,6 +63,7 @@
 
     function zetLijstDetailChrome() {
       document.body.classList.toggle('lijst-detail', lijstDetailOpen());
+      document.body.classList.toggle('taak-lijst', !!(staat.gekozenKlas && staat.actieveTab === 'taak' && !staat.lijstTaakId));
       zetNavHoogte();
     }
 
@@ -377,7 +378,7 @@
           ? tellingTekst({ inOrde: 0, nietOk: t.nietOk, afgehandeld: t.afgehandeld, teLaat: t.teLaat, teMaken: t.teMaken, afwezig: 0, leeg: t.leeg, totaal: t.totaal })
           : (t.totaal ? 'Alles in orde' : 'Nog geen taken');
         return '<div class="leerling-lijst-rij flex items-stretch hover:bg-slate-50" data-leerling-rij data-lln="' + escapeAttr(lln.id) + '">' +
-          leerlingSleepKnopHtml(lln) +
+          (schermIsSmal() ? '' : leerlingSleepKnopHtml(lln)) +
           '<button type="button" data-actie="lijst-leerling" data-id="' + escapeAttr(lln.id) + '" class="min-w-0 flex-1 text-left px-3 py-3 flex items-center justify-between gap-3 min-h-[3rem]">' +
             '<span class="min-w-0">' +
               '<span class="flex items-center gap-1.5 text-sm font-semibold text-slate-900">' +
@@ -448,7 +449,9 @@
     }
 
     function htmlTaakLijst() {
-      const taken = kruisTaken();
+      const taken = kruisTaken().slice().sort(function (a, b) {
+        return vergelijkRecentEerst(a.deadline, b.deadline, a.id, b.id);
+      });
       const rijen = taken.map(function (taak) {
         const t = tellingVoor(null, taak);
         const groep = taakGroep(taak);
@@ -463,9 +466,9 @@
           '<span class="shrink-0 text-slate-300" aria-hidden="true">›</span>' +
         '</button>';
       }).join('');
-      return '<div class="px-4 py-3 border-b border-slate-100">' +
+      return '<div class="hidden md:block px-4 py-3 border-b border-slate-100">' +
           '<div class="flex flex-wrap items-center justify-between gap-2">' +
-            '<div class="min-w-0 hidden md:block">' +
+            '<div class="min-w-0">' +
               '<h2 class="font-semibold">Taken <span class="text-slate-500 font-medium">' + escapeHtml(klasLabel(staat.gekozenKlas)) + '</span></h2>' +
               '<p class="text-[11px] text-slate-500 mt-0.5">Tik een taak om de klas af te vinken.</p>' +
             '</div>' +
@@ -476,8 +479,9 @@
           '</div>' +
         '</div>' +
         '<div class="divide-y divide-slate-100">' +
-          (rijen || '<p class="px-4 py-6 text-sm text-slate-500">Geen taken voor deze filter.</p>') +
-        '</div>';
+          (rijen || '<p class="px-4 py-6 text-sm text-slate-500">Nog geen taken.</p>') +
+        '</div>' +
+        '<button type="button" data-actie="taak-toevoegen" class="knop-taak-plus md:hidden" title="Nieuwe taak" aria-label="Nieuwe taak">+</button>';
     }
 
     function htmlTaakDetail(taak) {
