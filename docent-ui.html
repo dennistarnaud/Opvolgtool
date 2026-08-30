@@ -841,6 +841,11 @@
       document.getElementById('fiche-code-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('fiche-url-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('fiche-iframe-knop').setAttribute('data-code', leerling.code || '');
+      const testKnop = document.getElementById('fiche-test-knop');
+      if (testKnop) {
+        testKnop.setAttribute('data-code', leerling.code || '');
+        testKnop.classList.toggle('hidden', !isTestModus());
+      }
       document.getElementById('knop-leerling-verwijderen').setAttribute('data-id', leerling.id);
       zetFicheNaamWeergave(leerling);
       zetFicheKlasWeergave(leerling);
@@ -1177,6 +1182,33 @@
           if (huidig) huidig.textContent = code;
         }, 1200);
       });
+    }
+
+    function isTestModus() {
+      if (!isGasOmgeving()) return true;
+      return /\/dev(?:[/?#]|$)/i.test(String(window.location.href || ''));
+    }
+
+    function leerlingTestUrl(code) {
+      if (!code) return '';
+      if (!isGasOmgeving()) {
+        const basis = webAppBasisUrl();
+        if (!basis) return '';
+        return basis + (basis.indexOf('?') === -1 ? '?' : '&') + 'id=' + encodeURIComponent(code);
+      }
+      const pad = String(window.location.href || '').split('#')[0].split('?')[0].replace(/\/+$/, '');
+      const basis = /\/exec$/i.test(pad) ? pad.replace(/\/exec$/i, '/dev') : pad;
+      return basis + '?id=' + encodeURIComponent(code);
+    }
+
+    function openLeerlingTest(knop) {
+      const code = (knop && knop.getAttribute('data-code')) || '';
+      const url = leerlingTestUrl(code);
+      if (!url) {
+        toonMelding('Geen leerlingcode om te openen.', 'fout');
+        return;
+      }
+      window.open(url, '_blank', 'noopener');
     }
 
     function leerlingUrl(code) {
@@ -1649,6 +1681,7 @@
       else if (actie === 'code-kopieren') kopieerLeerlingCode(doel);
       else if (actie === 'url-kopieren') kopieerLeerlingUrl(doel);
       else if (actie === 'iframe-kopieren') kopieerLeerlingIframe(doel);
+      else if (actie === 'leerling-testen') openLeerlingTest(doel);
       else if (actie === 'leerling-verwijderen') vraagLeerlingVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-verwijderen') vraagTaakVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-bewerken') openTaakBewerken(doel.getAttribute('data-id'));

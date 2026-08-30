@@ -108,7 +108,19 @@
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
           <p id="samenvatting" class="text-[11px] text-slate-500"></p>
-          <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button" id="knop-filter"
+            class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18" />
+              <path d="M7 12h10" />
+              <path d="M10 18h4" />
+            </svg>
+            <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+          </button>
+        </div>
+        <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
+          <div class="flex flex-wrap items-center gap-2">
             <div data-periode-wrap class="relative">
               <button type="button" id="knop-periode"
                 class="relative inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
@@ -119,22 +131,8 @@
                 </svg>
                 <span id="periode-indicatie" class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
               </button>
-              <div id="paneel-periode" class="hidden absolute right-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
+              <div id="paneel-periode" class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
             </div>
-            <button type="button" id="knop-filter"
-              class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-              title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 6h18" />
-                <path d="M7 12h10" />
-                <path d="M10 18h4" />
-              </svg>
-              <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-            </button>
-          </div>
-        </div>
-        <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
-          <div class="flex flex-wrap items-center gap-2">
             <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
               <button type="button" id="sort-datum" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="datum">Datum</button>
               <button type="button" id="sort-soort" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="soort">Soort</button>
@@ -386,8 +384,20 @@
 
     const BEKENDE_STATUSSEN = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
 
+    function statusTekst(reg) {
+      return String(reg && reg.status ? reg.status : '').trim();
+    }
+
     function heeftBekendeStatus(reg) {
-      return BEKENDE_STATUSSEN.indexOf(String(reg && reg.status ? reg.status : '').trim()) !== -1;
+      return BEKENDE_STATUSSEN.indexOf(statusTekst(reg)) !== -1;
+    }
+
+    /** Nieuwere registratie wint. Bij gelijke timestamp wint een wis (lege status), zoals in de fiche. */
+    function isNieuwereRegistratie(kandidaat, huidig) {
+      if (!huidig) return true;
+      const cmp = String(kandidaat.datumTijd || '').localeCompare(String(huidig.datumTijd || ''));
+      if (cmp !== 0) return cmp > 0;
+      return !heeftBekendeStatus(kandidaat) && heeftBekendeStatus(huidig);
     }
 
     function taakGroep(reg) {
@@ -506,6 +516,10 @@
       const open = paneel.classList.contains('hidden');
       paneel.classList.toggle('hidden', !open);
       knop.setAttribute('aria-expanded', String(open));
+      if (!open && staat.periodeMenuOpen) {
+        staat.periodeMenuOpen = false;
+        tekenPeriodeKeuze();
+      }
     }
 
     function formaatDatum(waarde) {
@@ -536,7 +550,7 @@
     }
 
     function toonRegistraties(data) {
-      // Laatste registratie per taak wint (bladvolgorde), lege status = gewist — net zoals de fiche.
+      // Zelfde regel als de fiche: laatste registratie per taak; geen (bekende) status = niet tonen.
       const ruw = (data && data.registraties) ? data.registraties : [];
       staat.periodes = normaliseerPeriodes(data && data.periodes);
       const laatste = {};
@@ -545,7 +559,7 @@
         const id = String(reg && reg.taakId ? reg.taakId : '');
         if (!id) return;
         if (!laatste[id]) volgorde.push(id);
-        laatste[id] = reg;
+        if (isNieuwereRegistratie(reg, laatste[id])) laatste[id] = reg;
       });
       staat.registraties = volgorde.map(function (id) { return laatste[id]; }).filter(heeftBekendeStatus);
       tekenLijst();
@@ -573,7 +587,7 @@
         return;
       }
 
-      lijst.innerHTML = regs.map(function (reg) {
+      lijst.innerHTML = regs.filter(heeftBekendeStatus).map(function (reg) {
         const badge = statusBadge(reg.status);
         const groep = taakGroep(reg);
         const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
@@ -606,9 +620,10 @@
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
-      const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
+      const klasse = stijlen[status];
+      if (!klasse) return '';
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
-        escapeHtml(status || 'Onbekend') + '</span>';
+        escapeHtml(status) + '</span>';
     }
 
     function escapeHtml(waarde) {

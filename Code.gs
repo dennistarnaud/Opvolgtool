@@ -393,31 +393,28 @@ function getLeerlingData(code) {
 
   const klas = String(leerling.klas || '').trim();
   const laatstePerTaak = {};
-  const taakVolgorde = [];
   leesRegistraties_().forEach(function (reg) {
     if (reg.llnId !== leerling.id) return;
-    if (!taakGeldtVoorKlas_(taakById[reg.taakId], klas)) return;
-    if (isMateriaalTaak_(taakById[reg.taakId])) return;
     if (registratieKlas_(reg, leerling) !== klas) return;
-    if (!laatstePerTaak[reg.taakId]) taakVolgorde.push(reg.taakId);
     laatstePerTaak[reg.taakId] = reg;
   });
 
-  const registraties = taakVolgorde.map(function (taakId) {
-    return laatstePerTaak[taakId];
-  }).filter(function (reg) {
-    return TOEGESTANE_STATUSSEN.indexOf(String(reg && reg.status ? reg.status : '').trim()) !== -1;
-  }).map(function (reg) {
-    const taak = taakById[reg.taakId];
-    return {
+  // Zelfde regel als de leerlingfiche: taken van de klas, laatste registratie, geen status = niet tonen.
+  const registraties = [];
+  taken.forEach(function (taak) {
+    if (!taakGeldtVoorKlas_(taak, klas) || isMateriaalTaak_(taak)) return;
+    const reg = laatstePerTaak[taak.id];
+    if (!reg || !String(reg.status || '').trim()) return;
+    if (TOEGESTANE_STATUSSEN.indexOf(String(reg.status).trim()) === -1) return;
+    registraties.push({
       datumTijd: reg.datumTijd,
-      taakId: reg.taakId,
-      taakNaam: (taak && taak.naam) ? taak.naam : reg.taakId,
-      type: (taak && taak.type) ? taak.type : '',
-      deadline: (taak && taak.deadline) ? taak.deadline : '',
-      status: reg.status,
+      taakId: taak.id,
+      taakNaam: taak.naam || taak.id,
+      type: taak.type || '',
+      deadline: taak.deadline || '',
+      status: String(reg.status).trim(),
       opmerking: reg.opmerking
-    };
+    });
   });
 
   return {
