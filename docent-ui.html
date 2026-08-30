@@ -626,6 +626,7 @@
       if (!lln || !taak) return;
       const vorige = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
       const nieuw = (vorige && vorige.status === status) ? '' : status;
+      if (!nieuw && (!vorige || !vorige.status)) return;
       slaRegistratieOp({
         llnId: llnId,
         taakId: taakId,

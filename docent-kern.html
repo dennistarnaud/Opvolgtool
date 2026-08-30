@@ -226,6 +226,9 @@
       taakBewerkenId: '',
       nieuweLeerlingTekst: '',
       registratieWachtrij: [],
+      registratieBezig: false,
+      registratieWachtDirect: [],
+      tempIdTeller: 0,
       opvolgingDoorgaan: {},
       leerlingSleep: null,
       webAppUrl: '',
@@ -397,20 +400,70 @@
       );
     }
 
-    function slaRegistratiesOpDirect(items, tempRijen, naSucces) {
-      if (!items.length) return;
+    function registratieCelSleutel(payload) {
+      return String(payload.llnId || '') + '\t' + String(payload.taakId || '') + '\t' + String(payload.klas || '');
+    }
+
+    function voegAanDirecteWachtrij(items, tempRijen, naSucces) {
+      items.forEach(function (item, i) {
+        const sleutel = registratieCelSleutel(item);
+        const wacht = staat.registratieWachtDirect;
+        let gevonden = false;
+        for (let w = 0; w < wacht.length; w++) {
+          if (registratieCelSleutel(wacht[w].payload) !== sleutel) continue;
+          wacht[w].payload = item;
+          wacht[w].tempRij = tempRijen[i];
+          if (naSucces && i === items.length - 1) {
+            const vorige = wacht[w].naSucces;
+            wacht[w].naSucces = function (saved) {
+              if (vorige) vorige(saved);
+              naSucces(saved);
+            };
+          }
+          gevonden = true;
+          break;
+        }
+        if (!gevonden) {
+          wacht.push({
+            payload: item,
+            tempRij: tempRijen[i],
+            naSucces: (naSucces && i === items.length - 1) ? naSucces : null
+          });
+        }
+      });
+    }
+
+    function startRegistratieVerzending() {
+      if (staat.registratieBezig || !staat.registratieWachtDirect.length) return;
+      const batch = staat.registratieWachtDirect.splice(0);
+      const items = batch.map(function (b) { return b.payload; });
+      const tempRijen = batch.map(function (b) { return b.tempRij; });
+      const callbacks = batch.map(function (b) { return b.naSucces; }).filter(Boolean);
+
       if (!isGasOmgeving()) {
         console.log('[LOKAAL] saveRegistraties batch', items);
-        if (naSucces) naSucces(tempRijen);
+        callbacks.forEach(function (cb) { cb(tempRijen); });
+        startRegistratieVerzending();
         return;
       }
-      gasRun()
+
+      const run = gasRun();
+      if (!run) {
+        staat.registratieWachtDirect = batch.concat(staat.registratieWachtDirect);
+        setTimeout(startRegistratieVerzending, 80);
+        return;
+      }
+
+      staat.registratieBezig = true;
+      run
         .withSuccessHandler(function (antwoord) {
           (antwoord.registraties || []).forEach(function (opgeslagen, i) {
             const idx = staat.registraties.indexOf(tempRijen[i]);
             if (idx !== -1) staat.registraties.splice(idx, 1, opgeslagen);
           });
-          if (naSucces) naSucces(antwoord.registraties || []);
+          callbacks.forEach(function (cb) { cb(antwoord.registraties || []); });
+          staat.registratieBezig = false;
+          startRegistratieVerzending();
         })
         .withFailureHandler(function (fout) {
           toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
@@ -418,9 +471,17 @@
             const idx = staat.registraties.indexOf(tmpRij);
             if (idx !== -1) staat.registraties.splice(idx, 1);
           });
+          staat.registratieBezig = false;
+          staat.registratieWachtDirect = [];
           haalDocentData();
         })
         .saveRegistraties(items);
+    }
+
+    function slaRegistratiesOpDirect(items, tempRijen, naSucces) {
+      if (!items.length) return;
+      voegAanDirecteWachtrij(items, tempRijen, naSucces);
+      startRegistratieVerzending();
     }
 
     function slaRegistratiesOp(items, tempRijen, naSucces) {
@@ -478,29 +539,26 @@
         return true;
       }
 
-      // Bevestig op de achtergrond; bij fout: alles herladen zodat staat consistent blijft.
-      gasRun()
-        .withSuccessHandler(function (antwoord) {
-          // Vervang de tijdelijke rij door de server-versie (correcte timestamp).
-          const idx = staat.registraties.indexOf(tempRij);
-          if (idx !== -1) staat.registraties.splice(idx, 1, antwoord.registratie);
-        })
-        .withFailureHandler(function (fout) {
-          toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
-          // Verwijder de optimistische rij en herlaad de echte data.
-          const idx = staat.registraties.indexOf(tempRij);
-          if (idx !== -1) staat.registraties.splice(idx, 1);
-          haalDocentData();
-        })
-        .saveRegistratie(payload);
+      slaRegistratiesOpDirect([payload], [tempRij]);
       return true;
     }
 
+    function nieuwTijdelijkId(prefix) {
+      staat.tempIdTeller += 1;
+      return '__temp_' + (prefix || 'x') + '_' + Date.now() + '_' + staat.tempIdTeller;
+    }
+
+    let laatsteTijdstempelMs = 0;
     function nieuweTijdstempel() {
       const d = new Date();
+      let ms = d.getTime();
+      if (ms <= laatsteTijdstempelMs) ms = laatsteTijdstempelMs + 1;
+      laatsteTijdstempelMs = ms;
+      d.setTime(ms);
       const pad = function (n) { return String(n).padStart(2, '0'); };
       return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
-        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' +
+        String(d.getMilliseconds()).padStart(3, '0');
     }
 
     function isoVandaag() {
@@ -543,7 +601,7 @@
     function slaLeerlingOp(data, naSucces) {
       // Optimistisch: meteen toevoegen met tijdelijk ID, GAS bevestigt op de achtergrond.
       const tempLeerling = {
-        id: '__temp_' + Date.now(),
+        id: nieuwTijdelijkId('L'),
         naam: String(data.naam || '').trim(),
         klas: String(data.klas || '').trim(),
         code: uniekeLeerlingCode(staat.leerlingen),
@@ -602,7 +660,7 @@
       const tempTaken = [];
       klassen.forEach(function (klas) {
         tempTaken.push({
-          id: '__temp_' + Date.now() + '_' + tempTaken.length,
+          id: nieuwTijdelijkId('T' + tempTaken.length),
           naam: String(data.naam || '').trim(),
           type: String(data.type || '').trim(),
           deadline: String(data.deadline || isoVandaag()),
@@ -1367,6 +1425,9 @@
       staat.leerlingen = data.leerlingen || [];
       staat.taken = herstelLokaleDubbeleTaakIds(data.taken || []);
       staat.registraties = data.registraties || [];
+      staat.registratieBezig = false;
+      staat.registratieWachtDirect = [];
+      staat.registratieWachtrij = [];
       staat.klassen = (data.klassen || []).map(function (item) {
         if (item && typeof item === 'object') {
           return { naam: String(item.naam || '').trim(), vak: String(item.vak || '').trim() };

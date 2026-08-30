@@ -810,6 +810,7 @@
       const tempRijen = [];
       cellen.forEach(function (cel) {
         const vorige = laatsteRegistratieVoorKlas(leerlingOpId(cel.llnId), taakOpId(cel.taakId), klas);
+        if (leeg && (!vorige || !vorige.status)) return;
         const payload = {
           llnId: cel.llnId,
           taakId: cel.taakId,

@@ -392,28 +392,33 @@ function getLeerlingData(code) {
   });
 
   const klas = String(leerling.klas || '').trim();
-  const registraties = leesRegistraties_()
-    .filter(function (reg) {
-      if (reg.llnId !== leerling.id) return false;
-      if (!taakGeldtVoorKlas_(taakById[reg.taakId], klas)) return false;
-      if (isMateriaalTaak_(taakById[reg.taakId])) return false;
-      return registratieKlas_(reg, leerling) === klas;
-    })
-    .map(function (reg) {
-      const taak = taakById[reg.taakId];
-      return {
-        datumTijd: reg.datumTijd,
-        taakId: reg.taakId,
-        taakNaam: (taak && taak.naam) ? taak.naam : reg.taakId,
-        type: (taak && taak.type) ? taak.type : '',
-        deadline: (taak && taak.deadline) ? taak.deadline : '',
-        status: reg.status,
-        opmerking: reg.opmerking
-      };
-    })
-    .sort(function (a, b) {
-      return String(b.datumTijd).localeCompare(String(a.datumTijd));
-    });
+  const laatstePerTaak = {};
+  const taakVolgorde = [];
+  leesRegistraties_().forEach(function (reg) {
+    if (reg.llnId !== leerling.id) return;
+    if (!taakGeldtVoorKlas_(taakById[reg.taakId], klas)) return;
+    if (isMateriaalTaak_(taakById[reg.taakId])) return;
+    if (registratieKlas_(reg, leerling) !== klas) return;
+    if (!laatstePerTaak[reg.taakId]) taakVolgorde.push(reg.taakId);
+    laatstePerTaak[reg.taakId] = reg;
+  });
+
+  const registraties = taakVolgorde.map(function (taakId) {
+    return laatstePerTaak[taakId];
+  }).filter(function (reg) {
+    return TOEGESTANE_STATUSSEN.indexOf(String(reg && reg.status ? reg.status : '').trim()) !== -1;
+  }).map(function (reg) {
+    const taak = taakById[reg.taakId];
+    return {
+      datumTijd: reg.datumTijd,
+      taakId: reg.taakId,
+      taakNaam: (taak && taak.naam) ? taak.naam : reg.taakId,
+      type: (taak && taak.type) ? taak.type : '',
+      deadline: (taak && taak.deadline) ? taak.deadline : '',
+      status: reg.status,
+      opmerking: reg.opmerking
+    };
+  });
 
   return {
     code: leerling.code,
@@ -431,55 +436,11 @@ function getLeerlingData(code) {
  */
 function saveRegistratie(data) {
   assertDocentToegang_();
-  if (!data || !data.llnId || !data.taakId) {
-    throw new Error('Ontbrekende velden: llnId en taakId zijn verplicht.');
-  }
-
-  const status = String(data.status == null ? '' : data.status).trim();
-  if (status && TOEGESTANE_STATUSSEN.indexOf(status) === -1) {
-    throw new Error('Ongeldige status. Gebruik: ' + TOEGESTANE_STATUSSEN.join(', ') + ' (of leeg).');
-  }
-  if (data.alOpgevolgd && status !== 'Niet in orde') {
-    throw new Error('Al opgevolgd kan enkel als status Niet in orde.');
-  }
-
-  const klas = String(data.klas || '').trim();
-  let nu = new Date();
-  if (data.alOpgevolgd) {
-    const leerling = leerlingOpId_(String(data.llnId).trim());
-    const reset = String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim();
-    if (!reset) {
-      throw new Error('Al opgevolgd kan pas nadat de opvolging is afgerond voor deze leerling.');
-    }
-    const parsed = parseDatumTijd_(reset);
-    if (!parsed || isNaN(parsed.getTime())) {
-      throw new Error('Ongeldige opvolgingsreset voor deze leerling.');
-    }
-    nu = parsed;
-  }
-
-  const sheet = getSheet_(TAB_REGISTRATIES);
-  const rij = [
-    nu,
-    String(data.llnId).trim(),
-    String(data.taakId).trim(),
-    status,
-    String(data.opmerking || ''),
-    klas
-  ];
-
-  sheet.appendRow(rij);
-
+  const antwoord = saveRegistraties([data]);
   return {
-    ok: true,
-    registratie: {
-      datumTijd: formatDatumTijd_(nu),
-      llnId: rij[1],
-      taakId: rij[2],
-      status: rij[3],
-      opmerking: rij[4],
-      klas: klas
-    }
+    ok: antwoord.ok,
+    registratie: (antwoord.registraties && antwoord.registraties[0]) || null,
+    registraties: antwoord.registraties || []
   };
 }
 
@@ -494,21 +455,21 @@ function saveRegistraties(arrayData) {
   assertDocentToegang_();
   if (!Array.isArray(arrayData) || !arrayData.length) return { ok: true, registraties: [] };
 
-  const nu = new Date();
   const resultaten = [];
 
   return metScriptLock_(function () {
     const sheet = getSheet_(TAB_REGISTRATIES);
     const rijen = [];
+    const basis = new Date();
 
-    arrayData.forEach(function (data) {
+    arrayData.forEach(function (data, i) {
       if (!data || !data.llnId || !data.taakId) throw new Error('Ontbrekende velden: llnId en taakId zijn verplicht.');
       const status = String(data.status == null ? '' : data.status).trim();
       if (status && TOEGESTANE_STATUSSEN.indexOf(status) === -1) {
         throw new Error('Ongeldige status: ' + status);
       }
 
-      let tijdstip = new Date(nu.getTime());
+      let tijdstip = new Date(basis.getTime() + i);
       if (data.alOpgevolgd) {
         const leerling = leerlingOpId_(String(data.llnId).trim());
         const reset = String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim();
@@ -1686,7 +1647,7 @@ function leerlingOpId_(id) {
 
 function formatDatumTijd_(waarde) {
   if (waarde instanceof Date && !isNaN(waarde.getTime())) {
-    return Utilities.formatDate(waarde, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    return Utilities.formatDate(waarde, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss.SSS');
   }
   return String(waarde || '');
 }
@@ -1699,7 +1660,7 @@ function formatDatum_(waarde) {
 }
 
 function parseDatumTijd_(waarde) {
-  const m = String(waarde || '').match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2}))?$/);
+  const m = String(waarde || '').match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?)?$/);
   if (!m) return null;
   return new Date(
     Number(m[1]),
@@ -1707,7 +1668,8 @@ function parseDatumTijd_(waarde) {
     Number(m[3]),
     Number(m[4] || 0),
     Number(m[5] || 0),
-    Number(m[6] || 0)
+    Number(m[6] || 0),
+    Number(m[7] || 0)
   );
 }
 

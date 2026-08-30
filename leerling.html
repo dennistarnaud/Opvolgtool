@@ -42,6 +42,8 @@
     }
     .embed-kop {
       flex-shrink: 0;
+      position: relative;
+      z-index: 20;
     }
     #lijst {
       flex: 1;
@@ -51,7 +53,8 @@
     }
     .sort-knop.actief,
     .filter-groep.actief,
-    #knop-filter[aria-expanded="true"] {
+    #knop-filter[aria-expanded="true"],
+    #knop-periode[aria-expanded="true"] {
       background: #e2e8f0;
       color: #0f172a;
     }
@@ -105,19 +108,7 @@
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
           <p id="samenvatting" class="text-[11px] text-slate-500"></p>
-          <button type="button" id="knop-filter"
-            class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 6h18" />
-              <path d="M7 12h10" />
-              <path d="M10 18h4" />
-            </svg>
-            <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-          </button>
-        </div>
-        <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 shrink-0">
             <div data-periode-wrap class="relative">
               <button type="button" id="knop-periode"
                 class="relative inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
@@ -128,8 +119,22 @@
                 </svg>
                 <span id="periode-indicatie" class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
               </button>
-              <div id="paneel-periode" class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
+              <div id="paneel-periode" class="hidden absolute right-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
             </div>
+            <button type="button" id="knop-filter"
+              class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M7 12h10" />
+                <path d="M10 18h4" />
+              </svg>
+              <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+            </button>
+          </div>
+        </div>
+        <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
+          <div class="flex flex-wrap items-center gap-2">
             <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
               <button type="button" id="sort-datum" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="datum">Datum</button>
               <button type="button" id="sort-soort" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="soort">Soort</button>
@@ -379,6 +384,12 @@
       return staat.verborgenPeriodes.indexOf(id) === -1;
     }
 
+    const BEKENDE_STATUSSEN = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
+
+    function heeftBekendeStatus(reg) {
+      return BEKENDE_STATUSSEN.indexOf(String(reg && reg.status ? reg.status : '').trim()) !== -1;
+    }
+
     function taakGroep(reg) {
       return TYPE_GROEP[reg && reg.type] || 'optioneel';
     }
@@ -393,6 +404,7 @@
     function zichtbareRegistraties() {
       // Leerlingenview: recentste deadline bovenaan (omgekeerd van de kruistabel).
       let lijst = staat.registraties.filter(function (reg) {
+        if (!heeftBekendeStatus(reg)) return false;
         if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return false;
         if (!groepZitInFilter(taakGroep(reg))) return false;
         const periode = periodeVoorDeadline(reg.deadline);
@@ -446,6 +458,7 @@
       const periodes = periodesUitData();
       const aantallen = {};
       staat.registraties.forEach(function (reg) {
+        if (!heeftBekendeStatus(reg)) return;
         if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return;
         const p = periodeVoorDeadline(reg.deadline);
         const id = p ? p.id : PERIODE_OVERIGE;
@@ -523,17 +536,18 @@
     }
 
     function toonRegistraties(data) {
-      // Bewaar enkel de meest recente registratie per taak — net zoals de kruistabel.
-      // De server levert al gesorteerd op datumTijd aflopend, dus de eerste per taakId wint.
+      // Laatste registratie per taak wint (bladvolgorde), lege status = gewist — net zoals de fiche.
       const ruw = (data && data.registraties) ? data.registraties : [];
       staat.periodes = normaliseerPeriodes(data && data.periodes);
-      const gezien = {};
-      staat.registraties = ruw.filter(function (reg) {
-        const id = String(reg.taakId || '');
-        if (gezien[id]) return false;
-        gezien[id] = true;
-        return true;
+      const laatste = {};
+      const volgorde = [];
+      ruw.forEach(function (reg) {
+        const id = String(reg && reg.taakId ? reg.taakId : '');
+        if (!id) return;
+        if (!laatste[id]) volgorde.push(id);
+        laatste[id] = reg;
       });
+      staat.registraties = volgorde.map(function (id) { return laatste[id]; }).filter(heeftBekendeStatus);
       tekenLijst();
     }
 
