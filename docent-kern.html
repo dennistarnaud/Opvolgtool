@@ -600,11 +600,12 @@
 
     function slaLeerlingOp(data, naSucces) {
       // Optimistisch: meteen toevoegen met tijdelijk ID, GAS bevestigt op de achtergrond.
+      const code = String(data.code || '').trim().toUpperCase() || uniekeLeerlingCode(staat.leerlingen);
       const tempLeerling = {
         id: nieuwTijdelijkId('L'),
         naam: String(data.naam || '').trim(),
         klas: String(data.klas || '').trim(),
-        code: uniekeLeerlingCode(staat.leerlingen),
+        code: code,
         geschraptIn: [],
         verwijderdOp: '',
         opvolgingLeerlingOp:    '',
@@ -649,7 +650,11 @@
           });
           tekenActieveWeergave();
         })
-        .saveLeerling(data);
+        .saveLeerling({
+          naam: data.naam,
+          klas: data.klas,
+          code: code
+        });
     }
 
     function slaTaakOp(data, naSucces) {

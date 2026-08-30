@@ -509,7 +509,7 @@ function saveRegistraties(arrayData) {
 
 /**
  * Voegt een leerling toe aan tabblad Leerlingen.
- * @param {{naam: string, klas: string}} data
+ * @param {{naam: string, klas: string, code?: string}} data
  * @return {{ok: boolean, leerling: Object}}
  */
 function saveLeerling(data) {
@@ -521,11 +521,18 @@ function saveLeerling(data) {
   return metScriptLock_(function () {
     const leerlingen = leesLeerlingen_();
     const klas = voegKlasToeAlsNieuw_(data.klas);
+    const gevraagde = String(data.code || '').trim().toUpperCase();
+    const bezet = gevraagde && leerlingen.some(function (lln) {
+      return String(lln.code || '').trim().toUpperCase() === gevraagde;
+    });
+    const code = (leerlingCodeIsGeldig_(gevraagde) && !bezet)
+      ? gevraagde
+      : uniekeLeerlingCode_(leerlingen);
     const leerling = {
       id: volgendeId_(leerlingen, 'L'),
       naam: String(data.naam).trim(),
       klas: klas,
-      code: uniekeLeerlingCode_(leerlingen),
+      code: code,
       geschraptIn: [],
       klasSinds: '',
       verwijderdOp: '',
