@@ -9,7 +9,9 @@
       tekenPrullenbakKnop();
       tekenTabs();
       const heeftKlas = !!staat.gekozenKlas;
+      zetHomeKnop(heeftKlas);
       document.getElementById('scherm-klaskeuze').classList.toggle('hidden', heeftKlas);
+      document.getElementById('nav-tabs').classList.toggle('hidden', !heeftKlas);
       document.getElementById('paneel-kruistabel').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'kruistabel');
       document.getElementById('paneel-leerling').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'leerling');
       document.getElementById('paneel-taak').classList.toggle('hidden', !heeftKlas || staat.actieveTab !== 'taak');
@@ -24,6 +26,25 @@
       if (wis) wis.setAttribute('data-klas', staat.gekozenKlas);
       tekenActieveWeergave();
       zetLijstDetailChrome();
+    }
+
+    function zetHomeKnop(heeftKlas) {
+      const knop = document.getElementById('knop-home');
+      const wrapKlas = document.getElementById('wrap-klas');
+      if (knop) {
+        knop.disabled = !heeftKlas;
+        knop.className = heeftKlas
+          ? 'shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+          : 'shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg text-indigo-600 bg-indigo-50 cursor-default';
+        knop.setAttribute('aria-current', heeftKlas ? 'false' : 'page');
+      }
+      if (wrapKlas) wrapKlas.classList.toggle('hidden', !heeftKlas);
+    }
+
+    function gaNaarKlasKeuze() {
+      if (!staat.gekozenKlas) return;
+      if (staat.modal) sluitModal();
+      kiesKlas('');
     }
 
     function zetNavHoogte() {
@@ -1491,6 +1512,7 @@
       else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
       else if (actie === 'reset-schooljaar') bevestigResetSchooljaar();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
+      else if (actie === 'klas-home') gaNaarKlasKeuze();
       else if (actie === 'klas-nieuw') openNieuweKlasModal();
       else if (actie === 'klas-hernoemen') openKlasHernoemen(doel.getAttribute('data-klas'));
       else if (actie === 'klas-verwijderen') vraagKlasVerwijderen(doel.getAttribute('data-klas'));
