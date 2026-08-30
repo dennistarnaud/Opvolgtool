@@ -216,6 +216,7 @@
       sortering: 'datum',
       groepFilters: [],
       periodeMenuOpen: false,
+      ficheFilter: null,
       avondstudieDatum: '',
       modalTopVast: false,
       modal: null,
@@ -1211,8 +1212,17 @@
       return leesVerborgenPeriodes().filter(function (id) { return geldig.indexOf(id) !== -1; });
     }
 
-    function periodeIsZichtbaar(id) {
-      return verborgenPeriodeIds().indexOf(id) === -1;
+    function periodeIsZichtbaar(id, verborgen) {
+      const uit = verborgen || verborgenPeriodeIds();
+      return uit.indexOf(id) === -1;
+    }
+
+    function ficheFilterActief() {
+      return staat.modal === 'fiche' && !!staat.ficheFilter;
+    }
+
+    function leegFicheFilter() {
+      return { sortering: 'datum', groepFilters: [], verborgenPeriodes: [] };
     }
 
     function periodesFilterActief() {
@@ -1223,6 +1233,16 @@
       if (!id) return;
       const geldig = periodeKeuzeIds();
       if (geldig.indexOf(id) === -1) return;
+      if (ficheFilterActief()) {
+        let uit = (staat.ficheFilter.verborgenPeriodes || []).slice();
+        const index = uit.indexOf(id);
+        if (index === -1) uit.push(id);
+        else uit.splice(index, 1);
+        staat.ficheFilter.verborgenPeriodes = uit;
+        staat.periodeMenuOpen = true;
+        tekenFicheOpnieuw();
+        return;
+      }
       let uit = verborgenPeriodeIds();
       const index = uit.indexOf(id);
       if (index === -1) uit.push(id);

@@ -153,16 +153,14 @@
       return html;
     }
 
-    function tekenPeriodeKeuze(groepen) {
-      const paneel = document.getElementById('paneel-periode');
-      const knop = document.getElementById('knop-periode');
-      const punt = document.getElementById('periode-indicatie');
-      if (!paneel || !knop) return;
+    function periodeKeuzeRijenHtml(groepen, verborgen) {
       const periodes = periodesUitInstellingen();
       const aantallen = {};
-      (groepen || []).forEach(function (groep) { aantallen[groep.id] = groep.taken.length; });
+      (groepen || periodeGroepenVan(zichtbareTaken()) || []).forEach(function (groep) {
+        aantallen[groep.id] = groep.taken.length;
+      });
       function rij(id, naam, aantal) {
-        const aan = periodeIsZichtbaar(id);
+        const aan = periodeIsZichtbaar(id, verborgen);
         return '<label class="periode-keuze-rij">' +
           '<input type="checkbox" data-actie="periode-zichtbaar" data-periode="' + escapeAttr(id) + '"' +
           (aan ? ' checked' : '') + '>' +
@@ -177,10 +175,56 @@
       if (aantallen[PERIODE_OVERIGE]) {
         html += rij(PERIODE_OVERIGE, 'Buiten periodes', aantallen[PERIODE_OVERIGE]);
       }
-      paneel.innerHTML = html;
-      paneel.classList.toggle('hidden', !staat.periodeMenuOpen);
-      knop.setAttribute('aria-expanded', String(!!staat.periodeMenuOpen));
-      if (punt) punt.classList.toggle('hidden', !periodesFilterActief());
+      return html;
+    }
+
+    function periodeKeuzeInFiche(el) {
+      const fiche = document.getElementById('form-fiche');
+      return !!(fiche && el && fiche.contains(el));
+    }
+
+    function zetPeriodeMenuOpen(open) {
+      staat.periodeMenuOpen = !!open;
+      const ficheNu = ficheFilterActief();
+      document.querySelectorAll('[data-periode-paneel]').forEach(function (paneel) {
+        const hier = periodeKeuzeInFiche(paneel);
+        const toon = staat.periodeMenuOpen && (ficheNu ? hier : !hier);
+        paneel.classList.toggle('hidden', !toon);
+      });
+      document.querySelectorAll('[data-periode-knop]').forEach(function (knop) {
+        const hier = periodeKeuzeInFiche(knop);
+        const toon = staat.periodeMenuOpen && (ficheNu ? hier : !hier);
+        knop.setAttribute('aria-expanded', String(toon));
+      });
+    }
+
+    function vulPeriodeKeuze(root, groepen, verborgen, skipRoot, menuOpen) {
+      if (!root) return;
+      const html = periodeKeuzeRijenHtml(groepen, verborgen);
+      const filterAan = !!(verborgen && verborgen.length);
+      root.querySelectorAll('[data-periode-paneel]').forEach(function (paneel) {
+        if (skipRoot && skipRoot.contains(paneel)) return;
+        paneel.innerHTML = html;
+        paneel.classList.toggle('hidden', !menuOpen);
+      });
+      root.querySelectorAll('[data-periode-knop]').forEach(function (knop) {
+        if (skipRoot && skipRoot.contains(knop)) return;
+        knop.setAttribute('aria-expanded', String(!!menuOpen));
+      });
+      root.querySelectorAll('[data-periode-indicatie]').forEach(function (punt) {
+        if (skipRoot && skipRoot.contains(punt)) return;
+        punt.classList.toggle('hidden', !filterAan);
+      });
+    }
+
+    function tekenPeriodeKeuze(groepen) {
+      const groepenData = groepen || periodeGroepenVan(zichtbareTaken());
+      const fiche = document.getElementById('form-fiche');
+      const ficheNu = ficheFilterActief();
+      vulPeriodeKeuze(document, groepenData, verborgenPeriodeIds(), fiche, ficheNu ? false : staat.periodeMenuOpen);
+      if (ficheNu) {
+        vulPeriodeKeuze(fiche, groepenData, staat.ficheFilter.verborgenPeriodes || [], null, staat.periodeMenuOpen);
+      }
     }
 
     function tekenKruistabel() {

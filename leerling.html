@@ -55,6 +55,23 @@
       background: #e2e8f0;
       color: #0f172a;
     }
+    .periode-keuze-rij {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.4rem 0.75rem;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+    }
+    .periode-keuze-rij:hover {
+      background: #f8fafc;
+    }
+    .periode-keuze-rij input {
+      margin: 0;
+    }
     @keyframes ot-draai {
       to { transform: rotate(360deg); }
     }
@@ -101,6 +118,18 @@
         </div>
         <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
           <div class="flex flex-wrap items-center gap-2">
+            <div data-periode-wrap class="relative">
+              <button type="button" id="knop-periode"
+                class="relative inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                aria-expanded="false" aria-haspopup="true" aria-controls="paneel-periode">
+                Periode
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                <span id="periode-indicatie" class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+              </button>
+              <div id="paneel-periode" class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
+            </div>
             <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
               <button type="button" id="sort-datum" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="datum">Datum</button>
               <button type="button" id="sort-soort" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-sort="soort">Soort</button>
@@ -222,7 +251,8 @@
         code: leerling.code,
         llnId: leerling.id,
         klas: leerling.klas,
-        registraties: registraties
+        registraties: registraties,
+        periodes: []
       };
     }
 
@@ -269,11 +299,85 @@
       'Examen inkijken': 'leerkans',
       'Niet-verplichte taak': 'optioneel'
     };
+    const PERIODE_OVERIGE = '__overige__';
     const staat = {
       registraties: [],
+      periodes: [],
       sortering: 'datum',
-      groepFilters: []
+      groepFilters: [],
+      verborgenPeriodes: [],
+      periodeMenuOpen: false
     };
+
+    function schooljaarStartJaar() {
+      const d = new Date();
+      const jaar = d.getFullYear();
+      return (d.getMonth() + 1) >= 7 ? jaar : jaar - 1;
+    }
+
+    function standaardPeriodes() {
+      const jaar = schooljaarStartJaar();
+      const volgend = jaar + 1;
+      return [
+        { id: 't1', naam: 'Trimester 1', van: jaar + '-09-01', tot: jaar + '-12-31' },
+        { id: 't2', naam: 'Trimester 2', van: volgend + '-01-01', tot: volgend + '-04-10' },
+        { id: 't3', naam: 'Trimester 3', van: volgend + '-04-11', tot: volgend + '-06-30' }
+      ];
+    }
+
+    function normaliseerIsoDatum(waarde) {
+      const s = String(waarde == null ? '' : waarde).trim();
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+    }
+
+    function normaliseerPeriodes(waarde) {
+      let lijst = waarde;
+      if (typeof waarde === 'string') {
+        const ruw = waarde.trim();
+        if (!ruw) return [];
+        try { lijst = JSON.parse(ruw); } catch (e) { return []; }
+      }
+      if (!lijst || Object.prototype.toString.call(lijst) !== '[object Array]') return [];
+      const result = [];
+      const gezien = {};
+      lijst.forEach(function (item, i) {
+        if (!item || typeof item !== 'object') return;
+        const naam = String(item.naam || '').trim().substring(0, 40);
+        const van = normaliseerIsoDatum(item.van);
+        const tot = normaliseerIsoDatum(item.tot);
+        if (!naam || !van || !tot || van > tot) return;
+        let id = String(item.id || '').trim();
+        if (!/^[a-zA-Z0-9_-]{1,24}$/.test(id) || gezien[id]) {
+          id = 'p' + String(i + 1);
+          while (gezien[id]) id += 'x';
+        }
+        gezien[id] = true;
+        result.push({ id: id, naam: naam, van: van, tot: tot });
+      });
+      result.sort(function (a, b) {
+        const cmp = a.van.localeCompare(b.van);
+        return cmp !== 0 ? cmp : a.tot.localeCompare(b.tot);
+      });
+      return result;
+    }
+
+    function periodesUitData() {
+      return staat.periodes.length ? staat.periodes : standaardPeriodes();
+    }
+
+    function periodeVoorDeadline(deadline) {
+      const d = normaliseerIsoDatum(deadline);
+      if (!d) return null;
+      const periodes = periodesUitData();
+      for (let i = 0; i < periodes.length; i++) {
+        if (periodes[i].van <= d && d <= periodes[i].tot) return periodes[i];
+      }
+      return null;
+    }
+
+    function periodeIsZichtbaar(id) {
+      return staat.verborgenPeriodes.indexOf(id) === -1;
+    }
 
     function taakGroep(reg) {
       return TYPE_GROEP[reg && reg.type] || 'optioneel';
@@ -288,10 +392,11 @@
 
     function zichtbareRegistraties() {
       // Leerlingenview: recentste deadline bovenaan (omgekeerd van de kruistabel).
-      // Later: binnen elke periode dezelfde volgorde, periodes zelf docent-gestuurd.
       let lijst = staat.registraties.filter(function (reg) {
         if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return false;
-        return groepZitInFilter(taakGroep(reg));
+        if (!groepZitInFilter(taakGroep(reg))) return false;
+        const periode = periodeVoorDeadline(reg.deadline);
+        return periodeIsZichtbaar(periode ? periode.id : PERIODE_OVERIGE);
       });
       if (staat.sortering === 'soort') {
         const volgorde = ['huiswerk', 'les', 'leerkans', 'optioneel'];
@@ -325,9 +430,61 @@
         const groep = knop.getAttribute('data-groep');
         knop.classList.toggle('actief', staat.groepFilters.indexOf(groep) !== -1);
       });
-      const filterActief = staat.sortering !== 'datum' || !!(staat.groepFilters && staat.groepFilters.length);
+      const filterActief = staat.sortering !== 'datum' ||
+        !!(staat.groepFilters && staat.groepFilters.length) ||
+        !!staat.verborgenPeriodes.length;
       document.getElementById('filter-indicatie').classList.toggle('hidden', !filterActief);
       document.getElementById('knop-filter-wissen').disabled = !filterActief;
+      tekenPeriodeKeuze();
+    }
+
+    function tekenPeriodeKeuze() {
+      const paneel = document.getElementById('paneel-periode');
+      const knop = document.getElementById('knop-periode');
+      const punt = document.getElementById('periode-indicatie');
+      if (!paneel || !knop) return;
+      const periodes = periodesUitData();
+      const aantallen = {};
+      staat.registraties.forEach(function (reg) {
+        if (String(reg && reg.type ? reg.type : '').trim() === 'Materiaal niet in orde') return;
+        const p = periodeVoorDeadline(reg.deadline);
+        const id = p ? p.id : PERIODE_OVERIGE;
+        aantallen[id] = (aantallen[id] || 0) + 1;
+      });
+      function rij(id, naam, aantal) {
+        return '<label class="periode-keuze-rij">' +
+          '<input type="checkbox" data-periode="' + escapeAttr(id) + '"' +
+          (periodeIsZichtbaar(id) ? ' checked' : '') + '>' +
+          '<span class="min-w-0 truncate">' + escapeHtml(naam) + '</span>' +
+          (aantal ? '<span class="ml-auto text-slate-400 font-medium">' + aantal + '</span>' : '') +
+          '</label>';
+      }
+      let html = '';
+      periodes.forEach(function (p) {
+        html += rij(p.id, p.naam, aantallen[p.id] || 0);
+      });
+      if (aantallen[PERIODE_OVERIGE]) {
+        html += rij(PERIODE_OVERIGE, 'Buiten periodes', aantallen[PERIODE_OVERIGE]);
+      }
+      paneel.innerHTML = html;
+      paneel.classList.toggle('hidden', !staat.periodeMenuOpen);
+      knop.setAttribute('aria-expanded', String(!!staat.periodeMenuOpen));
+      if (punt) punt.classList.toggle('hidden', !staat.verborgenPeriodes.length);
+    }
+
+    function wisselPeriodeZichtbaar(id) {
+      if (!id) return;
+      const lijst = staat.verborgenPeriodes.slice();
+      const index = lijst.indexOf(id);
+      if (index === -1) lijst.push(id);
+      else lijst.splice(index, 1);
+      staat.verborgenPeriodes = lijst;
+      staat.periodeMenuOpen = true;
+      tekenLijst();
+    }
+
+    function escapeAttr(waarde) {
+      return escapeHtml(waarde).replace(/'/g, '&#39;');
     }
 
     function wisselFilterPaneel() {
@@ -361,6 +518,7 @@
     function wisFilters() {
       staat.sortering = 'datum';
       staat.groepFilters = [];
+      staat.verborgenPeriodes = [];
       tekenLijst();
     }
 
@@ -368,6 +526,7 @@
       // Bewaar enkel de meest recente registratie per taak — net zoals de kruistabel.
       // De server levert al gesorteerd op datumTijd aflopend, dus de eerste per taakId wint.
       const ruw = (data && data.registraties) ? data.registraties : [];
+      staat.periodes = normaliseerPeriodes(data && data.periodes);
       const gezien = {};
       staat.registraties = ruw.filter(function (reg) {
         const id = String(reg.taakId || '');
@@ -452,6 +611,22 @@
       });
     });
     document.getElementById('knop-filter-wissen').addEventListener('click', wisFilters);
+    document.getElementById('knop-periode').addEventListener('click', function (event) {
+      event.stopPropagation();
+      staat.periodeMenuOpen = !staat.periodeMenuOpen;
+      tekenPeriodeKeuze();
+    });
+    document.getElementById('paneel-periode').addEventListener('change', function (event) {
+      const veld = event.target && event.target.closest ? event.target.closest('[data-periode]') : null;
+      if (!veld) return;
+      wisselPeriodeZichtbaar(veld.getAttribute('data-periode'));
+    });
+    document.addEventListener('click', function (event) {
+      const wrap = document.querySelector('[data-periode-wrap]');
+      if (!wrap || wrap.contains(event.target) || !staat.periodeMenuOpen) return;
+      staat.periodeMenuOpen = false;
+      tekenPeriodeKeuze();
+    });
 
     haalLeerlingData();
   </script>

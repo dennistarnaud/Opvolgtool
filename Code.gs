@@ -419,7 +419,8 @@ function getLeerlingData(code) {
     code: leerling.code,
     llnId: leerling.id,
     klas: leerling.klas,
-    registraties: registraties
+    registraties: registraties,
+    periodes: leesInstellingen_().periodes || []
   };
 }
 

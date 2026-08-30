@@ -545,17 +545,17 @@
             </button>
             <div class="paneel-filter hidden w-full md:flex md:w-auto mt-1 pt-2 border-t border-slate-100 md:mt-0 md:pt-0 md:border-0">
               <div class="flex flex-wrap items-center gap-3">
-                <div id="wrap-periode" class="relative">
-                  <button type="button" id="knop-periode" data-actie="periode-menu-wissel"
+                <div data-periode-wrap class="relative">
+                  <button type="button" data-periode-knop data-actie="periode-menu-wissel"
                     class="relative inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-                    aria-expanded="false" aria-haspopup="true" aria-controls="paneel-periode">
+                    aria-expanded="false" aria-haspopup="true">
                     Periode
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="m6 9 6 6 6-6" />
                     </svg>
-                    <span id="periode-indicatie" class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    <span data-periode-indicatie class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                   </button>
-                  <div id="paneel-periode" class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
+                  <div data-periode-paneel class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
                 </div>
                 <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
                   <button type="button" class="sort-knop actief px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="datum">Datum</button>
@@ -747,6 +747,18 @@
             </div>
             <div id="fiche-paneel-filter" class="paneel-filter hidden mt-2 pt-2 border-t border-slate-100">
               <div class="flex flex-wrap items-center gap-2">
+                <div data-periode-wrap class="relative">
+                  <button type="button" data-periode-knop data-actie="periode-menu-wissel"
+                    class="relative inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                    aria-expanded="false" aria-haspopup="true">
+                    Periode
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                    <span data-periode-indicatie class="hidden absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                  </button>
+                  <div data-periode-paneel class="hidden absolute left-0 top-full z-30 mt-1 min-w-[13rem] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"></div>
+                </div>
                 <div class="inline-flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Sorteren">
                   <button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="datum">Datum</button>
                   <button type="button" class="sort-knop px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-600" data-actie="sort-zetten" data-sort="soort">Soort</button>
