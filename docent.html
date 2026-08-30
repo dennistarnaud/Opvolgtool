@@ -150,6 +150,9 @@
       padding-top: max(1.25rem, 5vh);
     }
     @media (max-width: 767px) {
+      .leerling-sleep {
+        display: none;
+      }
       body.lijst-detail nav {
         display: none;
       }
@@ -520,7 +523,7 @@
           <div class="flex items-center gap-1 min-w-0">
             <h2 class="font-semibold min-w-0 truncate">Overzicht <span id="kruis-klaslabel"></span></h2>
             <button type="button" id="knop-kruis-klas-hernoemen" data-actie="klas-hernoemen"
-              class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
+              class="shrink-0 hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600"
               title="Klasnaam wijzigen" aria-label="Klasnaam wijzigen">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 20h9" />
@@ -528,7 +531,7 @@
               </svg>
             </button>
             <button type="button" id="knop-kruis-klas-verwijderen" data-actie="klas-verwijderen"
-              class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+              class="shrink-0 hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
               title="Klas verwijderen" aria-label="Klas verwijderen">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 6h18" />

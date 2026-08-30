@@ -389,7 +389,7 @@
           '</button></div>';
       }).join('');
       const acties = htmlOpvolgActies();
-      return '<div class="px-4 py-3 border-b border-slate-100">' +
+      return '<div class="hidden md:block px-4 py-3 border-b border-slate-100">' +
           '<h2 class="font-semibold">Leerlingen <span class="text-slate-500 font-medium">' + escapeHtml(klasLabel(staat.gekozenKlas)) + '</span></h2>' +
           '<p class="text-[11px] text-slate-500 mt-0.5">Tik een naam om taken af te vinken.</p>' +
         '</div>' +
@@ -465,7 +465,7 @@
       }).join('');
       return '<div class="px-4 py-3 border-b border-slate-100">' +
           '<div class="flex flex-wrap items-center justify-between gap-2">' +
-            '<div class="min-w-0">' +
+            '<div class="min-w-0 hidden md:block">' +
               '<h2 class="font-semibold">Taken <span class="text-slate-500 font-medium">' + escapeHtml(klasLabel(staat.gekozenKlas)) + '</span></h2>' +
               '<p class="text-[11px] text-slate-500 mt-0.5">Tik een taak om de klas af te vinken.</p>' +
             '</div>' +
