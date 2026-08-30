@@ -17,12 +17,16 @@ Een Google Apps Script-tool voor leerkrachten om taakopvolging van leerlingen bi
 
 ## Overzicht
 
-De tool bestaat uit drie bestanden:
+De tool bestaat uit deze bestanden:
 
 | Bestand | Rol |
 |---|---|
 | `Code.gs` | Server-side logica: data lezen/schrijven vanuit Google Sheets |
-| `docent.html` | Docentscherm: kruistabel, leerlingfiche, taken, opvolging |
+| `docent.html` | Docentscherm: markup en stijl |
+| `docent-kern.html` | Docent-JS: data, GAS-koppeling, klassen |
+| `docent-opvolging.html` | Docent-JS: opvolgingsladder en berichten |
+| `docent-kruis.html` | Docent-JS: kruistabel, selectie, slepen |
+| `docent-ui.html` | Docent-JS: lijsten, fiche, instellingen, start |
 | `leerling.html` | Leerlingscherm: persoonlijk taakenoverzicht (anoniem, via code) |
 
 Data wordt opgeslagen in een **gebonden Google Sheet** met vijf vaste tabbladen.
@@ -109,7 +113,10 @@ Kan leeg starten — tool beheert de instellingen zelf.
 1. Open de Google Sheet
 2. Ga naar **Uitbreidingen → Apps Script**
 3. Verwijder de lege `Code.gs` en plak de inhoud van `Code.gs` uit dit project
-4. Maak twee HTML-bestanden aan: `docent` en `leerling`, en plak de inhoud van respectievelijk `docent.html` en `leerling.html`
+4. Maak deze HTML-bestanden aan. In de Apps Script-editor is de naam **zonder** `.html`
+   (dus `docent`, niet `docent.html`). Plak daarna de inhoud uit het gelijknamige
+   `.html`-bestand in dit project:
+   `docent`, `docent-kern`, `docent-opvolging`, `docent-kruis`, `docent-ui` en `leerling`
 
 ---
 
@@ -247,7 +254,7 @@ Elke functie die leerling- of schooldata raadpleegt of aanpast, controleert auto
 
 ## Na elke codewijziging
 
-Wanneer je `Code.gs`, `docent.html` of `leerling.html` aanpast:
+Wanneer je `Code.gs`, `docent.html`, een van de `docent-*.html`-scripts of `leerling.html` aanpast:
 
 1. Ga naar **Implementeren → Implementaties beheren**
 2. Klik op het potloodpictogram bij **elke** actieve implementatie

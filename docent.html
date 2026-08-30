@@ -919,6 +919,30 @@
     </div>
 
 
-  <?!= include('docent-script'); ?>
+  <?!= include('docent-kern'); ?>
+  <?!= include('docent-opvolging'); ?>
+  <?!= include('docent-kruis'); ?>
+  <?!= include('docent-ui'); ?>
+  <script>
+    (function laadDocentScriptsLokaal() {
+      if (/script\.google\.com|googleusercontent\.com|\/macros\//.test(location.href)) return;
+      var delen = ['docent-kern.html', 'docent-opvolging.html', 'docent-kruis.html', 'docent-ui.html'];
+      function laad(i) {
+        if (i >= delen.length) return;
+        fetch(delen[i]).then(function (antwoord) { return antwoord.text(); }).then(function (html) {
+          var start = html.indexOf('<' + 'script>');
+          var einde = html.lastIndexOf('</' + 'script>');
+          var code = (start !== -1 && einde !== -1) ? html.slice(start + 8, einde) : html;
+          var script = document.createElement('script');
+          script.textContent = code;
+          document.body.appendChild(script);
+          laad(i + 1);
+        }).catch(function (fout) {
+          console.error('Kon ' + delen[i] + ' niet laden', fout);
+        });
+      }
+      laad(0);
+    }());
+  </script>
 </body>
 </html>

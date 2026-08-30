@@ -54,7 +54,9 @@
  *    Sleutels: opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders, berichtNablijf
  *
  * 2. Scriptbestanden in Apps Script
- *    Plak: Config.gs, Code.gs, LeerlingCodes.gs, docent.html, leerling.html
+ *    Plak: Config.gs, Code.gs, LeerlingCodes.gs
+ *    HTML-bestanden (naam in de editor ZONDER .html):
+ *      docent, docent-kern, docent-opvolging, docent-kruis, docent-ui, leerling
  *    Vul Config.gs in: emailadressen, leerling-URL en eventueel spreadsheet-ID.
  *    SPREADSHEET_ID leeg laten bij een gebonden script; anders het spreadsheet-ID.
  *

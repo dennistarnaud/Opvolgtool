@@ -1,0 +1,872 @@
+<!--
+  docent-kruis.html
+  Kruistabel van het docentscherm.
+  Inhoud: tabeltekenen, cel-selectie, sneltoetsen,
+  slepen van leerlingen, nieuwe leerling en nieuwe taak.
+-->
+<script>
+    function voegNieuweTaakToe(naam, type, deadline) {
+      const klassen = [staat.gekozenKlas].concat(gekozenExtraKlassen());
+      slaTaakOp({ naam: naam, type: type, deadline: deadline, klassen: klassen }, function (taken) {
+        const eerste = taken && taken[0];
+        if (eerste) {
+          voegGroepToeAanFilter(taakGroep(eerste));
+        }
+        sluitModal();
+        if (eerste && staat.actieveTab === 'taak') {
+          staat.lijstTaakId = eerste.id;
+          tekenScherm();
+          window.scrollTo(0, 0);
+        } else {
+          tekenScherm();
+        }
+        toonMelding('Taak toegevoegd aan ' + klassen.join(', ') + '.', 'ok');
+      });
+    }
+
+    function commitNieuweLeerling(naam, naAfloop) {
+      if (!naam || staat.bezigLeerling) return;
+      staat.bezigLeerling = true;
+      staat.nieuweLeerlingTekst = '';
+      slaLeerlingOp({ naam: naam, klas: staat.gekozenKlas }, function (leerling) {
+        const taken = zichtbareTaken();
+        if (naAfloop === 'omlaag') {
+          staat.naLeerling = { focus: 'input' };
+        } else if (naAfloop === 'omhoog') {
+          const leerlingen = leerlingenVanKlas();
+          const vorige = leerlingen.length > 1 ? leerlingen[leerlingen.length - 2] : null;
+          if (vorige && taken[0]) {
+            staat.naLeerling = { focus: 'cel', llnId: vorige.id, taakId: taken[0].id };
+          } else if (taken[0]) {
+            staat.naLeerling = { focus: 'cel', llnId: leerling.id, taakId: taken[0].id };
+          }
+        } else if (naAfloop === 'rechts' && taken[0]) {
+          staat.naLeerling = { focus: 'cel', llnId: leerling.id, taakId: taken[0].id };
+        }
+        tekenScherm();
+        staat.bezigLeerling = false;
+        staat.nieuweLeerlingTekst = '';
+      });
+    }
+
+    function onNieuweLeerlingToets(event) {
+      const toets = String(event.key || '').toLowerCase();
+      const veld = event.target;
+      const naam = String(veld.value || '').trim();
+
+      if (toets === 'escape') {
+        event.preventDefault();
+        veld.value = '';
+        staat.nieuweLeerlingTekst = '';
+        veld.blur();
+        return;
+      }
+
+      if (toets !== 'enter' && toets !== 'tab' && toets.indexOf('arrow') !== 0) return;
+
+      if (!naam) {
+        if (toets === 'arrowup') {
+          event.preventDefault();
+          const leerlingen = leerlingenVanKlas();
+          const taken = zichtbareTaken();
+          if (leerlingen.length && taken.length) {
+            selecteerCel(zoekCelKnop(leerlingen[leerlingen.length - 1].id, taken[0].id));
+          }
+        } else if (toets === 'enter' || toets === 'tab' || toets === 'arrowright' || toets === 'arrowdown') {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      event.preventDefault();
+      let naAfloop = 'rechts';
+      if (toets === 'enter' || toets === 'arrowdown') naAfloop = 'omlaag';
+      if (toets === 'arrowup') naAfloop = 'omhoog';
+      commitNieuweLeerling(naam, naAfloop);
+    }
+
+    function onNieuweLeerlingBlur(event) {
+      if (staat.bezigLeerling) return;
+      staat.nieuweLeerlingTekst = String(event.target.value || '');
+    }
+
+    function herstelNaLeerling() {
+      const na = staat.naLeerling;
+      staat.naLeerling = null;
+      if (!na) return false;
+      if (na.focus === 'input') {
+        const veld = document.querySelector('.veld-nieuwe-leerling');
+        if (veld) {
+          veld.value = '';
+          staat.nieuweLeerlingTekst = '';
+          veld.focus();
+        }
+        return true;
+      }
+      if (na.focus === 'cel') {
+        const knop = zoekCelKnop(na.llnId, na.taakId);
+        if (knop) selecteerCel(knop);
+        return true;
+      }
+      return false;
+    }
+
+    function leerlingSleepKnopHtml(lln) {
+      return '<button type="button" class="leerling-sleep" data-lln="' + escapeAttr(lln.id) + '" ' +
+        'title="Versleep of gebruik ↑↓ om van plaats te veranderen" ' +
+        'aria-label="' + escapeAttr('Volgorde van ' + lln.naam + ' wijzigen') + '">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">' +
+          '<circle cx="3" cy="3" r="1.3"/><circle cx="9" cy="3" r="1.3"/>' +
+          '<circle cx="3" cy="8" r="1.3"/><circle cx="9" cy="8" r="1.3"/>' +
+          '<circle cx="3" cy="13" r="1.3"/><circle cx="9" cy="13" r="1.3"/>' +
+        '</svg></button>';
+    }
+
+    function kruisLeerlingRij(lln, taken, geschrapt) {
+      const rijKlasse = geschrapt
+        ? 'rij-geschrapt border-t border-slate-100'
+        : 'border-t border-slate-100';
+      const naamKlasse = geschrapt ? 'naam-tekst geschrapt' : 'naam-tekst';
+      const thBg = geschrapt ? 'bg-slate-50' : 'bg-white';
+      const sleepAttr = geschrapt ? '' : ' data-leerling-rij data-lln="' + escapeAttr(lln.id) + '"';
+      let html = '<tr class="' + rijKlasse + '"' + sleepAttr + '>';
+      html += '<th class="naam-cel sticky left-0 z-10 ' + thBg + ' px-3 py-1.5 text-left text-sm font-medium">' +
+        '<div class="naam-cel-binnen">' +
+        (geschrapt ? '' : leerlingSleepKnopHtml(lln)) +
+        '<button type="button" class="' + naamKlasse + '" data-actie="leerling-fiche" data-id="' + escapeAttr(lln.id) + '" aria-label="' + escapeAttr('Fiche van ' + lln.naam) + '">' +
+        '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) + '</button>' +
+        '</div></th>';
+      taken.forEach(function (taak) {
+        const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
+        const status = reg ? reg.status : '';
+        const teltNietMee = registratieTeltNietMee(lln, reg);
+        const statusLabel = celStatusLabel(status, teltNietMee);
+        const titelDelen = [taakTitel(taak), statusLabel];
+        if (reg && reg.opmerking) titelDelen.push(reg.opmerking);
+        html += '<td class="td-cel text-center">' +
+          '<button type="button" class="cel-status ' + celKlassen(status, teltNietMee) + '" ' +
+          'data-lln="' + escapeAttr(lln.id) + '" data-taak="' + escapeAttr(taak.id) + '" ' +
+          'title="' + escapeAttr(titelDelen.join(' — ')) + '" aria-label="' + escapeAttr(lln.naam + ': ' + taakTitel(taak) + ', ' + statusLabel) + '">' +
+          celTekst(status) + '</button></td>';
+      });
+      html += '</tr>';
+      return html;
+    }
+
+    function tekenKruistabel() {
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      const actiefNieuw = document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains('veld-nieuwe-leerling');
+      const caret = actiefNieuw ? document.activeElement.selectionStart : null;
+      const leerlingen = leerlingenVanKlas();
+      const taken = zichtbareTaken();
+      tekenSorteerFilterKnoppen();
+      tekenOpvolgActies();
+
+      let titels = '<div class="kruis-titels-naam"></div>';
+      let datums = '<div class="kruis-titels-naam"></div>';
+      taken.forEach(function (taak) {
+        const titel = taakTitel(taak);
+        titels += '<div class="taak-titel" data-actie="taak-bewerken" data-id="' + escapeAttr(taak.id) + '" data-groep="' + escapeAttr(taakGroep(taak)) + '" data-taak="' + escapeAttr(taak.id) + '" title="' + escapeAttr(titel + ' — bewerken') + '"><span>' + escapeHtml(titel) + '</span></div>';
+        datums += '<div class="kruis-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</div>';
+      });
+      titels += '<button type="button" data-actie="taak-toevoegen" class="knop-nieuwe-taak" title="Taak toevoegen" aria-label="Nieuwe taak"><span>Nieuwe taak…</span></button>';
+      datums += '<div class="kruis-datum"></div>';
+
+      let lichaam = '';
+      leerlingen.forEach(function (lln) {
+        lichaam += kruisLeerlingRij(lln, taken, false);
+      });
+
+      lichaam += '<tr class="rij-nieuw border-t border-slate-100">';
+      lichaam += '<th class="naam-cel sticky left-0 z-10 bg-white px-3 py-1.5 text-left">' +
+        '<span class="nieuwe-leerling-vak">' +
+        '<input type="text" class="veld-nieuwe-leerling" placeholder="Nieuwe leerling…" autocomplete="off" aria-label="Nieuwe leerling">' +
+        '</span></th>';
+      taken.forEach(function () {
+        lichaam += '<td class="td-nieuw"></td>';
+      });
+      lichaam += '</tr>';
+
+      const klaswijziging = geschrapteLeerlingenVanKlas();
+      if (klaswijziging.length) {
+        lichaam += '<tr class="rij-geschrapt-kop border-t border-slate-200">';
+        lichaam += '<th class="sticky left-0 z-10 bg-slate-50 px-3 py-1.5 text-left">Klaswijziging</th>';
+        taken.forEach(function () { lichaam += '<td class="bg-slate-50"></td>'; });
+        lichaam += '</tr>';
+        klaswijziging.forEach(function (lln) {
+          lichaam += kruisLeerlingRij(lln, taken, true);
+        });
+      }
+
+      let kolommen = '<col class="col-naam">';
+      taken.forEach(function () {
+        kolommen += '<col class="col-vak">';
+      });
+
+      const n = taken.length + 1;
+      wrapper.innerHTML =
+        '<div class="kruis-binnen" style="--n:' + n + ';--taken:' + taken.length + '">' +
+          '<div class="kruis-titels">' + titels + '</div>' +
+          '<div class="kruis-datums">' + datums + '</div>' +
+          '<table class="kruistabel text-sm">' +
+            '<colgroup>' + kolommen + '</colgroup>' +
+            '<tbody>' + lichaam + '</tbody>' +
+          '</table>' +
+        '</div>';
+
+      wrapper.querySelectorAll('td.td-cel').forEach(function (td) {
+        td.addEventListener('pointerdown', onCelPointerDown);
+        td.addEventListener('contextmenu', function (event) {
+          if (event.ctrlKey || event.metaKey) event.preventDefault();
+        });
+      });
+      const veldNieuw = wrapper.querySelector('.veld-nieuwe-leerling');
+      if (veldNieuw) {
+        veldNieuw.value = staat.nieuweLeerlingTekst || '';
+        veldNieuw.addEventListener('keydown', onNieuweLeerlingToets);
+        veldNieuw.addEventListener('input', function (event) {
+          staat.nieuweLeerlingTekst = event.target.value;
+        });
+        veldNieuw.addEventListener('blur', onNieuweLeerlingBlur);
+        veldNieuw.addEventListener('focus', function () { selecteerCel(null); });
+      }
+      koppelLeerlingSleep(wrapper);
+      lijnKoppenOpTabel(wrapper);
+      requestAnimationFrame(function () { lijnKoppenOpTabel(wrapper); });
+      if (!herstelNaLeerling()) {
+        if (actiefNieuw && veldNieuw) {
+          veldNieuw.focus();
+          const pos = caret == null ? veldNieuw.value.length : Math.min(caret, veldNieuw.value.length);
+          try { veldNieuw.setSelectionRange(pos, pos); } catch (e) { /* negeren */ }
+        } else {
+          herstelSelectie();
+        }
+      }
+    }
+
+    function koppelLeerlingSleep(root) {
+      if (!root) return;
+      root.querySelectorAll('.leerling-sleep').forEach(function (knop) {
+        knop.addEventListener('pointerdown', onLeerlingSleepStart);
+        knop.addEventListener('keydown', onLeerlingSleepToets);
+      });
+    }
+
+    function leerlingSleepRijen(startEl) {
+      const tabelRij = startEl && startEl.closest ? startEl.closest('tr[data-leerling-rij]') : null;
+      if (tabelRij && tabelRij.parentNode) {
+        return Array.prototype.slice.call(tabelRij.parentNode.querySelectorAll('tr[data-leerling-rij]'));
+      }
+      const lijstRij = startEl && startEl.closest ? startEl.closest('.leerling-lijst-rij') : null;
+      if (lijstRij && lijstRij.parentNode) {
+        return Array.prototype.slice.call(lijstRij.parentNode.querySelectorAll('.leerling-lijst-rij'));
+      }
+      return [];
+    }
+
+    function onLeerlingSleepStart(event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const knop = event.currentTarget;
+      const rij = knop.closest('[data-leerling-rij]');
+      if (!rij) return;
+      event.stopPropagation();
+      knop.setPointerCapture(event.pointerId);
+      const rijen = leerlingSleepRijen(rij);
+      const startIndex = rijen.indexOf(rij);
+      const kader = rij.getBoundingClientRect();
+      staat.leerlingSleep = {
+        id: rij.getAttribute('data-lln'),
+        rij: rij,
+        knop: knop,
+        startY: event.clientY,
+        startIndex: startIndex,
+        naar: startIndex,
+        hoogte: Math.max(kader.height, 1),
+        startIds: rijen.map(function (item) { return item.getAttribute('data-lln'); })
+      };
+      rij.classList.add('leerling-sleepend');
+      document.body.classList.add('leerling-aan-het-slepen');
+      knop.addEventListener('pointermove', onLeerlingSleepBeweeg);
+      knop.addEventListener('pointerup', onLeerlingSleepEinde);
+      knop.addEventListener('pointercancel', onLeerlingSleepEinde);
+    }
+
+    function tekenLeerlingSleepDoel(sleep) {
+      const rijen = leerlingSleepRijen(sleep.rij);
+      rijen.forEach(function (rij, i) {
+        rij.classList.toggle('leerling-drop-doel', i === sleep.naar && i !== sleep.startIndex);
+      });
+    }
+
+    function onLeerlingSleepBeweeg(event) {
+      const sleep = staat.leerlingSleep;
+      if (!sleep) return;
+      const n = sleep.startIds.length;
+      if (n < 2) return;
+      const delta = event.clientY - sleep.startY;
+      sleep.rij.style.transform = 'translateY(' + delta + 'px)';
+      const naar = Math.max(0, Math.min(n - 1, sleep.startIndex + Math.round(delta / sleep.hoogte)));
+      if (naar === sleep.naar) return;
+      sleep.naar = naar;
+      tekenLeerlingSleepDoel(sleep);
+    }
+
+    function wisLeerlingSleepStijl(sleep) {
+      if (!sleep || !sleep.rij) return;
+      sleep.rij.classList.remove('leerling-sleepend', 'leerling-drop-doel');
+      sleep.rij.style.transform = '';
+      const rijen = leerlingSleepRijen(sleep.rij);
+      rijen.forEach(function (rij) { rij.classList.remove('leerling-drop-doel'); });
+    }
+
+    function onLeerlingSleepEinde(event) {
+      const knop = event.currentTarget;
+      knop.removeEventListener('pointermove', onLeerlingSleepBeweeg);
+      knop.removeEventListener('pointerup', onLeerlingSleepEinde);
+      knop.removeEventListener('pointercancel', onLeerlingSleepEinde);
+      try { knop.releasePointerCapture(event.pointerId); } catch (e) { /* negeren */ }
+      const sleep = staat.leerlingSleep;
+      staat.leerlingSleep = null;
+      document.body.classList.remove('leerling-aan-het-slepen');
+      if (!sleep) return;
+      wisLeerlingSleepStijl(sleep);
+      if (sleep.naar === sleep.startIndex || sleep.startIds.length < 2) return;
+      const ids = sleep.startIds.slice();
+      ids.splice(sleep.startIndex, 1);
+      ids.splice(sleep.naar, 0, sleep.id);
+      pasLeerlingVolgordeToe(ids, true);
+    }
+
+    function onLeerlingSleepToets(event) {
+      const toets = String(event.key || '').toLowerCase();
+      if (toets !== 'arrowup' && toets !== 'arrowdown') return;
+      event.preventDefault();
+      event.stopPropagation();
+      const id = event.currentTarget.getAttribute('data-lln');
+      const ids = leerlingenVanKlas().map(function (lln) { return lln.id; });
+      const van = ids.indexOf(id);
+      const naar = toets === 'arrowup' ? van - 1 : van + 1;
+      if (van < 0 || naar < 0 || naar >= ids.length) return;
+      ids.splice(van, 1);
+      ids.splice(naar, 0, id);
+      pasLeerlingVolgordeToe(ids, true);
+      requestAnimationFrame(function () {
+        const knoppen = document.querySelectorAll('.leerling-sleep');
+        for (let i = 0; i < knoppen.length; i++) {
+          if (knoppen[i].getAttribute('data-lln') === id) {
+            knoppen[i].focus();
+            break;
+          }
+        }
+      });
+    }
+
+    function pasLeerlingVolgordeToe(ids, herteken) {
+      if (!ids || ids.length < 2) return;
+      const klas = staat.gekozenKlas;
+      const plaats = {};
+      ids.forEach(function (id, i) { plaats[id] = i + 1; });
+      let gewijzigd = false;
+      staat.leerlingen.forEach(function (lln) {
+        if (lln.klas !== klas || leerlingVerwijderd(lln)) return;
+        const n = plaats[lln.id];
+        if (!n) return;
+        if (leerlingVolgordeGetal(lln) !== n) {
+          lln.volgorde = n;
+          gewijzigd = true;
+        }
+      });
+      if (!gewijzigd) return;
+      slaLeerlingVolgordeOp(klas, ids);
+      if (herteken) tekenActieveWeergave();
+      else tekenOpvolgActies();
+    }
+
+    function slaLeerlingVolgordeOp(klas, ids) {
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveLeerlingVolgorde', klas, ids);
+        return;
+      }
+      gasRun()
+        .withFailureHandler(function (fout) {
+          toonMelding('Volgorde opslaan mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .saveLeerlingVolgorde({ klas: klas, ids: ids });
+    }
+
+    /** Naamkolom volgt de langste naam; vakkolommen blijven vast op --vak. */
+    function lijnKoppenOpTabel(wrapper) {
+      const binnen = wrapper.querySelector('.kruis-binnen');
+      const naamCellen = wrapper.querySelectorAll('.kruistabel tbody th');
+      if (!binnen || !naamCellen.length) return;
+      let naamW = 0;
+      naamCellen.forEach(function (th) {
+        naamW = Math.max(naamW, th.scrollWidth);
+      });
+      if (!naamW) return;
+      binnen.style.setProperty('--naam', naamW + 'px');
+    }
+
+    function celStatusLabel(status, teltNietMee) {
+      if (teltNietMee) return 'Niet in orde — al opgevolgd';
+      return status || 'Nog geen registratie';
+    }
+
+    function celKlassen(status, teltNietMee) {
+      if (status === 'In orde') return 'bg-emerald-500 text-white hover:bg-emerald-600';
+      if (status === 'Niet in orde') {
+        return teltNietMee
+          ? 'bg-rose-200 text-rose-800 hover:bg-rose-300'
+          : 'bg-rose-500 text-white hover:bg-rose-600';
+      }
+      if (status === 'Afwezig') return 'bg-slate-400 text-white hover:bg-slate-500';
+      if (status === 'Te laat') return 'bg-yellow-400 text-yellow-950 hover:bg-yellow-500';
+      if (status === 'Te maken') return 'bg-yellow-100 text-yellow-900 hover:bg-yellow-200';
+      return 'bg-slate-200 text-slate-400 hover:bg-slate-300';
+    }
+
+    function celTekst(status) {
+      if (status === 'In orde') return '✓';
+      if (status === 'Niet in orde') return '✕';
+      if (status === 'Afwezig') return 'A';
+      if (status === 'Te laat') return 'L';
+      if (status === 'Te maken') return '•';
+      return '';
+    }
+
+    function zoekCelKnop(llnId, taakId) {
+      const knoppen = document.querySelectorAll('.cel-status');
+      for (let i = 0; i < knoppen.length; i++) {
+        if (knoppen[i].getAttribute('data-lln') === llnId && knoppen[i].getAttribute('data-taak') === taakId) {
+          return knoppen[i];
+        }
+      }
+      return null;
+    }
+
+    function celVanKnop(knop) {
+      return {
+        llnId: knop.getAttribute('data-lln'),
+        taakId: knop.getAttribute('data-taak')
+      };
+    }
+
+    function celInSelectie(llnId, taakId) {
+      return staat.selectie.some(function (cel) {
+        return cel.llnId === llnId && cel.taakId === taakId;
+      });
+    }
+
+    function rechthoekSelectie(start, einde) {
+      const leerlingen = leerlingenInKruistabel();
+      const taken = zichtbareTaken();
+      let r1 = leerlingen.findIndex(function (l) { return l.id === start.llnId; });
+      let r2 = leerlingen.findIndex(function (l) { return l.id === einde.llnId; });
+      let c1 = taken.findIndex(function (t) { return t.id === start.taakId; });
+      let c2 = taken.findIndex(function (t) { return t.id === einde.taakId; });
+      if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0) return [einde];
+      const rMin = Math.min(r1, r2);
+      const rMax = Math.max(r1, r2);
+      const cMin = Math.min(c1, c2);
+      const cMax = Math.max(c1, c2);
+      const result = [];
+      for (let r = rMin; r <= rMax; r++) {
+        for (let c = cMin; c <= cMax; c++) {
+          result.push({ llnId: leerlingen[r].id, taakId: taken[c].id });
+        }
+      }
+      return result;
+    }
+
+    function tekenSelectie() {
+      document.querySelectorAll('.cel-status').forEach(function (knop) {
+        knop.classList.toggle('cel-actief', celInSelectie(knop.getAttribute('data-lln'), knop.getAttribute('data-taak')));
+      });
+    }
+
+    function voegSelectiesSamen(a, b) {
+      const gezien = {};
+      const result = [];
+      function voeg(cel) {
+        const sleutel = cel.llnId + '\t' + cel.taakId;
+        if (gezien[sleutel]) return;
+        gezien[sleutel] = true;
+        result.push({ llnId: cel.llnId, taakId: cel.taakId });
+      }
+      (a || []).forEach(voeg);
+      (b || []).forEach(voeg);
+      return result;
+    }
+
+    function wisselCelInSelectie(cel) {
+      if (celInSelectie(cel.llnId, cel.taakId)) {
+        staat.selectie = staat.selectie.filter(function (item) {
+          return !(item.llnId === cel.llnId && item.taakId === cel.taakId);
+        });
+      } else {
+        staat.selectie = staat.selectie.concat([cel]);
+      }
+    }
+
+    function selecteerCel(knop) {
+      if (!knop) {
+        staat.geselecteerd = null;
+        staat.selectie = [];
+        staat.selectieAnker = null;
+        tekenSelectie();
+        return;
+      }
+      const cel = celVanKnop(knop);
+      staat.geselecteerd = cel;
+      staat.selectieAnker = cel;
+      staat.selectie = [cel];
+      tekenSelectie();
+      knop.focus();
+    }
+
+    function herstelSelectie() {
+      staat.selectie = (staat.selectie || []).filter(function (cel) {
+        return !!zoekCelKnop(cel.llnId, cel.taakId);
+      });
+      if (staat.geselecteerd && !zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId)) {
+        staat.geselecteerd = staat.selectie[0] || null;
+      }
+      if (staat.selectieAnker && !zoekCelKnop(staat.selectieAnker.llnId, staat.selectieAnker.taakId)) {
+        staat.selectieAnker = staat.geselecteerd;
+      }
+      tekenSelectie();
+      if (!staat.geselecteerd) return;
+      const knop = zoekCelKnop(staat.geselecteerd.llnId, staat.geselecteerd.taakId);
+      if (knop) knop.focus();
+    }
+
+    function knopOnderPunt(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el || !el.closest) return null;
+      const knop = el.closest('.cel-status');
+      if (knop) return knop;
+      const td = el.closest('td.td-cel');
+      return td ? td.querySelector('.cel-status') : null;
+    }
+
+    function knopVanPointerEvent(event) {
+      if (event.currentTarget && event.currentTarget.classList && event.currentTarget.classList.contains('cel-status')) {
+        return event.currentTarget;
+      }
+      if (event.currentTarget && event.currentTarget.querySelector) {
+        return event.currentTarget.querySelector('.cel-status');
+      }
+      return knopOnderPunt(event.clientX, event.clientY);
+    }
+
+    function onCelPointerDown(event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const knop = knopVanPointerEvent(event);
+      if (!knop) return;
+      if (event.pointerType === 'touch') {
+        selecteerCel(knop);
+        return;
+      }
+      event.preventDefault();
+      const cel = celVanKnop(knop);
+      const toevoegen = !!(event.ctrlKey || event.metaKey);
+      const bereik = !!event.shiftKey;
+
+      if (toevoegen && !bereik) {
+        staat.slepen = true;
+        staat.sleepModus = 'toevoegen';
+        staat.sleepStart = cel;
+        staat.sleepPunt = { x: event.clientX, y: event.clientY };
+        staat.sleepBasis = (staat.selectie || []).slice();
+        staat.sleepVerplaatst = false;
+        staat.geselecteerd = cel;
+        if (!staat.selectieAnker) staat.selectieAnker = cel;
+        staat.selectie = voegSelectiesSamen(staat.sleepBasis, [cel]);
+        tekenSelectie();
+        document.body.classList.add('kruis-slepen');
+        knop.focus();
+        return;
+      }
+
+      if (bereik && (staat.selectieAnker || staat.geselecteerd)) {
+        const anker = staat.selectieAnker || staat.geselecteerd;
+        staat.sleepModus = '';
+        staat.sleepBasis = [];
+        staat.sleepVerplaatst = false;
+        staat.geselecteerd = cel;
+        staat.selectie = rechthoekSelectie(anker, cel);
+        staat.slepen = true;
+        staat.sleepPunt = { x: event.clientX, y: event.clientY };
+        staat.sleepStart = anker;
+        tekenSelectie();
+        document.body.classList.add('kruis-slepen');
+        knop.focus();
+        return;
+      }
+
+      staat.selectieAnker = cel;
+      staat.slepen = true;
+      staat.sleepModus = '';
+      staat.sleepBasis = [];
+      staat.sleepVerplaatst = false;
+      staat.sleepPunt = { x: event.clientX, y: event.clientY };
+      staat.sleepStart = cel;
+      staat.geselecteerd = cel;
+      staat.selectie = [cel];
+      tekenSelectie();
+      document.body.classList.add('kruis-slepen');
+      // Geef de cel expliciet focus zodat toetsenbordshortcuts meteen werken,
+      // ook als een inputveld (bijv. leerlingnaam) nog de focus had.
+      knop.focus({ preventScroll: true });
+    }
+
+    function onDocumentPointerMove(event) {
+      if (!staat.slepen || !staat.sleepStart) return;
+      event.preventDefault();
+      if (!staat.sleepVerplaatst && staat.sleepPunt) {
+        const dx = event.clientX - staat.sleepPunt.x;
+        const dy = event.clientY - staat.sleepPunt.y;
+        if ((dx * dx) + (dy * dy) < 64) return;
+      }
+      const knop = knopOnderPunt(event.clientX, event.clientY);
+      if (!knop) return;
+      const einde = celVanKnop(knop);
+      if (einde.llnId !== staat.sleepStart.llnId || einde.taakId !== staat.sleepStart.taakId) {
+        staat.sleepVerplaatst = true;
+      }
+      staat.geselecteerd = einde;
+      const blok = rechthoekSelectie(staat.sleepStart, einde);
+      staat.selectie = staat.sleepModus === 'toevoegen'
+        ? voegSelectiesSamen(staat.sleepBasis, blok)
+        : blok;
+      tekenSelectie();
+    }
+
+    function onDocumentPointerUp() {
+      if (!staat.slepen) return;
+      if (staat.sleepModus === 'toevoegen' && !staat.sleepVerplaatst && staat.sleepStart) {
+        staat.selectie = (staat.sleepBasis || []).slice();
+        wisselCelInSelectie(staat.sleepStart);
+        staat.geselecteerd = celInSelectie(staat.sleepStart.llnId, staat.sleepStart.taakId)
+          ? staat.sleepStart
+          : (staat.selectie[staat.selectie.length - 1] || null);
+        tekenSelectie();
+      }
+      staat.slepen = false;
+      staat.sleepStart = null;
+      staat.sleepModus = '';
+      staat.sleepBasis = [];
+      staat.sleepVerplaatst = false;
+      staat.sleepPunt = null;
+      document.body.classList.remove('kruis-slepen');
+    }
+
+    function klikInKruisGrid(event) {
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      const tabel = wrapper && wrapper.querySelector('table.kruistabel');
+      if (!tabel) return false;
+      const x = event.clientX;
+      const y = event.clientY;
+      const tabelRect = tabel.getBoundingClientRect();
+      if (x >= tabelRect.left && x <= tabelRect.right && y >= tabelRect.top && y <= tabelRect.bottom) {
+        return true;
+      }
+      const koppen = wrapper.querySelectorAll('.kruis-titels, .kruis-datums');
+      for (let i = 0; i < koppen.length; i++) {
+        const r = koppen[i].getBoundingClientRect();
+        if (x >= tabelRect.left && x <= tabelRect.right && y >= r.top && y <= r.bottom) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function onDocumentPointerDown(event) {
+      if (staat.slepen) return;
+      if (modalOpen()) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (!staat.geselecteerd && !(staat.selectie && staat.selectie.length)) return;
+      const doel = event.target;
+      if (doel && doel.closest && (doel.closest('.legende-status') || doel.closest('[data-actie="al-opgevolgd"]'))) return;
+      if (klikInKruisGrid(event)) return;
+      selecteerCel(null);
+    }
+
+    function werkCelNaRegistratie(cel, reg, status) {
+      const knop = zoekCelKnop(cel.llnId, cel.taakId);
+      if (!knop) return;
+      const lln = leerlingOpId(cel.llnId);
+      const taak = taakOpId(cel.taakId);
+      const teltNietMee = registratieTeltNietMee(lln, reg);
+      const statusLabel = celStatusLabel(status, teltNietMee);
+      const actief = celInSelectie(cel.llnId, cel.taakId) ? ' cel-actief' : '';
+      knop.className = 'cel-status' + actief + ' ' + celKlassen(status, teltNietMee);
+      knop.textContent = celTekst(status);
+      knop.setAttribute('title', taak
+        ? [taakTitel(taak), statusLabel].concat(reg && reg.opmerking ? [reg.opmerking] : []).join(' — ')
+        : statusLabel);
+      knop.setAttribute('aria-label', (lln && taak)
+        ? lln.naam + ': ' + taakTitel(taak) + ', ' + statusLabel
+        : statusLabel);
+      if (lln) {
+        wisOpvolgingBijGeenTekorten(lln);
+        verversOpvolgingUI(lln);
+        if (staat.modal === 'fiche') {
+          const ficheKnop = document.getElementById('knop-leerling-verwijderen');
+          if (ficheKnop && ficheKnop.getAttribute('data-id') === lln.id) {
+            tekenLeerlingFiche(lln);
+          }
+        }
+      }
+    }
+
+    function pasGeselecteerdeStatus(status) {
+      const cellen = staat.selectie && staat.selectie.length
+        ? staat.selectie
+        : (staat.geselecteerd ? [staat.geselecteerd] : []);
+      if (!cellen.length) return;
+      const leeg = !status;
+      const klas = staat.gekozenKlas || '';
+
+      // Optimistisch: alle cellen meteen lokaal bijwerken en tegelijk payload opbouwen.
+      const payloads = [];
+      const tempRijen = [];
+      cellen.forEach(function (cel) {
+        const vorige = laatsteRegistratieVoorKlas(leerlingOpId(cel.llnId), taakOpId(cel.taakId), klas);
+        const payload = {
+          llnId: cel.llnId,
+          taakId: cel.taakId,
+          status: status || '',
+          opmerking: leeg ? '' : (vorige ? vorige.opmerking : ''),
+          klas: klas
+        };
+        const tempRij = Object.assign({ datumTijd: nieuweTijdstempel() }, payload);
+        staat.registraties.push(tempRij);
+        tempRijen.push(tempRij);
+        payloads.push(payload);
+        werkCelNaRegistratie(cel, tempRij, status);
+      });
+      tekenSelectie();
+
+      // Één GAS-call voor alle wijzigingen.
+      slaRegistratiesOp(payloads, tempRijen);
+    }
+
+    function pasGeselecteerdeAlOpgevolgd() {
+      const cellen = staat.selectie && staat.selectie.length
+        ? staat.selectie
+        : (staat.geselecteerd ? [staat.geselecteerd] : []);
+      if (!cellen.length) return;
+      const klas = staat.gekozenKlas || '';
+
+      const geenReset = [];
+      const payloads = [];
+      const tempRijen = [];
+
+      cellen.forEach(function (cel) {
+        const lln = leerlingOpId(cel.llnId);
+        if (!String(lln && lln.opvolgingResetOp || '').trim()) {
+          if (lln) geenReset.push(lln.naam);
+          return;
+        }
+        const vorige = laatsteRegistratieVoorKlas(lln, taakOpId(cel.taakId), klas);
+        const payload = {
+          llnId: cel.llnId,
+          taakId: cel.taakId,
+          status: 'Niet in orde',
+          opmerking: vorige ? vorige.opmerking : '',
+          klas: klas,
+          alOpgevolgd: true
+        };
+        const tempRij = Object.assign({ datumTijd: nieuweTijdstempel() }, payload);
+        staat.registraties.push(tempRij);
+        tempRijen.push(tempRij);
+        payloads.push(payload);
+        werkCelNaRegistratie(cel, tempRij, 'Niet in orde');
+      });
+      tekenSelectie();
+
+      if (payloads.length) slaRegistratiesOp(payloads, tempRijen);
+
+      if (geenReset.length) {
+        const uniek = geenReset.filter(function (naam, i, arr) { return arr.indexOf(naam) === i; });
+        toonMelding(
+          'Al opgevolgd kan pas nadat je de opvolging hebt afgerond voor: ' + uniek.join(', ') + '.',
+          'fout'
+        );
+      }
+    }
+
+    function verplaatsSelectie(richting) {
+      const knoppen = Array.prototype.slice.call(document.querySelectorAll('.cel-status'));
+      if (!knoppen.length) return;
+      const kolommen = gesorteerdeTaken().length || 1;
+      let index = knoppen.findIndex(function (k) {
+        return staat.geselecteerd &&
+          k.getAttribute('data-lln') === staat.geselecteerd.llnId &&
+          k.getAttribute('data-taak') === staat.geselecteerd.taakId;
+      });
+      if (index < 0) index = 0;
+      else if (richting === 'arrowleft') index -= 1;
+      else if (richting === 'arrowright') index += 1;
+      else if (richting === 'arrowup') index -= kolommen;
+      else if (richting === 'arrowdown') {
+        const actieveCellen = leerlingenVanKlas().length * kolommen;
+        if (index < actieveCellen && index + kolommen >= actieveCellen) {
+          const veld = document.querySelector('.veld-nieuwe-leerling');
+          if (veld) {
+            selecteerCel(null);
+            veld.focus();
+          }
+          return;
+        }
+        index += kolommen;
+      }
+      if (index >= knoppen.length && richting === 'arrowdown') {
+        const veld = document.querySelector('.veld-nieuwe-leerling');
+        if (veld) {
+          selecteerCel(null);
+          veld.focus();
+        }
+        return;
+      }
+      if (index < 0 || index >= knoppen.length) return;
+      selecteerCel(knoppen[index]);
+    }
+
+    function onKruisToets(event) {
+      if (staat.actieveTab !== 'kruistabel' || !staat.gekozenKlas) return;
+      // Gebruik activeElement (niet event.target): na een re-render kan event.target <body> zijn
+      // terwijl de gebruiker gewoon aan het typen is in het leerlinginputveld.
+      const actief = document.activeElement;
+      const tag = ((actief && actief.tagName) || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (actief && actief.closest && actief.closest('.leerling-sleep')) return;
+      if (modalOpen()) {
+        if (String(event.key || '').toLowerCase() === 'escape') sluitModal();
+        return;
+      }
+
+      const toets = String(event.key || '').toLowerCase();
+      if (toets === 'backspace' || toets === 'delete') {
+        event.preventDefault();
+        pasGeselecteerdeStatus('');
+        return;
+      }
+      if (toets === '6') {
+        event.preventDefault();
+        pasGeselecteerdeAlOpgevolgd();
+        return;
+      }
+      if (STATUS_TOETSEN[toets]) {
+        event.preventDefault();
+        pasGeselecteerdeStatus(STATUS_TOETSEN[toets]);
+        return;
+      }
+      if (toets === 'arrowleft' || toets === 'arrowright' || toets === 'arrowup' || toets === 'arrowdown') {
+        event.preventDefault();
+        verplaatsSelectie(toets);
+      }
+    }
+</script>

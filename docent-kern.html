@@ -1,0 +1,1565 @@
+<!--
+  docent-kern.html
+  Data-laag van het docentscherm.
+  Inhoud: mockdata, constanten, gedeelde staat, GAS-koppeling,
+  laden/opslaan van leerlingen, taken, registraties en klassen,
+  klashelpers, filters, instellingen en HTML-escaping.
+-->
+<script>
+    const KLAS_OPSLag = 'opvolgtool-klas';
+
+    // --- Mockdata gelijk aan de Sheets-structuur (lokale tests) ---
+    const MOCK_LEERLINGEN = [
+      { id: 'L001', naam: 'Emma Peeters', klas: '3A', code: 'A7X9A7X9' },
+      { id: 'L002', naam: 'Noah Janssens', klas: '3A', code: 'B2K4B2K4' },
+      { id: 'L004', naam: 'Lucas De Smet', klas: '3A', code: 'D5P8D5P8' },
+      { id: 'L006', naam: 'Finn Goossens', klas: '3A', code: 'F8T2F8T2' },
+      { id: 'L007', naam: 'Mila Wouters', klas: '3A', code: 'G3Q4G3Q4' },
+      { id: 'L008', naam: 'Adam Coppens', klas: '3A', code: 'H6R3H6R3' },
+      { id: 'L003', naam: 'Sophie Vermeulen', klas: '3B', code: 'C9M3C9M3' },
+      { id: 'L005', naam: 'Elise Claes', klas: '3B', code: 'E3W6E3W6' },
+      { id: 'L009', naam: 'Jules Maes', klas: '3B', code: 'J4N8J4N8' },
+      { id: 'L010', naam: 'Nora Lambert', klas: '3B', code: 'K2S7K2S7' },
+      { id: 'L011', naam: 'Vince Hendrickx', klas: '3B', code: 'L8U3L8U3' },
+      { id: 'L012', naam: 'Lina Jacobs', klas: '4A', code: 'M5V9M5V9' },
+      { id: 'L013', naam: 'Mats Vermeiren', klas: '4A', code: 'N7Y2N7Y2' },
+      { id: 'L014', naam: 'Amber Smets', klas: '4A', code: 'P3Z6P3Z6' },
+      { id: 'L015', naam: 'Daan Willems', klas: '4A', code: 'Q9C4Q9C4' }
+    ];
+
+    const MOCK_KLASSEN = [
+      { naam: '3A', vak: 'Wiskunde' },
+      { naam: '3B', vak: 'Wiskunde' },
+      { naam: '4A', vak: 'Wiskunde' }
+    ];
+
+    const MOCK_TAKEN = [
+      { id: 'T001', naam: 'Wiskunde', type: 'Huistaak', deadline: '2026-08-20' },
+      { id: 'T002', naam: 'Agenda', type: 'Lesopdracht', deadline: '2026-08-22' },
+      { id: 'T005', naam: 'Boekbespreking Nederlands', type: 'Huistaak', deadline: '2026-08-28' },
+      { id: 'T006', naam: 'Toets geschiedenis', type: 'Schriftelijke voorbereiding', deadline: '2026-08-29' },
+      { id: 'T007', naam: 'Frans', type: 'Huistaak', deadline: '2026-09-01' },
+      { id: 'T009', naam: 'Groepswerk WO', type: 'Lesopdracht', deadline: '2026-09-04' },
+      { id: 'T010', naam: 'Wetenschappen', type: 'Bookwidgetsopdracht', deadline: '2026-09-08' },
+      { id: 'T011', naam: 'Spreekbeurt', type: 'Schriftelijke voorbereiding', deadline: '2026-09-11' },
+      { id: 'T012', naam: 'Wiskunde', type: 'Bijles', deadline: '2026-09-12' },
+      { id: 'T013', naam: 'Burgerschap', type: 'Niet-verplichte taak', deadline: '2026-09-15' },
+      { id: 'T014', naam: 'Engels', type: 'Remediëringsopdracht', deadline: '2026-09-18' }
+    ];
+
+    const MOCK_REGISTRATIES = [
+      { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'Niet in orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.' },
+      { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.' },
+      { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:18', llnId: 'L003', taakId: 'T005', status: 'In orde', opmerking: 'Mooi werk.' },
+      { datumTijd: '2026-08-17 08:19', llnId: 'L004', taakId: 'T002', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:21', llnId: 'L005', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-17 08:22', llnId: 'L005', taakId: 'T002', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-20 08:05', llnId: 'L007', taakId: 'T001', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-20 08:06', llnId: 'L008', taakId: 'T001', status: 'Niet in orde', opmerking: 'Blanco blad.' },
+      { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T006', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-08-22 08:11', llnId: 'L006', taakId: 'T006', status: 'Niet in orde', opmerking: 'Niet geleerd.' },
+      { datumTijd: '2026-09-01 08:20', llnId: 'L012', taakId: 'T007', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-09-01 08:21', llnId: 'L013', taakId: 'T007', status: 'Niet in orde', opmerking: 'Vergeten.' },
+      { datumTijd: '2026-09-04 08:30', llnId: 'L009', taakId: 'T009', status: 'In orde', opmerking: '' },
+      { datumTijd: '2026-09-08 08:15', llnId: 'L010', taakId: 'T010', status: 'Niet in orde', opmerking: 'Onvolledig.' },
+      { datumTijd: '2026-08-20 08:07', llnId: 'L004', taakId: 'T001', status: 'Afwezig', opmerking: 'Ziek.' },
+      { datumTijd: '2026-08-20 08:08', llnId: 'L006', taakId: 'T001', status: 'Te maken', opmerking: 'Inhaalwerk gevraagd.' },
+      { datumTijd: '2026-09-08 08:12', llnId: 'L007', taakId: 'T010', status: 'Afwezig', opmerking: '' },
+      { datumTijd: '2026-09-08 08:13', llnId: 'L008', taakId: 'T010', status: 'Te laat', opmerking: '' }
+    ];
+
+    const TAB_ACTIEF = 'bg-indigo-600 text-white';
+    const TAB_INACTIEF = 'text-slate-600 hover:bg-slate-100';
+    /** Excel-aanpak: vakje selecteren, daarna 1–6 of letter intoetsen. */
+    const STATUS_TOETSEN = {
+      '1': 'In orde', i: 'In orde',
+      '2': 'Niet in orde', n: 'Niet in orde',
+      '3': 'Afwezig', a: 'Afwezig',
+      '4': 'Te laat', l: 'Te laat',
+      '5': 'Te maken', t: 'Te maken'
+    };
+    const STATUS_OPTIES = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
+    const DREMPEL_MIN = 2;
+    const DREMPEL_MAX = 6;
+    const DEFAULT_OPVOLGING = {
+      opvolgingAan: true,
+      opvolgingDrempel: 3,
+      berichtLeerling:
+        'Onderwerp: Openstaande opdrachten bijwerken\n\n' +
+        'Hallo {voornaam},\n\n' +
+        'Ik zie dat er meerdere opdrachten zijn die je nog in orde moet brengen:\n\n' +
+        '{taken}\n\n' +
+        'Omdat het intussen al {drempel} keer is dat een opdracht niet (of te laat) gemaakt werd, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+        'Ik verwacht dan ook dat je deze lijst met opdrachten volledig afwerkt tegen de eerstvolgende les.\n\n' +
+        'Om te vermijden dat we tijdens de les tijd verliezen aan de controle, vraag ik je om een duidelijke foto van al het gemaakte werk te uploaden in de uploadzone. Je doet dat in de uploadmap met als naam \'Opdrachten inhalen\'.\n\n' +
+        'Ik reken erop dat dit tegen de volgende les volledig in orde is.\n\n' +
+        'Met vriendelijke groeten',
+      berichtOuders:
+        'Onderwerp: Openstaande opdrachten {voornaam}\n\n' +
+        'Beste ouders van {voornaam},\n\n' +
+        'Via dit bericht wil ik u even op de hoogte brengen van de openstaande opdrachten van {voornaam}.\n\n' +
+        'Hoewel ik {voornaam} hierover al persoonlijk heb aangesproken en er duidelijke afspraken zijn gemaakt, stelde ik vast dat de volgende opdrachten nog steeds niet zijn ingeleverd:\n\n' +
+        '{taken}\n\n' +
+        'Omdat we willen vermijden dat de achterstand groter wordt, vraag ik om dit samen met {voornaam} mee op te volgen en ervoor te zorgen dat deze opdrachten alsnog zo snel mogelijk afgewerkt worden. Zodra het werk klaar is, kan {voornaam} hiervan een duidelijke foto uploaden in de uploadmap \'Opdrachten inhalen\'.\n\n' +
+        'U kunt de actuele status van alle taken, opdrachten en remediëringen overigens steeds zelf raadplegen via ons leerlingenvolgsysteem.\n\n' +
+        'Alvast bedankt voor uw medewerking en ondersteuning thuis.\n\n' +
+        'Met vriendelijke groeten',
+      berichtNablijf:
+        'Onderwerp: Verplichte avondstudie openstaande opdrachten {voornaam}\n\n' +
+        'Beste ouders van {voornaam},\n\n' +
+        'Ondanks eerdere herinneringen en ons vorig contact over de openstaande schoolopdrachten, stelde ik vast dat {voornaam} de volgende taken nog steeds niet in orde heeft gebracht:\n\n' +
+        '{taken}\n\n' +
+        'Omdat het belangrijk is dat deze achterstand nu definitief wordt weggewerkt, is {voornaam} ingeschreven voor de avondstudie op {datum} van 16.00u tot 17.00u.\n\n' +
+        'We verwachten dat {voornaam} daar aanwezig is, om onder toezicht aan deze opdrachten te werken en ze af te ronden. Gelieve ervoor te zorgen dat {voornaam} het nodige lesmateriaal meeneemt om zelfstandig aan de slag te kunnen.\n\n' +
+        'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
+        'Bedankt voor uw medewerking.\n\n' +
+        'Met vriendelijke groeten'
+    };
+    const OUD_BERICHT_LEERLING = [
+      'Hallo {voornaam},\n\n' +
+      'Je hebt nog taken die niet in orde zijn:\n' +
+      '{taken}\n\n' +
+      'Haal die in tegen de volgende les.\n\n' +
+      'Dankjewel',
+      'Hallo {voornaam},\n\n' +
+      'Voor {klas} zijn er nog taken of afspraken die niet in orde zijn:\n\n' +
+      '{taken}\n\n' +
+      'Breng die tegen de volgende les in orde. Lukt dat niet of is iets onduidelijk, laat het me dan tijdig weten.\n\n' +
+      'Dankjewel',
+      'Hallo {voornaam},\n\n' +
+      'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+      '{taken}\n\n' +
+      'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+      'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+      'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we samen kunnen kijken.\n\n' +
+      'Met vriendelijke groeten',
+      'Hallo {voornaam},\n\n' +
+      'Ik zie dat er meerdere taken zijn die je nog moet in orde brengen:\n\n' +
+      '{taken}\n\n' +
+      'Omdat het intussen al {drempel} keer is dat je met een opdracht niet in orde bent, is het belangrijk dat we dit meteen rechttrekken.\n\n' +
+      'Ik verwacht dan ook dat je deze taken tegen de volgende les in orde brengt.\n\n' +
+      'Heb je inhoudelijke vragen of loop je ergens vast? Spreek me dan vóór die tijd aan, zodat we dit samen kunnen bekijken.\n\n' +
+      'Met vriendelijke groeten'
+    ];
+    const OUD_BERICHT_OUDERS = [
+      'Beste ouder(s) van {naam},\n\n' +
+      '{voornaam} heeft meerdere taken die niet in orde zijn:\n' +
+      '{taken}\n\n' +
+      'Ik heb {voornaam} gevraagd dit tegen de volgende les in te halen. Kan u dit thuis mee opvolgen?\n\n' +
+      'Met vriendelijke groeten',
+      'Beste ouder(s) van {naam},\n\n' +
+      'Ik contacteer u over de opvolging van {voornaam} in {klas}. Er zijn al meermaals taken of afspraken niet in orde geweest. Op dit moment staan nog deze items open:\n\n' +
+      '{taken}\n\n' +
+      'Ik heb {voornaam} gevraagd om dit tegen de volgende les in te halen. Mag ik u vragen om dit thuis mee op te volgen?\n\n' +
+      'Als er vragen zijn of omstandigheden waarvan ik best op de hoogte ben, hoor ik het graag.\n\n' +
+      'Met vriendelijke groeten'
+    ];
+    const OUD_BERICHT_NABLIJF = [
+      'Beste ouder(s) van {naam},\n\n' +
+      'De openstaande taken zijn nog niet in orde:\n' +
+      '{taken}\n\n' +
+      '{voornaam} wordt ingeschreven voor nablijfstudie om dit in te halen.\n\n' +
+      'Met vriendelijke groeten',
+      'Beste ouder(s) van {naam},\n\n' +
+      'Ik contacteer u opnieuw over {voornaam} in {klas}. Ondanks de eerdere afspraak zijn de openstaande taken nog niet in orde:\n\n' +
+      '{taken}\n\n' +
+      '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
+      'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+      'Met vriendelijke groeten'
+    ];
+    const BERICHT_MAX = 4000;
+    const GROEP_KLEUR = {
+      huiswerk: 'bg-sky-400',
+      leerkans: 'bg-orange-400',
+      optioneel: 'bg-slate-400'
+    };
+
+    let staat = {
+      leerlingen: [],
+      taken: [],
+      registraties: [],
+      klassen: [],
+      instellingen: {
+        opvolgingAan: true,
+        opvolgingDrempel: 3,
+        berichtLeerling: '',
+        berichtOuders: '',
+        berichtNablijf: ''
+      },
+      gekozenKlas: '',
+      klasTeVerwijderen: '',
+      klasTeHernoemen: '',
+      actieveTab: 'kruistabel',
+      mobieleTab: 'leerling',
+      lijstLeerlingId: null,
+      lijstTaakId: null,
+      bulkModus: '',
+      filterPaneelOpen: false,
+      leerlingLijstMinHoogte: 0,
+      geselecteerd: null,
+      selectie: [],
+      selectieAnker: null,
+      slepen: false,
+      sleepStart: null,
+      sleepModus: '',
+      sleepBasis: [],
+      sleepVerplaatst: false,
+      sleepPunt: null,
+      sortering: 'datum',
+      groepFilters: [],
+      avondstudieDatum: '',
+      modalTopVast: false,
+      modal: null,
+      naLeerling: null,
+      bezigLeerling: false,
+      bevestigActie: null,
+      taakBewerkenId: '',
+      nieuweLeerlingTekst: '',
+      registratieWachtrij: [],
+      opvolgingDoorgaan: {},
+      leerlingSleep: null,
+      webAppUrl: '',
+      leerlingUrl: ''
+    };
+
+    /**
+     * True als de pagina geserveerd wordt door Google Apps Script.
+     * Detectie via URL — betrouwbaarder dan de google.script.run check,
+     * die asynchroon beschikbaar komt en dus te vroeg false kan teruggeven.
+     */
+    function isGasOmgeving() {
+      var url = window.location.href;
+      return url.indexOf('script.google.com') !== -1 ||
+             url.indexOf('googleusercontent.com') !== -1 ||
+             url.indexOf('/macros/') !== -1;
+    }
+
+    /**
+     * Geeft google.script.run terug als het beschikbaar is, anders null.
+     * Let op: google.script.run is een object, geen function —
+     * typeof check op 'function' was fout en blokkeerde de GAS-koppeling.
+     */
+    function gasRun() {
+      try {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          return google.script.run;
+        }
+      } catch (e) { /* defensief */ }
+      return null;
+    }
+
+    (function debugGasStatus() {
+      console.log('[GAS-check] isGasOmgeving=' + isGasOmgeving() + ' | gasRun=' + (gasRun() ? 'beschikbaar' : 'nog niet klaar') + ' | url=' + window.location.href);
+    }());
+
+    let meldingTimer = null;
+
+    function toonMelding(tekst, type) {
+      const el = document.getElementById('melding');
+      el.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-amber-50', 'text-amber-900', 'border-amber-200');
+      if (type === 'ok') el.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-200');
+      else if (type === 'fout') el.classList.add('bg-rose-50', 'text-rose-800', 'border-rose-200');
+      else el.classList.add('bg-amber-50', 'text-amber-900', 'border-amber-200');
+      el.textContent = tekst;
+      if (meldingTimer) clearTimeout(meldingTimer);
+      meldingTimer = setTimeout(function () {
+        el.classList.add('hidden');
+        meldingTimer = null;
+      }, type === 'fout' ? 5000 : 3200);
+    }
+
+    function haalDocentData(pogingNr) {
+      if (isGasOmgeving()) {
+        var run = gasRun();
+        if (!run) {
+          // google.script.run is nog niet geïnjecteerd — wacht max 5s
+          if ((pogingNr || 0) < 100) {
+            setTimeout(function () { haalDocentData((pogingNr || 0) + 1); }, 50);
+          } else {
+            toonMelding('Kon geen verbinding maken met Google Apps Script. Herlaad de pagina.', 'fout');
+            console.error('[GAS] google.script.run nooit beschikbaar geworden na 5s — controleer je implementatie en browser-extensies.');
+          const overlay = document.getElementById('laad-overlay');
+          if (overlay) overlay.remove();
+          }
+          return;
+        }
+        console.log('[GAS] getDocentData — echte data ophalen (poging ' + (pogingNr || 0) + ')');
+        run
+          .withSuccessHandler(verwerkData)
+          .withFailureHandler(function (fout) {
+            toonMelding('Kon gegevens niet laden: ' + (fout.message || fout), 'fout');
+            console.error('[GAS] getDocentData fout:', fout);
+            const overlay = document.getElementById('laad-overlay');
+            if (overlay) overlay.remove();
+          })
+          .getDocentData();
+        return;
+      }
+
+      console.log('[LOKAAL] getDocentData — mockdata uit Sheets-structuur');
+      verwerkData({
+        leerlingen: MOCK_LEERLINGEN,
+        taken: MOCK_TAKEN,
+        registraties: MOCK_REGISTRATIES.slice(),
+        klassen: MOCK_KLASSEN.slice(),
+        instellingen: leesLokaleInstellingen()
+      });
+    }
+
+    /**
+     * Sla meerdere registraties in één GAS-call op (batch).
+     * items = [{llnId, taakId, status, opmerking, klas?, alOpgevolgd?}]
+     * naSucces(savedItems[]) wordt aangeroepen na bevestiging (optioneel).
+     * Optimistische updates worden al door de aanroeper gedaan via slaRegistratieOp().
+     */
+    function isTijdelijkId(id) {
+      return String(id || '').indexOf('__temp_') === 0;
+    }
+
+    function registratieHeeftTijdelijkeIds(payload) {
+      return isTijdelijkId(payload.llnId) || isTijdelijkId(payload.taakId);
+    }
+
+    function vervangIdInSelectie(type, oudId, nieuwId) {
+      function mapCel(cel) {
+        if (!cel) return cel;
+        if (type === 'lln' && cel.llnId === oudId) return { llnId: nieuwId, taakId: cel.taakId };
+        if (type === 'taak' && cel.taakId === oudId) return { llnId: cel.llnId, taakId: nieuwId };
+        return cel;
+      }
+      staat.geselecteerd = mapCel(staat.geselecteerd);
+      staat.selectieAnker = mapCel(staat.selectieAnker);
+      staat.selectie = (staat.selectie || []).map(mapCel);
+      if (staat.naLeerling && type === 'lln' && staat.naLeerling.llnId === oudId) {
+        staat.naLeerling.llnId = nieuwId;
+      }
+      if (type === 'lln' && staat.lijstLeerlingId === oudId) staat.lijstLeerlingId = nieuwId;
+      if (type === 'taak' && staat.lijstTaakId === oudId) staat.lijstTaakId = nieuwId;
+    }
+
+    function vervangLeerlingIdInDom(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      document.querySelectorAll('[data-lln]').forEach(function (el) {
+        if (el.getAttribute('data-lln') === oudId) el.setAttribute('data-lln', nieuwId);
+      });
+      document.querySelectorAll('[data-id]').forEach(function (el) {
+        if (el.getAttribute('data-id') === oudId) el.setAttribute('data-id', nieuwId);
+      });
+    }
+
+    function vervangTijdelijkLeerlingId(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      staat.registraties.forEach(function (r) {
+        if (r.llnId === oudId) r.llnId = nieuwId;
+      });
+      staat.registratieWachtrij.forEach(function (item) {
+        if (item.payload.llnId === oudId) item.payload.llnId = nieuwId;
+      });
+      vervangIdInSelectie('lln', oudId, nieuwId);
+      verwerkRegistratieWachtrij();
+    }
+
+    function vervangTijdelijkTaakId(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      staat.registraties.forEach(function (r) {
+        if (r.taakId === oudId) r.taakId = nieuwId;
+      });
+      staat.registratieWachtrij.forEach(function (item) {
+        if (item.payload.taakId === oudId) item.payload.taakId = nieuwId;
+      });
+      vervangIdInSelectie('taak', oudId, nieuwId);
+      verwerkRegistratieWachtrij();
+    }
+
+    function verwerkRegistratieWachtrij() {
+      if (!staat.registratieWachtrij.length) return;
+      const klaar = [];
+      const rest = [];
+      staat.registratieWachtrij.forEach(function (item) {
+        if (registratieHeeftTijdelijkeIds(item.payload)) rest.push(item);
+        else klaar.push(item);
+      });
+      staat.registratieWachtrij = rest;
+      if (!klaar.length) return;
+      slaRegistratiesOpDirect(
+        klaar.map(function (item) { return item.payload; }),
+        klaar.map(function (item) { return item.tempRij; })
+      );
+    }
+
+    function slaRegistratiesOpDirect(items, tempRijen, naSucces) {
+      if (!items.length) return;
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveRegistraties batch', items);
+        if (naSucces) naSucces(tempRijen);
+        return;
+      }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          (antwoord.registraties || []).forEach(function (opgeslagen, i) {
+            const idx = staat.registraties.indexOf(tempRijen[i]);
+            if (idx !== -1) staat.registraties.splice(idx, 1, opgeslagen);
+          });
+          if (naSucces) naSucces(antwoord.registraties || []);
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
+          tempRijen.forEach(function (tmpRij) {
+            const idx = staat.registraties.indexOf(tmpRij);
+            if (idx !== -1) staat.registraties.splice(idx, 1);
+          });
+          haalDocentData();
+        })
+        .saveRegistraties(items);
+    }
+
+    function slaRegistratiesOp(items, tempRijen, naSucces) {
+      if (!items.length) return;
+      const directItems = [];
+      const directRijen = [];
+      items.forEach(function (item, i) {
+        if (registratieHeeftTijdelijkeIds(item)) {
+          staat.registratieWachtrij.push({ payload: item, tempRij: tempRijen[i] });
+        } else {
+          directItems.push(item);
+          directRijen.push(tempRijen[i]);
+        }
+      });
+      if (directItems.length) slaRegistratiesOpDirect(directItems, directRijen, naSucces);
+    }
+
+    function slaRegistratieOp(data, naSucces) {
+      const payload = {
+        llnId: data.llnId,
+        taakId: data.taakId,
+        status: data.status,
+        opmerking: data.opmerking || '',
+        klas: String(data.klas || staat.gekozenKlas || '').trim(),
+        alOpgevolgd: !!data.alOpgevolgd
+      };
+
+      let datumTijd = nieuweTijdstempel();
+      if (payload.alOpgevolgd) {
+        const lln = leerlingOpId(payload.llnId);
+        const reset = String(lln && lln.opvolgingResetOp || '').trim();
+        if (!reset) return false;
+        datumTijd = reset;
+      }
+
+      // Optimistisch: registratie meteen lokaal toevoegen en UI hertekenen.
+      const tempRij = {
+        datumTijd: datumTijd,
+        llnId: payload.llnId,
+        taakId: payload.taakId,
+        status: payload.status,
+        opmerking: payload.opmerking,
+        klas: payload.klas
+      };
+      staat.registraties.push(tempRij);
+      if (naSucces) naSucces(tempRij);
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveRegistratie', tempRij);
+        return true;
+      }
+
+      if (registratieHeeftTijdelijkeIds(payload)) {
+        staat.registratieWachtrij.push({ payload: payload, tempRij: tempRij });
+        return true;
+      }
+
+      // Bevestig op de achtergrond; bij fout: alles herladen zodat staat consistent blijft.
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          // Vervang de tijdelijke rij door de server-versie (correcte timestamp).
+          const idx = staat.registraties.indexOf(tempRij);
+          if (idx !== -1) staat.registraties.splice(idx, 1, antwoord.registratie);
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Opslaan mislukt: ' + (fout.message || fout), 'fout');
+          // Verwijder de optimistische rij en herlaad de echte data.
+          const idx = staat.registraties.indexOf(tempRij);
+          if (idx !== -1) staat.registraties.splice(idx, 1);
+          haalDocentData();
+        })
+        .saveRegistratie(payload);
+      return true;
+    }
+
+    function nieuweTijdstempel() {
+      const d = new Date();
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+
+    function isoVandaag() {
+      const d = new Date();
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    function volgendeId(lijst, prefix) {
+      let max = 0;
+      lijst.forEach(function (item) {
+        const m = String(item.id || '').match(new RegExp('^' + prefix + '(\\d+)$', 'i'));
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+      });
+      return prefix + String(max + 1).padStart(3, '0');
+    }
+
+    function uniekeLeerlingCode(leerlingen) {
+      const bestaande = {};
+      leerlingen.forEach(function (lln) {
+        const code = String(lln.code || '').trim().toUpperCase();
+        if (code) bestaande[code] = true;
+      });
+      const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const cijfers = '23456789';
+      let poging = 0;
+      while (poging < 10000) {
+        let code = '';
+        let i = 0;
+        for (i = 0; i < 4; i++) {
+          code += letters.charAt(Math.floor(Math.random() * letters.length));
+          code += cijfers.charAt(Math.floor(Math.random() * cijfers.length));
+        }
+        if (!bestaande[code]) return code;
+        poging += 1;
+      }
+      throw new Error('Kon geen unieke leerlingcode genereren.');
+    }
+
+    function slaLeerlingOp(data, naSucces) {
+      // Optimistisch: meteen toevoegen met tijdelijk ID, GAS bevestigt op de achtergrond.
+      const tempLeerling = {
+        id: '__temp_' + Date.now(),
+        naam: String(data.naam || '').trim(),
+        klas: String(data.klas || '').trim(),
+        code: uniekeLeerlingCode(staat.leerlingen),
+        geschraptIn: [],
+        verwijderdOp: '',
+        opvolgingLeerlingOp:    '',
+        opvolgingOudersOp:      '',
+        opvolgingNablijfOp:     '',
+        opvolgingResetOp:       '',
+        opvolgingGepauzeerd:    '',
+        opvolgingBlokkeerTaken: [],
+        volgorde: volgendeLeerlingVolgorde(String(data.klas || '').trim())
+      };
+      voegKlasAanStaat(tempLeerling.klas);
+      staat.leerlingen.push(tempLeerling);
+      if (naSucces) naSucces(tempLeerling);
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveLeerling', tempLeerling);
+        return;
+      }
+
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const tempId = tempLeerling.id;
+          vervangTijdelijkLeerlingId(tempId, antwoord.leerling.id);
+          const idx = staat.leerlingen.indexOf(tempLeerling);
+          if (idx !== -1) staat.leerlingen.splice(idx, 1, antwoord.leerling);
+          else staat.leerlingen.push(antwoord.leerling);
+          voegKlasAanStaat(antwoord.leerling && antwoord.leerling.klas);
+          vervangLeerlingIdInDom(tempId, antwoord.leerling.id);
+          tekenSelectie();
+        })
+        .withFailureHandler(function (fout) {
+          staat.bezigLeerling = false;
+          toonMelding('Leerling toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          const tempId = tempLeerling.id;
+          const idx = staat.leerlingen.indexOf(tempLeerling);
+          if (idx !== -1) staat.leerlingen.splice(idx, 1);
+          staat.registratieWachtrij = staat.registratieWachtrij.filter(function (item) {
+            return item.payload.llnId !== tempId;
+          });
+          staat.registraties = staat.registraties.filter(function (r) {
+            return r.llnId !== tempId;
+          });
+          tekenActieveWeergave();
+        })
+        .saveLeerling(data);
+    }
+
+    function slaTaakOp(data, naSucces) {
+      // Optimistisch: taak(en) meteen lokaal toevoegen.
+      const klassen = (data.klassen && data.klassen.length)
+        ? data.klassen
+        : [data.klas || staat.gekozenKlas];
+      const tempTaken = [];
+      klassen.forEach(function (klas) {
+        tempTaken.push({
+          id: '__temp_' + Date.now() + '_' + tempTaken.length,
+          naam: String(data.naam || '').trim(),
+          type: String(data.type || '').trim(),
+          deadline: String(data.deadline || isoVandaag()),
+          klas: String(klas || '').trim()
+        });
+      });
+      tempTaken.forEach(function (taak) { staat.taken.push(taak); });
+      if (naSucces) naSucces(tempTaken);
+
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] saveTaak', tempTaken);
+        return;
+      }
+
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const lijst = antwoord.taken || (antwoord.taak ? [antwoord.taak] : []);
+          tempTaken.forEach(function (temp, i) {
+            const nieuw = lijst[i];
+            if (!nieuw) return;
+            vervangTijdelijkTaakId(temp.id, nieuw.id);
+            const idx = staat.taken.indexOf(temp);
+            if (idx !== -1) staat.taken.splice(idx, 1, nieuw);
+            else staat.taken.push(nieuw);
+          });
+          tekenActieveWeergave();
+          tekenSelectie();
+        })
+        .withFailureHandler(function (fout) {
+          toonMelding('Taak toevoegen mislukt: ' + (fout.message || fout), 'fout');
+          tempTaken.forEach(function (temp) {
+            const tempId = temp.id;
+            staat.registratieWachtrij = staat.registratieWachtrij.filter(function (item) {
+              return item.payload.taakId !== tempId;
+            });
+            staat.registraties = staat.registraties.filter(function (r) {
+              return r.taakId !== tempId;
+            });
+            const idx = staat.taken.indexOf(temp);
+            if (idx !== -1) staat.taken.splice(idx, 1);
+          });
+          tekenActieveWeergave();
+        })
+        .saveTaak(data);
+    }
+
+    function slaTaakWijzigingOp(id, data, naSucces) {
+      const taak = taakOpId(id);
+      if (!taak) { toonMelding('Taak niet gevonden.', 'fout'); return; }
+      const oudNaam = taak.naam, oudType = taak.type, oudDeadline = taak.deadline;
+      taak.naam = String(data.naam || '').trim();
+      taak.type = String(data.type || '').trim();
+      taak.deadline = String(data.deadline || '').trim();
+      if (naSucces) naSucces(taak);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] updateTaak', taak); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak); })
+        .withFailureHandler(function (fout) {
+          taak.naam = oudNaam; taak.type = oudType; taak.deadline = oudDeadline;
+          tekenActieveWeergave();
+          toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateTaak({ id: id, naam: data.naam, type: data.type, deadline: data.deadline });
+    }
+
+    function verwijderLeerlingOp(id, naSucces) {
+      const leerling = leerlingOpId(id);
+      if (!leerling) return;
+      const oudVerwijderd = leerling.verwijderdOp;
+      leerling.verwijderdOp = nieuweTijdstempel();
+      if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.verwijderdOp = oudVerwijderd;
+          tekenActieveWeergave();
+          toonMelding('Leerling verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteLeerling(id);
+    }
+
+    function herstelLeerlingOp(id, naSucces) {
+      const leerling = leerlingOpId(id);
+      if (!leerling) return;
+      const oudVerwijderd = leerling.verwijderdOp;
+      leerling.verwijderdOp = '';
+      if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] herstelLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.verwijderdOp = oudVerwijderd;
+          tekenPrullenbakLijst();
+          toonMelding('Leerling terugzetten mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .herstelLeerling(id);
+    }
+
+    function leegPrullenbakOp(naSucces) {
+      const ids = {};
+      verwijderdeLeerlingen().forEach(function (lln) { ids[lln.id] = true; });
+      const aantal = Object.keys(ids).length;
+      if (!aantal) { if (naSucces) naSucces(0); return; }
+      // Bewaar voor eventuele rollback.
+      const wegLln = staat.leerlingen.filter(function (lln) { return ids[lln.id]; });
+      const wegRegs = staat.registraties.filter(function (r) { return ids[r.llnId]; });
+      haalPrullenbakWeg(ids);
+      if (naSucces) naSucces(aantal);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] leegPrullenbak', Object.keys(ids)); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          wegLln.forEach(function (lln) { staat.leerlingen.push(lln); });
+          wegRegs.forEach(function (r) { staat.registraties.push(r); });
+          tekenScherm(); tekenPrullenbakLijst();
+          toonMelding('Prullenbak legen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .leegPrullenbak();
+    }
+
+    function haalPrullenbakWeg(ids) {
+      staat.leerlingen = staat.leerlingen.filter(function (lln) { return !ids[lln.id]; });
+      staat.registraties = staat.registraties.filter(function (r) { return !ids[r.llnId]; });
+    }
+
+    function verwijderTaakOp(id, naSucces) {
+      const wegTaken = staat.taken.filter(function (t) { return t.id === id; });
+      const wegRegs = staat.registraties.filter(function (r) { return r.taakId === id; });
+      haalTaakWeg(id);
+      if (naSucces) naSucces();
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteTaak', id); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          wegTaken.forEach(function (t) { staat.taken.push(t); });
+          wegRegs.forEach(function (r) { staat.registraties.push(r); });
+          tekenActieveWeergave();
+          toonMelding('Taak verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteTaak(id);
+    }
+
+    function haalTaakWeg(id) {
+      staat.taken = staat.taken.filter(function (taak) { return taak.id !== id; });
+      staat.registraties = staat.registraties.filter(function (r) { return r.taakId !== id; });
+    }
+
+    function werkLeerlingBij(leerling) {
+      for (let i = 0; i < staat.leerlingen.length; i++) {
+        if (staat.leerlingen[i].id === leerling.id) {
+          staat.leerlingen[i] = leerling;
+          return;
+        }
+      }
+    }
+
+    function werkTaakBij(taak) {
+      for (let i = 0; i < staat.taken.length; i++) {
+        if (staat.taken[i].id === taak.id) {
+          staat.taken[i] = taak;
+          return;
+        }
+      }
+    }
+
+    function wijsOpenRegistratiesToeAanKlas(llnId, klas) {
+      const doel = String(klas || '').trim();
+      if (!doel) return;
+      staat.registraties.forEach(function (r) {
+        if (r.llnId !== llnId) return;
+        if (String(r.klas || '').trim()) return;
+        r.klas = doel;
+      });
+    }
+
+    function slaLeerlingKlasOp(id, klas, naSucces) {
+      const leerling = staat.leerlingen.filter(function (lln) { return lln.id === id; })[0];
+      if (!leerling) { toonMelding('Leerling niet gevonden.', 'fout'); return; }
+      const vorigeKlas = String(leerling.klas || '').trim();
+      const geschraptIn = volgendeGeschraptIn(leerling, klas);
+      const data = { id: id, klas: klas, geschraptIn: geschraptIn, klasSinds: nieuweTijdstempel() };
+      const oudKlas = leerling.klas, oudGeschraptIn = leerling.geschraptIn, oudKlasSinds = leerling.klasSinds;
+      const oudVolgorde = leerling.volgorde;
+      leerling.klas = String(klas || '').trim();
+      leerling.geschraptIn = geschraptIn;
+      leerling.klasSinds = data.klasSinds;
+      leerling.volgorde = volgendeLeerlingVolgorde(leerling.klas);
+      const plek = staat.leerlingen.indexOf(leerling);
+      if (plek !== -1) {
+        staat.leerlingen.splice(plek, 1);
+        staat.leerlingen.push(leerling);
+      }
+      wijsOpenRegistratiesToeAanKlas(id, vorigeKlas);
+      if (naSucces) naSucces(leerling);
+      if (!isGasOmgeving()) { console.log('[LOKAAL] updateLeerling', leerling); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.leerling) werkLeerlingBij(antwoord.leerling); })
+        .withFailureHandler(function (fout) {
+          leerling.klas = oudKlas; leerling.geschraptIn = oudGeschraptIn; leerling.klasSinds = oudKlasSinds;
+          leerling.volgorde = oudVolgorde;
+          tekenActieveWeergave();
+          toonMelding('Klas wijzigen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateLeerling(data);
+    }
+
+    function volgendeGeschraptIn(leerling, nieuweKlas) {
+      const vorige = String(leerling.klas || '').trim();
+      const doel = String(nieuweKlas || '').trim();
+      let lijst = geschraptInVan(leerling).slice();
+      if (vorige && vorige !== doel && lijst.indexOf(vorige) === -1) lijst.push(vorige);
+      return lijst.filter(function (klas) {
+        return klas && klas !== doel && heeftRegistratiesInKlas(leerling, klas);
+      });
+    }
+
+    function geschraptInVan(lln) {
+      return (lln && lln.geschraptIn) ? lln.geschraptIn : [];
+    }
+
+    function leerlingVerwijderd(lln) {
+      return !!(lln && String(lln.verwijderdOp || '').trim());
+    }
+
+    function actieveLeerlingen() {
+      return staat.leerlingen.filter(function (lln) { return !leerlingVerwijderd(lln); });
+    }
+
+    function verwijderdeLeerlingen() {
+      return staat.leerlingen.filter(leerlingVerwijderd).sort(function (a, b) {
+        return String(b.verwijderdOp || '').localeCompare(String(a.verwijderdOp || ''));
+      });
+    }
+
+    function uniekeKlassen() {
+      const set = {};
+      (staat.klassen || []).forEach(function (item) {
+        const naam = klasNaamVan(item);
+        if (naam) set[naam] = true;
+      });
+      actieveLeerlingen().forEach(function (lln) {
+        if (lln.klas) set[lln.klas] = true;
+        geschraptInVan(lln).forEach(function (klas) {
+          if (klas) set[klas] = true;
+        });
+      });
+      return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+    }
+
+    function klasNaamVan(item) {
+      if (!item) return '';
+      if (typeof item === 'string') return String(item).trim();
+      return String(item.naam || '').trim();
+    }
+
+    function klasVak(naam) {
+      const doel = String(naam || '').trim().toUpperCase();
+      if (!doel) return '';
+      for (let i = 0; i < (staat.klassen || []).length; i++) {
+        const item = staat.klassen[i];
+        if (klasNaamVan(item).toUpperCase() === doel) {
+          return typeof item === 'string' ? '' : String(item.vak || '').trim();
+        }
+      }
+      return '';
+    }
+
+    function klasLabel(naam) {
+      const klas = String(naam || '').trim();
+      if (!klas) return '';
+      const vak = klasVak(klas);
+      return vak ? klas + ' - ' + vak : klas;
+    }
+
+    function normaliseerVaknaam(vak) {
+      return String(vak || '').trim().replace(/\s+/g, ' ').slice(0, 32);
+    }
+
+    function leerlingVolgordeGetal(lln) {
+      const n = parseInt(lln && lln.volgorde, 10);
+      return n > 0 ? n : 0;
+    }
+
+    function volgendeLeerlingVolgorde(klas) {
+      const doel = String(klas || '').trim();
+      let max = 0;
+      let heeft = false;
+      staat.leerlingen.forEach(function (lln) {
+        if (String(lln.klas || '').trim() !== doel) return;
+        if (leerlingVerwijderd(lln)) return;
+        const n = leerlingVolgordeGetal(lln);
+        if (n) {
+          heeft = true;
+          if (n > max) max = n;
+        }
+      });
+      return heeft ? max + 1 : 0;
+    }
+
+    function vergelijkLeerlingVolgorde(a, b) {
+      const va = leerlingVolgordeGetal(a);
+      const vb = leerlingVolgordeGetal(b);
+      if (va && vb && va !== vb) return va - vb;
+      if (va && !vb) return -1;
+      if (!va && vb) return 1;
+      return 0;
+    }
+
+    function leerlingenVanKlas() {
+      return actieveLeerlingen().filter(function (lln) {
+        return lln.klas === staat.gekozenKlas;
+      }).sort(vergelijkLeerlingVolgorde);
+    }
+
+    function geschrapteLeerlingenVanKlas() {
+      return actieveLeerlingen().filter(function (lln) {
+        return lln.klas !== staat.gekozenKlas
+          && geschraptInVan(lln).indexOf(staat.gekozenKlas) !== -1
+          && heeftRegistratiesInKlas(lln, staat.gekozenKlas);
+      });
+    }
+
+    function leerlingenInKruistabel() {
+      return leerlingenVanKlas().concat(geschrapteLeerlingenVanKlas());
+    }
+
+    function taakGeldtVoorKlas(taak, klas) {
+      const taakKlas = String(taak && taak.klas ? taak.klas : '').trim();
+      return !taakKlas || taakKlas === klas;
+    }
+
+    function takenVanKlas() {
+      return staat.taken.filter(function (taak) {
+        return taakGeldtVoorKlas(taak, staat.gekozenKlas) && !isMateriaalTaak(taak);
+      });
+    }
+
+    /** Chronologisch (kruistabel): deadline oplopend, bij gelijke deadline oudste taak eerst. */
+    function vergelijkChronologisch(deadlineA, deadlineB, idA, idB) {
+      const cmp = String(deadlineA || '').localeCompare(String(deadlineB || ''));
+      if (cmp !== 0) return cmp;
+      return String(idA || '').localeCompare(String(idB || ''));
+    }
+
+    /** Recentste eerst (leerlingenview): deadline aflopend, bij gelijke deadline nieuwste taak eerst. */
+    function vergelijkRecentEerst(deadlineA, deadlineB, idA, idB) {
+      const cmp = String(deadlineB || '').localeCompare(String(deadlineA || ''));
+      if (cmp !== 0) return cmp;
+      return String(idB || '').localeCompare(String(idA || ''));
+    }
+
+    /** Taken voor de kruistabel: filter + sortering (datum = chronologisch, oudste eerst). */
+    function zichtbareTaken() {
+      let lijst = takenVanKlas().filter(function (taak) {
+        return groepZitInFilter(taakGroep(taak));
+      });
+      if (staat.sortering === 'soort') {
+        const volgorde = ['huiswerk', 'les', 'leerkans', 'optioneel'];
+        lijst.sort(function (a, b) {
+          const ga = volgorde.indexOf(taakGroep(a));
+          const gb = volgorde.indexOf(taakGroep(b));
+          if (ga !== gb) return ga - gb;
+          const typeCmp = String(a.type || '').localeCompare(String(b.type || ''), 'nl');
+          if (typeCmp !== 0) return typeCmp;
+          return vergelijkChronologisch(a.deadline, b.deadline, a.id, b.id);
+        });
+      } else {
+        lijst.sort(function (a, b) {
+          return vergelijkChronologisch(a.deadline, b.deadline, a.id, b.id);
+        });
+      }
+      return lijst;
+    }
+
+    function groepZitInFilter(groep) {
+      const filters = staat.groepFilters || [];
+      if (!filters.length) return true;
+      return filters.indexOf(groep) !== -1;
+    }
+
+    function voegGroepToeAanFilter(groep) {
+      if (!groep || !staat.groepFilters.length) return;
+      if (staat.groepFilters.indexOf(groep) !== -1) return;
+      staat.groepFilters = staat.groepFilters.concat([groep]);
+    }
+
+    function gesorteerdeTaken() {
+      return zichtbareTaken();
+    }
+
+    function korteDatum(iso) {
+      const m = String(iso || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(iso || '');
+      return m[3] + '/' + m[2];
+    }
+
+    function formaatDatum(waarde) {
+      const m = String(waarde || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(waarde || '');
+      return m[3] + '-' + m[2] + '-' + m[1];
+    }
+
+    /** Kolomtitel: "Huiswerk: Wiskunde" */
+    function taakTitel(taak) {
+      const type = String(taak && taak.type ? taak.type : '').trim();
+      const naam = String(taak && taak.naam ? taak.naam : '').trim();
+      if (type && naam) return type + ': ' + naam;
+      return type || naam;
+    }
+
+    /** Groeperen op soort, niet op locatie: leerkans vs gewone plicht. */
+    const TYPE_GROEP = {
+      'Lesopdracht': 'huiswerk',
+      'Huiswerk': 'huiswerk',
+      'Huistaak': 'huiswerk',
+      'Bookwidgetsopdracht': 'huiswerk',
+      'Schriftelijke voorbereiding': 'leerkans',
+      'Remediëringstaak': 'leerkans',
+      'Remediëringsopdracht': 'leerkans',
+      'Bijles': 'leerkans',
+      'Toets verbeteren': 'leerkans',
+      'Examen inkijken': 'leerkans',
+      'Niet-verplichte taak': 'optioneel'
+    };
+    /** Geen inhaalbare opdracht: wel kruisje, geen opvolging/mail. */
+    const TYPES_GEEN_OPVOLGING = {
+      'Schriftelijke voorbereiding': true,
+      'Bijles': true,
+      'Examen inkijken': true,
+      'Niet-verplichte taak': true
+    };
+
+    function taakGroep(taak) {
+      return TYPE_GROEP[taak && taak.type] || 'optioneel';
+    }
+
+    function isMateriaalTaak(taak) {
+      return String(taak && taak.type ? taak.type : '').trim() === 'Materiaal niet in orde';
+    }
+
+    function taakTeltMeeVoorOpvolging(taak) {
+      const type = String(taak && taak.type ? taak.type : '').trim();
+      return !TYPES_GEEN_OPVOLGING[type];
+    }
+
+    function leerlingOpId(id) {
+      return staat.leerlingen.filter(function (lln) { return lln.id === id; })[0] || null;
+    }
+
+    /** Rood kruisje van vóór de laatste reset: blijft zichtbaar, telt niet mee. */
+    function registratieTeltNietMee(lln, reg) {
+      if (!lln || !reg || reg.status !== 'Niet in orde') return false;
+      const naReset = String(lln.opvolgingResetOp || '').trim();
+      return !!(naReset && String(reg.datumTijd || '') <= naReset);
+    }
+
+    function opvolgingAan() {
+      return !!(staat.instellingen && staat.instellingen.opvolgingAan !== false);
+    }
+
+    function drempelNietInOrde() {
+      const n = parseInt(staat.instellingen && staat.instellingen.opvolgingDrempel, 10);
+      return (n >= DREMPEL_MIN && n <= DREMPEL_MAX) ? n : DEFAULT_OPVOLGING.opvolgingDrempel;
+    }
+
+    function normaliseerInstellingen(data) {
+      const bron = data && typeof data === 'object' ? data : {};
+      const drempel = parseInt(bron.opvolgingDrempel, 10);
+      const aan = bron.opvolgingAan;
+      let opvolgingAan = DEFAULT_OPVOLGING.opvolgingAan;
+      if (aan === false || aan === 0 || aan === 'nee' || aan === 'false') opvolgingAan = false;
+      else if (aan === true || aan === 1 || aan === 'ja' || aan === 'true') opvolgingAan = true;
+      return {
+        opvolgingAan: opvolgingAan,
+        opvolgingDrempel: (drempel >= DREMPEL_MIN && drempel <= DREMPEL_MAX)
+          ? drempel
+          : DEFAULT_OPVOLGING.opvolgingDrempel,
+        berichtLeerling: normaliseerBericht(bron.berichtLeerling, DEFAULT_OPVOLGING.berichtLeerling, OUD_BERICHT_LEERLING),
+        berichtOuders: normaliseerBericht(bron.berichtOuders, DEFAULT_OPVOLGING.berichtOuders, OUD_BERICHT_OUDERS),
+        berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF)
+      };
+    }
+
+    function isOudStandaardBericht(waarde, oud) {
+      const tekst = String(waarde == null ? '' : waarde).replace(/\r\n/g, '\n').trim();
+      if (!tekst || oud == null || oud === '') return false;
+      const lijst = Object.prototype.toString.call(oud) === '[object Array]' ? oud : [oud];
+      for (let i = 0; i < lijst.length; i++) {
+        if (tekst === String(lijst[i] || '').replace(/\r\n/g, '\n').trim()) return true;
+      }
+      return false;
+    }
+
+    function normaliseerBericht(waarde, fallback, oud) {
+      const tekst = String(waarde == null ? '' : waarde).replace(/\r\n/g, '\n');
+      if (!tekst.trim() || isOudStandaardBericht(tekst, oud)) return fallback;
+      return tekst.length > BERICHT_MAX ? tekst.substring(0, BERICHT_MAX) : tekst;
+    }
+
+    function leesLokaleInstellingen() {
+      try {
+        const ruw = localStorage.getItem('opvolgtool-instellingen');
+        if (ruw) return normaliseerInstellingen(JSON.parse(ruw));
+      } catch (e) { /* lokaal */ }
+      return {
+        opvolgingAan: DEFAULT_OPVOLGING.opvolgingAan,
+        opvolgingDrempel: DEFAULT_OPVOLGING.opvolgingDrempel,
+        berichtLeerling: DEFAULT_OPVOLGING.berichtLeerling,
+        berichtOuders: DEFAULT_OPVOLGING.berichtOuders,
+        berichtNablijf: DEFAULT_OPVOLGING.berichtNablijf
+      };
+    }
+
+    function schrijfLokaleInstellingen(inst) {
+      try {
+        localStorage.setItem('opvolgtool-instellingen', JSON.stringify(inst));
+      } catch (e) { /* lokaal */ }
+    }
+
+    function herstelLokaleDubbeleTaakIds(taken) {
+      const gezien = {};
+      let max = 0;
+      (taken || []).forEach(function (taak) {
+        const match = String(taak && taak.id ? taak.id : '').match(/^T(\d+)$/i);
+        if (match) max = Math.max(max, parseInt(match[1], 10));
+      });
+      return (taken || []).map(function (taak) {
+        const id = String(taak && taak.id ? taak.id : '');
+        if (!id || !gezien[id]) {
+          if (id) gezien[id] = true;
+          return taak;
+        }
+        max += 1;
+        const nieuw = 'T' + String(max).padStart(3, '0');
+        gezien[nieuw] = true;
+        return Object.assign({}, taak, { id: nieuw });
+      });
+    }
+
+    function taakOpId(id) {
+      return staat.taken.filter(function (taak) { return taak.id === id; })[0] || null;
+    }
+
+    /** Klas waarin deze registratie telt. Oude rijen zonder klas blijven bij de klas waar ze gehaald zijn. */
+    function registratieKlas(reg, lln) {
+      const klas = String(reg && reg.klas ? reg.klas : '').trim();
+      if (klas) return klas;
+      const sinds = String(lln && lln.klasSinds ? lln.klasSinds : '').trim();
+      if (sinds && String(reg && reg.datumTijd ? reg.datumTijd : '') < sinds) {
+        const vorige = geschraptInVan(lln);
+        return vorige.length ? vorige[vorige.length - 1] : '';
+      }
+      return String(lln && lln.klas ? lln.klas : '').trim();
+    }
+
+    /** Registratie die in deze klas telt: oude voortgang blijft bij de vorige klas. */
+    function laatsteRegistratieVoorKlas(lln, taak, klas) {
+      if (!lln || !taak || !taakGeldtVoorKlas(taak, klas)) return null;
+      let laatste = null;
+      staat.registraties.forEach(function (r) {
+        if (r.llnId !== lln.id || r.taakId !== taak.id) return;
+        if (registratieKlas(r, lln) !== klas) return;
+        laatste = r;
+      });
+      return laatste;
+    }
+
+    function heeftRegistratiesInKlas(lln, klas) {
+      if (!lln || !klas) return false;
+      for (let i = 0; i < staat.registraties.length; i++) {
+        const r = staat.registraties[i];
+        if (r.llnId !== lln.id || !r.status) continue;
+        if (registratieKlas(r, lln) === klas) return true;
+      }
+      return false;
+    }
+
+    function verwerkData(data) {
+      staat.leerlingen = data.leerlingen || [];
+      staat.taken = herstelLokaleDubbeleTaakIds(data.taken || []);
+      staat.registraties = data.registraties || [];
+      staat.klassen = (data.klassen || []).map(function (item) {
+        if (item && typeof item === 'object') {
+          return { naam: String(item.naam || '').trim(), vak: String(item.vak || '').trim() };
+        }
+        return { naam: String(item || '').trim(), vak: '' };
+      }).filter(function (item) { return item.naam; });
+      staat.webAppUrl = String(data.webAppUrl || '').trim();
+      staat.leerlingUrl = String(data.leerlingUrl || '').trim();
+      staat.instellingen = normaliseerInstellingen(data.instellingen);
+      vulKlasKeuze();
+      herstelKlas();
+      tekenScherm();
+      // Verberg de laadoverlay zodra de eerste data binnenkomt.
+      const overlay = document.getElementById('laad-overlay');
+      if (overlay) overlay.remove();
+    }
+
+    function normaliseerKlasnaam(naam) {
+      return String(naam || '').trim().replace(/\s+/g, ' ').slice(0, 12);
+    }
+
+    function bestaandeKlasnaam(naam) {
+      const gezocht = normaliseerKlasnaam(naam).toUpperCase();
+      if (!gezocht) return '';
+      const klassen = uniekeKlassen();
+      for (let i = 0; i < klassen.length; i++) {
+        if (klassen[i].toUpperCase() === gezocht) return klassen[i];
+      }
+      return '';
+    }
+
+    function voegKlasAanStaat(naam, vak) {
+      const klas = bestaandeKlasnaam(naam) || normaliseerKlasnaam(naam);
+      if (!klas) return '';
+      const vakNaam = normaliseerVaknaam(vak);
+      let gevonden = false;
+      (staat.klassen || []).forEach(function (item, i) {
+        if (klasNaamVan(item).toUpperCase() !== klas.toUpperCase()) return;
+        gevonden = true;
+        if (vakNaam && !(item && item.vak)) {
+          staat.klassen[i] = { naam: klas, vak: vakNaam };
+        }
+      });
+      if (!gevonden) staat.klassen.push({ naam: klas, vak: vakNaam });
+      return klas;
+    }
+
+    function leerlingenVanKlasnaam(klas) {
+      const doel = String(klas || '').trim();
+      return staat.leerlingen.filter(function (lln) {
+        return String(lln.klas || '').trim() === doel;
+      });
+    }
+
+    function vulKlasKeuze() {
+      const select = document.getElementById('veld-klas');
+      const knoppen = document.getElementById('klas-knoppen');
+      const leeg = document.getElementById('klas-leeg');
+      const klassen = uniekeKlassen();
+      if (staat.gekozenKlas && klassen.indexOf(staat.gekozenKlas) === -1) {
+        klassen.push(staat.gekozenKlas);
+        klassen.sort(function (a, b) { return a.localeCompare(b, 'nl'); });
+      }
+      select.innerHTML = '<option value="">Kies een klas</option>';
+      knoppen.innerHTML = '';
+
+      klassen.forEach(function (klas) {
+        const opt = document.createElement('option');
+        opt.value = klas;
+        opt.textContent = klasLabel(klas);
+        select.appendChild(opt);
+
+        const groep = document.createElement('div');
+        groep.className = 'inline-flex items-stretch rounded-xl border border-slate-200 bg-slate-50 overflow-hidden';
+
+        const knop = document.createElement('button');
+        knop.type = 'button';
+        knop.className = 'px-5 py-3 hover:bg-indigo-50 text-base font-semibold';
+        knop.textContent = klasLabel(klas);
+        knop.addEventListener('click', function () { kiesKlas(klas); });
+
+        const hernoem = document.createElement('button');
+        hernoem.type = 'button';
+        hernoem.className = 'px-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600';
+        hernoem.setAttribute('data-actie', 'klas-hernoemen');
+        hernoem.setAttribute('data-klas', klas);
+        hernoem.setAttribute('title', 'Klasnaam wijzigen');
+        hernoem.setAttribute('aria-label', 'Klasnaam van ' + klasLabel(klas) + ' wijzigen');
+        hernoem.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>';
+
+        const wis = document.createElement('button');
+        wis.type = 'button';
+        wis.className = 'px-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 text-lg leading-none';
+        wis.setAttribute('data-actie', 'klas-verwijderen');
+        wis.setAttribute('data-klas', klas);
+        wis.setAttribute('title', 'Klas ' + klasLabel(klas) + ' verwijderen');
+        wis.setAttribute('aria-label', 'Klas ' + klasLabel(klas) + ' verwijderen');
+        wis.textContent = '×';
+
+        groep.appendChild(knop);
+        groep.appendChild(hernoem);
+        groep.appendChild(wis);
+        knoppen.appendChild(groep);
+      });
+
+      const nieuw = document.createElement('button');
+      nieuw.type = 'button';
+      nieuw.className = 'px-5 py-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-base font-semibold text-slate-600';
+      nieuw.setAttribute('data-actie', 'klas-nieuw');
+      nieuw.textContent = 'Nieuwe klas';
+      knoppen.appendChild(nieuw);
+
+      const optNieuw = document.createElement('option');
+      optNieuw.value = '__nieuw__';
+      optNieuw.textContent = 'Nieuwe klas…';
+      select.appendChild(optNieuw);
+
+      if (leeg) leeg.classList.toggle('hidden', klassen.length > 0);
+      if (staat.gekozenKlas) select.value = staat.gekozenKlas;
+    }
+
+    function herstelKlas() {
+      var bewaard = '';
+      try { bewaard = sessionStorage.getItem(KLAS_OPSLag) || ''; } catch (e) { bewaard = ''; }
+      if (bewaard && uniekeKlassen().indexOf(bewaard) !== -1) {
+        staat.gekozenKlas = bewaard;
+        document.getElementById('veld-klas').value = bewaard;
+      }
+    }
+
+    function kiesKlas(klas) {
+      staat.gekozenKlas = klas;
+      document.getElementById('veld-klas').value = klas;
+      try {
+        if (klas) sessionStorage.setItem(KLAS_OPSLag, klas);
+        else sessionStorage.removeItem(KLAS_OPSLag);
+      } catch (e) { /* negeren */ }
+      console.log('[KLAS] actieve klas:', klas);
+      staat.lijstLeerlingId = null;
+      staat.lijstTaakId = null;
+      staat.bulkModus = '';
+      staat.geselecteerd = null;
+      staat.selectie = [];
+      staat.selectieAnker = null;
+      staat.slepen = false;
+      staat.sleepStart = null;
+      tekenScherm();
+    }
+
+    function openNieuweKlasModal() {
+      staat.modal = 'klas';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas');
+      document.getElementById('veld-nieuwe-klas').value = '';
+      document.getElementById('veld-nieuwe-klas-vak').value = '';
+      verbergModalInhoud();
+      document.getElementById('form-klas').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      document.getElementById('veld-nieuwe-klas').focus();
+    }
+
+    function voegKlasToe(event) {
+      event.preventDefault();
+      const naam = normaliseerKlasnaam(document.getElementById('veld-nieuwe-klas').value);
+      const vak = normaliseerVaknaam(document.getElementById('veld-nieuwe-klas-vak').value);
+      if (!naam) {
+        toonMelding('Vul een klasnaam in.', 'fout');
+        return;
+      }
+      if (!vak) {
+        toonMelding('Vul een vak in.', 'fout');
+        return;
+      }
+      const bestaand = bestaandeKlasnaam(naam);
+      if (bestaand && klasVak(bestaand)) {
+        sluitModal();
+        kiesKlas(bestaand);
+        toonMelding('Klas ' + klasLabel(bestaand) + ' bestaat al.', 'ok');
+        return;
+      }
+      voegKlasAanStaat(naam, vak);
+      sluitModal();
+      vulKlasKeuze();
+      kiesKlas(naam);
+      toonMelding('Klas ' + klasLabel(naam) + ' toegevoegd.', 'ok');
+      if (!isGasOmgeving()) { console.log('[LOKAAL] saveKlas', { naam: naam, vak: vak }); return; }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const serverKlas = antwoord && antwoord.klas;
+          if (serverKlas && serverKlas !== naam) {
+            voegKlasAanStaat(serverKlas, antwoord.vak || vak);
+            vulKlasKeuze(); kiesKlas(serverKlas);
+          }
+        })
+        .withFailureHandler(function (fout) {
+          staat.klassen = staat.klassen.filter(function (k) {
+            return klasNaamVan(k).toUpperCase() !== naam.toUpperCase();
+          });
+          vulKlasKeuze(); tekenScherm();
+          toonMelding('Klas toevoegen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .saveKlas({ naam: naam, vak: vak });
+    }
+
+    function openKlasHernoemen(klas) {
+      const naam = bestaandeKlasnaam(klas) || normaliseerKlasnaam(klas) || staat.gekozenKlas;
+      if (!naam) return;
+      staat.klasTeHernoemen = naam;
+      staat.modal = 'klas-hernoemen';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas-hernoemen');
+      const veld = document.getElementById('veld-klas-hernoemen');
+      veld.value = naam;
+      verbergModalInhoud();
+      document.getElementById('form-klas-hernoemen').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      veld.focus();
+      veld.select();
+    }
+
+    function vervangKlasnaamInStaat(oud, nieuw) {
+      (staat.klassen || []).forEach(function (item) {
+        if (klasNaamVan(item).toUpperCase() !== oud.toUpperCase()) return;
+        if (typeof item === 'string') return;
+        item.naam = nieuw;
+      });
+      staat.leerlingen.forEach(function (lln) {
+        if (String(lln.klas || '').trim() === oud) lln.klas = nieuw;
+        lln.geschraptIn = geschraptInVan(lln).map(function (item) {
+          return item === oud ? nieuw : item;
+        });
+      });
+      staat.taken.forEach(function (taak) {
+        if (String(taak.klas || '').trim() === oud) taak.klas = nieuw;
+      });
+      staat.registraties.forEach(function (reg) {
+        if (String(reg.klas || '').trim() === oud) reg.klas = nieuw;
+      });
+      if (staat.gekozenKlas === oud) staat.gekozenKlas = nieuw;
+      try {
+        if (sessionStorage.getItem(KLAS_OPSLag) === oud) sessionStorage.setItem(KLAS_OPSLag, nieuw);
+      } catch (e) { /* negeren */ }
+    }
+
+    function slaKlasHernoemen(event) {
+      event.preventDefault();
+      const oud = staat.klasTeHernoemen;
+      const nieuw = normaliseerKlasnaam(document.getElementById('veld-klas-hernoemen').value);
+      if (!oud) return;
+      if (!nieuw) {
+        toonMelding('Vul een klasnaam in.', 'fout');
+        return;
+      }
+      const botsing = bestaandeKlasnaam(nieuw);
+      if (botsing && botsing.toUpperCase() !== oud.toUpperCase()) {
+        toonMelding('Klas ' + klasLabel(botsing) + ' bestaat al.', 'fout');
+        return;
+      }
+      if (nieuw === oud) {
+        sluitModal();
+        return;
+      }
+      vervangKlasnaamInStaat(oud, nieuw);
+      sluitModal();
+      vulKlasKeuze();
+      tekenScherm();
+      toonMelding('Klas hernoemd naar ' + klasLabel(nieuw) + '.', 'ok');
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] updateKlas', { oud: oud, nieuw: nieuw });
+        return;
+      }
+      gasRun()
+        .withSuccessHandler(function (antwoord) {
+          const serverNieuw = antwoord && antwoord.nieuw;
+          if (serverNieuw && serverNieuw !== nieuw) {
+            vervangKlasnaamInStaat(nieuw, serverNieuw);
+            vulKlasKeuze();
+            tekenScherm();
+          }
+        })
+        .withFailureHandler(function (fout) {
+          vervangKlasnaamInStaat(nieuw, oud);
+          vulKlasKeuze();
+          tekenScherm();
+          toonMelding('Klas hernoemen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateKlas({ oud: oud, nieuw: nieuw });
+    }
+
+    function vraagKlasVerwijderen(klas) {
+      const naam = bestaandeKlasnaam(klas) || normaliseerKlasnaam(klas) || staat.gekozenKlas;
+      if (!naam) return;
+      const bezet = leerlingenVanKlasnaam(naam);
+      if (bezet.length) {
+        toonMelding('Verplaats of verwijder eerst alle leerlingen van ' + naam + ' (ook in de prullenbak).', 'fout');
+        return;
+      }
+      staat.klasTeVerwijderen = naam;
+      staat.modal = 'klas-verwijderen';
+      document.getElementById('modal-toevoegen').setAttribute('aria-labelledby', 'modal-titel-klas-verwijderen');
+      document.getElementById('klas-verwijderen-tekst').innerHTML =
+        'Dit verwijdert klas <span class="font-semibold">' + escapeHtml(klasLabel(naam)) +
+        '</span> en de taken en registraties van die klas. Leerlingen blijven bewaard. Typ <span class="font-semibold">' +
+        escapeHtml(naam) + '</span> om te bevestigen.';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      veld.value = '';
+      veld.setAttribute('placeholder', naam);
+      zetKlasVerwijderKnop();
+      verbergModalInhoud();
+      document.getElementById('form-klas-verwijderen').classList.remove('hidden');
+      zetModalKaartBreed(false);
+      document.getElementById('modal-toevoegen').classList.remove('hidden');
+      veld.focus();
+    }
+
+    function zetKlasVerwijderKnop() {
+      const naam = staat.klasTeVerwijderen || '';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      const knop = document.getElementById('knop-klas-verwijderen');
+      knop.disabled = !naam || veld.value.trim() !== naam;
+    }
+
+    function bevestigKlasVerwijderen() {
+      const naam = staat.klasTeVerwijderen || '';
+      const veld = document.getElementById('veld-klas-verwijderen');
+      if (!naam || veld.value.trim() !== naam) {
+        toonMelding('Typ ' + naam + ' om te bevestigen.', 'fout');
+        return;
+      }
+      const label = klasLabel(naam);
+      const oudKlassen = staat.klassen.slice();
+      const oudTaken = staat.taken.slice();
+      const oudRegistraties = staat.registraties.slice();
+      verwijderKlasLokaal(naam);
+      sluitModal();
+      vulKlasKeuze();
+      tekenScherm();
+      toonMelding('Klas ' + label + ' verwijderd.', 'ok');
+      if (!isGasOmgeving()) { console.log('[LOKAAL] deleteKlas', naam); return; }
+      gasRun()
+        .withSuccessHandler(function () { /* server bevestigt */ })
+        .withFailureHandler(function (fout) {
+          staat.klassen = oudKlassen; staat.taken = oudTaken; staat.registraties = oudRegistraties;
+          vulKlasKeuze(); tekenScherm();
+          toonMelding('Klas verwijderen mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .deleteKlas(naam);
+    }
+
+    function verwijderKlasLokaal(klas) {
+      const naam = String(klas || '').trim();
+      staat.klassen = (staat.klassen || []).filter(function (item) {
+        return klasNaamVan(item).toUpperCase() !== naam.toUpperCase();
+      });
+      const wegTaken = {};
+      staat.taken = staat.taken.filter(function (taak) {
+        if (String(taak.klas || '').trim() === naam) {
+          wegTaken[taak.id] = true;
+          return false;
+        }
+        return true;
+      });
+      staat.registraties = staat.registraties.filter(function (reg) {
+        if (wegTaken[reg.taakId]) return false;
+        if (String(reg.klas || '').trim() === naam) return false;
+        return true;
+      });
+      staat.leerlingen.forEach(function (lln) {
+        lln.geschraptIn = geschraptInVan(lln).filter(function (item) { return item !== naam; });
+      });
+      if (staat.gekozenKlas === naam) {
+        staat.gekozenKlas = '';
+        try { sessionStorage.removeItem(KLAS_OPSLag); } catch (e) { /* negeren */ }
+        document.getElementById('veld-klas').value = '';
+      }
+    }
+
+    function escapeHtml(waarde) {
+      return String(waarde == null ? '' : waarde)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(waarde) {
+      return escapeHtml(waarde).replace(/'/g, '&#39;');
+    }
+</script>
