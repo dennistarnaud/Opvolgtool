@@ -4007,6 +4007,8 @@
         titels += '<div class="taak-titel" data-actie="taak-bewerken" data-id="' + escapeAttr(taak.id) + '" data-groep="' + escapeAttr(taakGroep(taak)) + '" data-taak="' + escapeAttr(taak.id) + '" title="' + escapeAttr(titel + ' — bewerken') + '"><span>' + escapeHtml(titel) + '</span></div>';
         datums += '<div class="kruis-datum">' + escapeHtml(korteDatum(taak.deadline)) + '</div>';
       });
+      titels += '<button type="button" data-actie="taak-toevoegen" class="knop-nieuwe-taak" title="Taak toevoegen" aria-label="Nieuwe taak"><span>Nieuwe taak…</span></button>';
+      datums += '<div class="kruis-datum"></div>';
 
       let lichaam = '';
       leerlingen.forEach(function (lln) {
@@ -4039,14 +4041,11 @@
         kolommen += '<col class="col-vak">';
       });
 
-      const n = taken.length || 1;
+      const n = taken.length + 1;
       wrapper.innerHTML =
-        '<div class="kruis-binnen" style="--n:' + n + '">' +
+        '<div class="kruis-binnen" style="--n:' + n + ';--taken:' + taken.length + '">' +
           '<div class="kruis-titels">' + titels + '</div>' +
           '<div class="kruis-datums">' + datums + '</div>' +
-          '<button type="button" data-actie="taak-toevoegen" class="knop-nieuwe-taak" title="Taak toevoegen" aria-label="Nieuwe taak">' +
-            '<span>Nieuwe taak…</span>' +
-          '</button>' +
           '<table class="kruistabel text-sm">' +
             '<colgroup>' + kolommen + '</colgroup>' +
             '<tbody>' + lichaam + '</tbody>' +
