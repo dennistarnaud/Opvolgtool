@@ -114,7 +114,9 @@
         const groep = knop.getAttribute('data-groep');
         knop.classList.toggle('actief', staat.groepFilters.indexOf(groep) !== -1);
       });
-      const filterActief = staat.sortering !== 'datum' || !!(staat.groepFilters && staat.groepFilters.length);
+      const filterActief = staat.sortering !== 'datum' ||
+        !!(staat.groepFilters && staat.groepFilters.length) ||
+        periodesFilterActief();
       document.querySelectorAll('.filter-indicatie').forEach(function (punt) {
         punt.classList.toggle('hidden', !filterActief);
       });
@@ -162,6 +164,7 @@
     function wisFilters() {
       staat.sortering = 'datum';
       staat.groepFilters = [];
+      schrijfVerborgenPeriodes([]);
       tekenActieveWeergave();
     }
 
@@ -585,7 +588,7 @@
       zetModalTopVast(false);
       document.getElementById('modal-toevoegen').classList.add('hidden');
       verbergModalInhoud();
-      document.getElementById('modal-kaart').classList.remove('max-w-lg');
+      document.getElementById('modal-kaart').classList.remove('max-w-lg', 'max-w-2xl');
       document.getElementById('modal-kaart').classList.add('max-w-md');
     }
 
@@ -602,7 +605,8 @@
 
     function zetModalKaartBreed(breed) {
       const kaart = document.getElementById('modal-kaart');
-      kaart.classList.toggle('max-w-lg', !!breed);
+      kaart.classList.toggle('max-w-2xl', !!breed);
+      kaart.classList.toggle('max-w-lg', false);
       kaart.classList.toggle('max-w-md', !breed);
       if (!breed) zetModalTopVast(false);
     }
@@ -1228,19 +1232,19 @@
 
     function periodeRijHtml(periode) {
       const p = periode || {};
-      return '<div class="periode-rij flex flex-wrap items-center gap-2" data-id="' + escapeAttr(p.id || '') + '">' +
-        '<input type="text" class="veld-periode-naam flex-1 min-w-[8rem] rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" maxlength="40" placeholder="Naam" value="' + escapeAttr(p.naam || '') + '">' +
+      return '<div class="periode-rij" data-id="' + escapeAttr(p.id || '') + '">' +
+        '<input type="text" class="veld-periode-naam rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" maxlength="40" placeholder="Naam" value="' + escapeAttr(p.naam || '') + '">' +
         '<input type="date" class="veld-periode-van rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value="' + escapeAttr(p.van || '') + '" aria-label="Van">' +
         '<input type="date" class="veld-periode-tot rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" value="' + escapeAttr(p.tot || '') + '" aria-label="Tot">' +
-        '<button type="button" data-actie="periode-rij-wissen" class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Periode verwijderen" aria-label="Periode verwijderen">&times;</button>' +
+        '<button type="button" data-actie="periode-rij-wissen" class="periode-rij-wissen inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Periode verwijderen" aria-label="Periode verwijderen">&times;</button>' +
         '</div>';
     }
 
     function tekenPeriodeRijen(periodes) {
       const lijst = document.getElementById('lijst-periodes');
       if (!lijst) return;
-      const rijen = (periodes && periodes.length) ? periodes : [];
-      lijst.innerHTML = rijen.map(periodeRijHtml).join('') || periodeRijHtml({});
+      const rijen = (periodes && periodes.length) ? periodes : standaardPeriodes();
+      lijst.innerHTML = rijen.map(periodeRijHtml).join('');
     }
 
     function voegPeriodeRijToe() {
@@ -1258,7 +1262,7 @@
       const lijst = document.getElementById('lijst-periodes');
       if (!rij || !lijst) return;
       rij.remove();
-      if (!lijst.querySelector('.periode-rij')) lijst.innerHTML = periodeRijHtml({});
+      if (!lijst.querySelector('.periode-rij')) lijst.innerHTML = standaardPeriodes().map(periodeRijHtml).join('');
     }
 
     function leesPeriodesUitFormulier() {
@@ -1583,7 +1587,14 @@
       else if (actie === 'instellingen-openen') openInstellingen();
       else if (actie === 'periode-rij-toevoegen') voegPeriodeRijToe();
       else if (actie === 'periode-rij-wissen') wisPeriodeRij(doel);
-      else if (actie === 'periode-wissel') wisselPeriodeOpen(doel.getAttribute('data-periode'));
+      else if (actie === 'periode-menu-wissel') {
+        staat.periodeMenuOpen = !staat.periodeMenuOpen;
+        const paneel = document.getElementById('paneel-periode');
+        const knop = document.getElementById('knop-periode');
+        if (paneel) paneel.classList.toggle('hidden', !staat.periodeMenuOpen);
+        if (knop) knop.setAttribute('aria-expanded', String(!!staat.periodeMenuOpen));
+      }
+      else if (actie === 'periode-zichtbaar') return;
       else if (actie === 'prullenbak-legen') bevestigPrullenbakLegen();
       else if (actie === 'reset-schooljaar') bevestigResetSchooljaar();
       else if (actie === 'leerling-herstellen') zetLeerlingTerug(doel.getAttribute('data-id'));
@@ -1620,6 +1631,21 @@
     document.getElementById('veld-klas').addEventListener('change', function (event) {
       event.target.blur();
       kiesKlas(event.target.value);
+    });
+    document.addEventListener('change', function (event) {
+      const veld = event.target && event.target.closest ? event.target.closest('[data-actie="periode-zichtbaar"]') : null;
+      if (!veld) return;
+      wisselPeriodeZichtbaar(veld.getAttribute('data-periode'));
+    });
+    document.addEventListener('click', function (event) {
+      const wrap = document.getElementById('wrap-periode');
+      if (!wrap || wrap.contains(event.target)) return;
+      if (!staat.periodeMenuOpen) return;
+      staat.periodeMenuOpen = false;
+      const paneel = document.getElementById('paneel-periode');
+      const knop = document.getElementById('knop-periode');
+      if (paneel) paneel.classList.add('hidden');
+      if (knop) knop.setAttribute('aria-expanded', 'false');
     });
     document.getElementById('tab-leerling').addEventListener('click', function () { wisselTab('leerling'); });
     document.getElementById('tab-taak').addEventListener('click', function () { wisselTab('taak'); });

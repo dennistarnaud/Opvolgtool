@@ -153,33 +153,34 @@
       return html;
     }
 
-    function tekenPeriodeBalk(groepen) {
-      const balk = document.getElementById('kruis-periodes');
-      if (!balk) return;
-      if (!groepen || !groepen.length) {
-        balk.innerHTML = '';
-        balk.classList.add('hidden');
-        return;
+    function tekenPeriodeKeuze(groepen) {
+      const paneel = document.getElementById('paneel-periode');
+      const knop = document.getElementById('knop-periode');
+      const punt = document.getElementById('periode-indicatie');
+      if (!paneel || !knop) return;
+      const periodes = periodesUitInstellingen();
+      const aantallen = {};
+      (groepen || []).forEach(function (groep) { aantallen[groep.id] = groep.taken.length; });
+      function rij(id, naam, aantal) {
+        const aan = periodeIsZichtbaar(id);
+        return '<label class="periode-keuze-rij">' +
+          '<input type="checkbox" data-actie="periode-zichtbaar" data-periode="' + escapeAttr(id) + '"' +
+          (aan ? ' checked' : '') + '>' +
+          '<span class="min-w-0 truncate">' + escapeHtml(naam) + '</span>' +
+          (aantal ? '<span class="ml-auto text-slate-400 font-medium">' + aantal + '</span>' : '') +
+          '</label>';
       }
-      balk.classList.remove('hidden');
-      balk.innerHTML = groepen.map(function (groep) {
-        const open = periodeIsOpen(groep.id);
-        const chevron = open
-          ? '<path d="m6 9 6 6 6-6"/>'
-          : '<path d="m9 6 6 6-6 6"/>';
-        const bereik = (groep.van && groep.tot)
-          ? korteDatum(groep.van) + '–' + korteDatum(groep.tot)
-          : '';
-        const titel = groep.naam + (bereik ? ' · ' + bereik : '') + ' · ' + groep.taken.length +
-          (groep.taken.length === 1 ? ' taak' : ' taken');
-        return '<button type="button" class="kruis-periode-knop" data-actie="periode-wissel" data-periode="' +
-          escapeAttr(groep.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '" title="' + escapeAttr(titel) + '">' +
-          '<svg class="periode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          chevron + '</svg>' +
-          '<span>' + escapeHtml(groep.naam) + '</span>' +
-          '<span class="text-slate-400 font-medium">' + groep.taken.length + '</span>' +
-          '</button>';
-      }).join('');
+      let html = '';
+      periodes.forEach(function (p) {
+        html += rij(p.id, p.naam, aantallen[p.id] || 0);
+      });
+      if (aantallen[PERIODE_OVERIGE]) {
+        html += rij(PERIODE_OVERIGE, 'Buiten periodes', aantallen[PERIODE_OVERIGE]);
+      }
+      paneel.innerHTML = html;
+      paneel.classList.toggle('hidden', !staat.periodeMenuOpen);
+      knop.setAttribute('aria-expanded', String(!!staat.periodeMenuOpen));
+      if (punt) punt.classList.toggle('hidden', !periodesFilterActief());
     }
 
     function tekenKruistabel() {
@@ -190,7 +191,7 @@
       const leerlingen = leerlingenVanKlas();
       const groepen = periodeGroepenVan(zichtbareTaken());
       const taken = kruisTaken();
-      tekenPeriodeBalk(groepen);
+      tekenPeriodeKeuze(groepen);
       tekenSorteerFilterKnoppen();
       tekenOpvolgActies();
 

@@ -121,7 +121,7 @@
     const PERIODES_MAX = 20;
     const PERIODE_NAAM_MAX = 40;
     const PERIODE_OVERIGE = '__overige__';
-    const PERIODE_OPSLag = 'opvolgtool-periode-open';
+    const PERIODE_OPSLag = 'opvolgtool-periode-uit';
     const OUD_BERICHT_LEERLING = [
       'Hallo {voornaam},\n\n' +
       'Je hebt nog taken die niet in orde zijn:\n' +
@@ -215,6 +215,7 @@
       sleepPunt: null,
       sortering: 'datum',
       groepFilters: [],
+      periodeMenuOpen: false,
       avondstudieDatum: '',
       modalTopVast: false,
       modal: null,
@@ -1122,8 +1123,25 @@
       return result.slice(0, PERIODES_MAX);
     }
 
+    function schooljaarStartJaar() {
+      const d = new Date();
+      const jaar = d.getFullYear();
+      return (d.getMonth() + 1) >= 7 ? jaar : jaar - 1;
+    }
+
+    function standaardPeriodes() {
+      const jaar = schooljaarStartJaar();
+      const volgend = jaar + 1;
+      return [
+        { id: 't1', naam: 'Trimester 1', van: jaar + '-09-01', tot: jaar + '-12-31' },
+        { id: 't2', naam: 'Trimester 2', van: volgend + '-01-01', tot: volgend + '-04-10' },
+        { id: 't3', naam: 'Trimester 3', van: volgend + '-04-11', tot: volgend + '-06-30' }
+      ];
+    }
+
     function periodesUitInstellingen() {
-      return (staat.instellingen && staat.instellingen.periodes) || [];
+      const lijst = (staat.instellingen && staat.instellingen.periodes) || [];
+      return lijst.length ? lijst : standaardPeriodes();
     }
 
     function periodeVoorDeadline(deadline) {
@@ -1160,39 +1178,57 @@
       return groepen;
     }
 
-    function leesPeriodeOpenMap() {
+    function periodeKeuzeIds(taken) {
+      const ids = periodesUitInstellingen().map(function (p) { return p.id; });
+      const groepen = periodeGroepenVan(taken || zichtbareTaken());
+      if (groepen) {
+        groepen.forEach(function (groep) {
+          if (groep.id === PERIODE_OVERIGE && ids.indexOf(PERIODE_OVERIGE) === -1) ids.push(PERIODE_OVERIGE);
+        });
+      }
+      return ids;
+    }
+
+    function leesVerborgenPeriodes() {
       try {
         const ruw = sessionStorage.getItem(PERIODE_OPSLag);
-        if (!ruw) return {};
-        const map = JSON.parse(ruw);
-        return map && typeof map === 'object' ? map : {};
-      } catch (e) { return {}; }
+        if (!ruw) return [];
+        const lijst = JSON.parse(ruw);
+        return Object.prototype.toString.call(lijst) === '[object Array]' ? lijst.map(String) : [];
+      } catch (e) { return []; }
     }
 
-    function schrijfPeriodeOpenMap(map) {
-      try { sessionStorage.setItem(PERIODE_OPSLag, JSON.stringify(map || {})); } catch (e) { /* negeren */ }
+    function schrijfVerborgenPeriodes(ids) {
+      try {
+        const lijst = (ids || []).filter(Boolean);
+        if (lijst.length) sessionStorage.setItem(PERIODE_OPSLag, JSON.stringify(lijst));
+        else sessionStorage.removeItem(PERIODE_OPSLag);
+      } catch (e) { /* negeren */ }
     }
 
-    function periodeStandaardOpen(id) {
-      if (id === PERIODE_OVERIGE) return true;
-      const periodes = periodesUitInstellingen();
-      for (let i = 0; i < periodes.length; i++) {
-        if (periodes[i].id === id) return periodes[i].tot >= isoVandaag();
-      }
-      return true;
+    function verborgenPeriodeIds() {
+      const geldig = periodeKeuzeIds();
+      return leesVerborgenPeriodes().filter(function (id) { return geldig.indexOf(id) !== -1; });
     }
 
-    function periodeIsOpen(id) {
-      const map = leesPeriodeOpenMap();
-      if (Object.prototype.hasOwnProperty.call(map, id)) return !!map[id];
-      return periodeStandaardOpen(id);
+    function periodeIsZichtbaar(id) {
+      return verborgenPeriodeIds().indexOf(id) === -1;
     }
 
-    function wisselPeriodeOpen(id) {
+    function periodesFilterActief() {
+      return verborgenPeriodeIds().length > 0;
+    }
+
+    function wisselPeriodeZichtbaar(id) {
       if (!id) return;
-      const map = leesPeriodeOpenMap();
-      map[id] = !periodeIsOpen(id);
-      schrijfPeriodeOpenMap(map);
+      const geldig = periodeKeuzeIds();
+      if (geldig.indexOf(id) === -1) return;
+      let uit = verborgenPeriodeIds();
+      const index = uit.indexOf(id);
+      if (index === -1) uit.push(id);
+      else uit.splice(index, 1);
+      schrijfVerborgenPeriodes(uit);
+      staat.periodeMenuOpen = true;
       const wrapper = document.getElementById('kruistabel-wrapper');
       const scroll = wrapper ? wrapper.scrollLeft : 0;
       tekenScherm();
@@ -1206,7 +1242,7 @@
       if (!groepen) return alle;
       const lijst = [];
       groepen.forEach(function (groep) {
-        if (!periodeIsOpen(groep.id)) return;
+        if (!periodeIsZichtbaar(groep.id)) return;
         groep.taken.forEach(function (taak) { lijst.push(taak); });
       });
       return lijst;
