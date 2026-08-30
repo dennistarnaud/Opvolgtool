@@ -224,6 +224,7 @@
       bezigLeerling: false,
       bevestigActie: null,
       taakBewerkenId: '',
+      taakWijzigingWachtrij: [],
       nieuweLeerlingTekst: '',
       registratieWachtrij: [],
       registratieBezig: false,
@@ -348,6 +349,7 @@
       }
       if (type === 'lln' && staat.lijstLeerlingId === oudId) staat.lijstLeerlingId = nieuwId;
       if (type === 'taak' && staat.lijstTaakId === oudId) staat.lijstTaakId = nieuwId;
+      if (type === 'taak' && staat.taakBewerkenId === oudId) staat.taakBewerkenId = nieuwId;
     }
 
     function vervangLeerlingIdInDom(oudId, nieuwId) {
@@ -380,8 +382,54 @@
       staat.registratieWachtrij.forEach(function (item) {
         if (item.payload.taakId === oudId) item.payload.taakId = nieuwId;
       });
+      staat.taakWijzigingWachtrij.forEach(function (item) {
+        if (item.id === oudId) item.id = nieuwId;
+      });
       vervangIdInSelectie('taak', oudId, nieuwId);
+      document.querySelectorAll('[data-taak]').forEach(function (el) {
+        if (el.getAttribute('data-taak') === oudId) el.setAttribute('data-taak', nieuwId);
+      });
+      document.querySelectorAll('[data-id]').forEach(function (el) {
+        if (el.getAttribute('data-id') === oudId) el.setAttribute('data-id', nieuwId);
+      });
       verwerkRegistratieWachtrij();
+      verwerkTaakWijzigingWachtrij();
+    }
+
+    function verwerkTaakWijzigingWachtrij() {
+      if (!staat.taakWijzigingWachtrij.length) return;
+      const klaar = [];
+      const rest = [];
+      staat.taakWijzigingWachtrij.forEach(function (item) {
+        if (isTijdelijkId(item.id)) rest.push(item);
+        else klaar.push(item);
+      });
+      staat.taakWijzigingWachtrij = rest;
+      klaar.forEach(function (item) {
+        verstuurTaakWijziging(item.id, item.data);
+      });
+    }
+
+    function verstuurTaakWijziging(id, data) {
+      if (!isGasOmgeving()) return;
+      const taak = taakOpId(id);
+      const oudNaam = taak ? taak.naam : '';
+      const oudType = taak ? taak.type : '';
+      const oudDeadline = taak ? taak.deadline : '';
+      const run = gasRun();
+      if (!run) return;
+      run
+        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak); })
+        .withFailureHandler(function (fout) {
+          if (taak) {
+            taak.naam = oudNaam;
+            taak.type = oudType;
+            taak.deadline = oudDeadline;
+            tekenActieveWeergave();
+          }
+          toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
+        })
+        .updateTaak({ id: id, naam: data.naam, type: data.type, deadline: data.deadline });
     }
 
     function verwerkRegistratieWachtrij() {
@@ -701,6 +749,9 @@
             staat.registratieWachtrij = staat.registratieWachtrij.filter(function (item) {
               return item.payload.taakId !== tempId;
             });
+            staat.taakWijzigingWachtrij = staat.taakWijzigingWachtrij.filter(function (item) {
+              return item.id !== tempId;
+            });
             staat.registraties = staat.registraties.filter(function (r) {
               return r.taakId !== tempId;
             });
@@ -715,20 +766,23 @@
     function slaTaakWijzigingOp(id, data, naSucces) {
       const taak = taakOpId(id);
       if (!taak) { toonMelding('Taak niet gevonden.', 'fout'); return; }
-      const oudNaam = taak.naam, oudType = taak.type, oudDeadline = taak.deadline;
       taak.naam = String(data.naam || '').trim();
       taak.type = String(data.type || '').trim();
       taak.deadline = String(data.deadline || '').trim();
+      const payload = { naam: taak.naam, type: taak.type, deadline: taak.deadline };
       if (naSucces) naSucces(taak);
       if (!isGasOmgeving()) { console.log('[LOKAAL] updateTaak', taak); return; }
-      gasRun()
-        .withSuccessHandler(function (antwoord) { if (antwoord && antwoord.taak) werkTaakBij(antwoord.taak); })
-        .withFailureHandler(function (fout) {
-          taak.naam = oudNaam; taak.type = oudType; taak.deadline = oudDeadline;
-          tekenActieveWeergave();
-          toonMelding('Taak opslaan mislukt: ' + (fout.message || fout), 'fout');
-        })
-        .updateTaak({ id: id, naam: data.naam, type: data.type, deadline: data.deadline });
+      if (isTijdelijkId(id)) {
+        let gevonden = false;
+        staat.taakWijzigingWachtrij.forEach(function (item) {
+          if (item.id !== id) return;
+          item.data = payload;
+          gevonden = true;
+        });
+        if (!gevonden) staat.taakWijzigingWachtrij.push({ id: id, data: payload });
+        return;
+      }
+      verstuurTaakWijziging(id, payload);
     }
 
     function verwijderLeerlingOp(id, naSucces) {
@@ -1433,6 +1487,7 @@
       staat.registratieBezig = false;
       staat.registratieWachtDirect = [];
       staat.registratieWachtrij = [];
+      staat.taakWijzigingWachtrij = [];
       staat.klassen = (data.klassen || []).map(function (item) {
         if (item && typeof item === 'object') {
           return { naam: String(item.naam || '').trim(), vak: String(item.vak || '').trim() };
