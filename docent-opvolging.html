@@ -454,7 +454,7 @@
       }
 
       if (!delen.length) return '';
-      return '<div class="space-y-2">' + delen.join('') + '</div>';
+      return '<div class="space-y-2" data-opvolg-acties data-id="' + escapeAttr(leerling.id) + '">' + delen.join('') + '</div>';
     }
 
     function openstaandeTakenTekst(lln) {
@@ -716,6 +716,59 @@
       staat.opvolgingKlikTot[id] = Date.now() + 450;
     }
 
+    function zetOpvolgKnoppenBezet(id) {
+      const zet = function (aan) {
+        document.querySelectorAll('[data-opvolg-acties][data-id="' + id + '"]').forEach(function (el) {
+          el.classList.toggle('pointer-events-none', aan);
+          el.classList.toggle('opacity-50', aan);
+        });
+        const fiche = document.getElementById('fiche-opvolging-actie');
+        const ficheKnop = document.getElementById('knop-leerling-verwijderen');
+        if (fiche && ficheKnop && ficheKnop.getAttribute('data-id') === id) {
+          fiche.classList.toggle('pointer-events-none', aan);
+          fiche.classList.toggle('opacity-50', aan);
+        }
+      };
+      zet(true);
+      setTimeout(function () { zet(false); }, 450);
+    }
+
+    function slaOpvolgingNaarServer(payload, onSuccess, onFailure) {
+      if (!staat.opvolgingWachtrij) staat.opvolgingWachtrij = [];
+      staat.opvolgingWachtrij.push({ payload: payload, onSuccess: onSuccess, onFailure: onFailure });
+      startOpvolgingVerzending();
+    }
+
+    function startOpvolgingVerzending() {
+      if (staat.opvolgingBezig) return;
+      if (!staat.opvolgingWachtrij || !staat.opvolgingWachtrij.length) return;
+      const run = gasRun();
+      if (!run) {
+        setTimeout(startOpvolgingVerzending, 80);
+        return;
+      }
+      const next = staat.opvolgingWachtrij.shift();
+      staat.opvolgingBezig = true;
+      run
+        .withSuccessHandler(function (antwoord) {
+          staat.opvolgingBezig = false;
+          if (next.onSuccess) next.onSuccess(antwoord);
+          startOpvolgingVerzending();
+        })
+        .withFailureHandler(function (fout) {
+          const id = next.payload && next.payload.id;
+          if (id && staat.opvolgingWachtrij) {
+            staat.opvolgingWachtrij = staat.opvolgingWachtrij.filter(function (item) {
+              return !(item.payload && item.payload.id === id);
+            });
+          }
+          staat.opvolgingBezig = false;
+          if (next.onFailure) next.onFailure(fout);
+          startOpvolgingVerzending();
+        })
+        .zetLeerlingOpvolging(next.payload);
+    }
+
     function vraagOpvolgingTerug(id, stap) {
       if (!opvolgingAan() || !id || opvolgKlikGeblokkeerd(id)) return;
       const leerling = leerlingOpId(id);
@@ -728,6 +781,7 @@
 
     function vraagOpvolging(id, stap) {
       if (!opvolgingAan()) return;
+      if (id && opvolgKlikGeblokkeerd(id)) return;
       if (stap === 'afronden') {
         openBevestig(
           'Opvolging afronden?',
@@ -790,6 +844,7 @@
       const wissen = !!(opties.wissen && isLadder);
       if (isLadder && !wissen && stapOpvolgingGezet(leerling, stap)) return;
       if (isLadder && wissen && !stapOpvolgingGezet(leerling, stap)) return;
+      blokkeerOpvolgKlik(id);
       const versie = volgendeOpvolgingVersie(id);
 
       // Sla de huidige opvolgingstoestand op voor rollback bij fout.
@@ -839,6 +894,7 @@
       else if (stap === 'nablijf')    leerling.opvolgingNablijfOp  = nu;
 
       verversOpvolgingUI(leerling);
+      zetOpvolgKnoppenBezet(id);
       const berichten = {
         reset:          'Opvolging afgerond.',
         afronden:       'Opvolging afgesloten.',
@@ -862,24 +918,15 @@
         payload.nieuwResetOp = String(leerling.opvolgingResetOp || '');
       }
 
-      // Bevestig op de achtergrond.
-      // Bij succes: merge enkel opvolgingsvelden — vervang NIET het hele object.
-      // Dit voorkomt dat een concurrent GAS-antwoord (bijv. registratie-opslag) stale data
-      // terugschrijft over de optimistische opvolgingsstaat en zo een visuele flicker veroorzaakt.
-      gasRun()
-        .withSuccessHandler(function (antwoord) {
+      slaOpvolgingNaarServer(payload, function (antwoord) {
           if (!isHuidigeOpvolgingVersie(id, versie)) return;
           // Merge ENKEL de velden die DEZE stap heeft gewijzigd.
-          // Raak andere velden NIET aan: een parallelle GAS-call kan die
-          // al optimistisch hebben bijgewerkt, en we mogen die waarden
-          // niet overschrijven met een stale snapshot van de server.
           const bevestigd = antwoord && antwoord.leerling;
           const huidig = leerlingOpId(id);
           if (huidig && bevestigd) {
             if (stap === 'leerling') {
               huidig.opvolgingLeerlingOp = bevestigd.opvolgingLeerlingOp;
               if (wissen) {
-                // Wissen wist ook alles erna.
                 huidig.opvolgingOudersOp  = bevestigd.opvolgingOudersOp;
                 huidig.opvolgingNablijfOp = bevestigd.opvolgingNablijfOp;
               }
@@ -901,9 +948,6 @@
               huidig.opvolgingGepauzeerd    = bevestigd.opvolgingGepauzeerd;
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             } else {
-              // reset en pauze-opheffen wissen alles → volledige merge is veilig.
-              // Neem nooit een later resetmoment over: dat zou nieuwe kruisjes
-              // (gezet terwijl GAS nog bezig was) ten onrechte lichtrood maken.
               huidig.opvolgingLeerlingOp    = bevestigd.opvolgingLeerlingOp;
               huidig.opvolgingOudersOp      = bevestigd.opvolgingOudersOp;
               huidig.opvolgingNablijfOp     = bevestigd.opvolgingNablijfOp;
@@ -912,19 +956,13 @@
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             }
           }
-          // Herteken enkel bij reset/pauze-opheffen: die veranderen opvolgingResetOp
-          // waardoor celkleuren moeten bijwerken. Bij alle andere stappen is de
-          // optimistische update al volledig correct — extra hertekening veroorzaakt
-          // alleen flicker bij parallelle GAS-calls.
           if (stap === 'reset' || stap === 'pauze-opheffen') {
             const vers = leerlingOpId(id);
             if (vers) verversOpvolgingUI(vers);
           }
-        })
-        .withFailureHandler(function (fout) {
+        }, function (fout) {
           if (!isHuidigeOpvolgingVersie(id, versie)) return;
           toonMelding('Opvolging bijwerken mislukt: ' + (fout.message || fout), 'fout');
-          // Rollback via leerlingOpId om zeker het huidig object te pakken (niet stale closure).
           const huidig = leerlingOpId(id);
           if (huidig) {
             huidig.opvolgingLeerlingOp    = oud.opvolgingLeerlingOp;
@@ -935,7 +973,6 @@
             huidig.opvolgingBlokkeerTaken = oud.opvolgingBlokkeerTaken;
             verversOpvolgingUI(huidig);
           }
-        })
-        .zetLeerlingOpvolging(payload);
+        });
     }
 </script>
