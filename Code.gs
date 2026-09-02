@@ -573,7 +573,7 @@ function updateLeerling(data) {
 
 /**
  * Zet of wist een opvolgstap.
- * @param {{id: string, stap: string, blokkeerTaken?: string[]}} data
+ * @param {{id: string, stap: string, blokkeerTaken?: string[], resetOp?: string}} data
  *   stap: leerling | ouders | nablijf | reset | afronden | pauzeer | pauze-wissen | pauze-opheffen
  * @return {{ok: boolean, leerling: Object}}
  */
@@ -597,7 +597,7 @@ function zetLeerlingOpvolging(data) {
         ouders:   !!String(leerling.opvolgingOudersOp   || '').trim(),
         nablijf:  !!String(leerling.opvolgingNablijfOp  || '').trim()
       };
-      const nu = formatDatumTijd_(new Date());
+      const nu = kiesResetTijdstip_(data) || formatDatumTijd_(new Date());
 
       if (stap === 'reset') {
         // Wis alle opvolgstappen + pauze, registreer resetmoment.
@@ -647,6 +647,7 @@ function zetLeerlingOpvolging(data) {
         leerling.opvolgingBlokkeerTaken = [];
 
       } else if (gezet[stap]) {
+        if (!opvolgingResetOpKlopt_(leerling, data)) return { ok: true, leerling: leerling };
         // Wis de stap (en alles erna).
         if (stap === 'leerling') {
           sheet.getRange(i + 1, 8, 1, 3).setValues([['', '', '']]);
@@ -662,6 +663,7 @@ function zetLeerlingOpvolging(data) {
           leerling.opvolgingNablijfOp = '';
         }
       } else {
+        if (!opvolgingResetOpKlopt_(leerling, data)) return { ok: true, leerling: leerling };
         // Zet de stap.
         if (stap === 'ouders' && !gezet.leerling) throw new Error('Eerst de leerling laten weten.');
         if (stap === 'nablijf' && !gezet.ouders) throw new Error('Eerst de ouders verwittigen.');
@@ -680,6 +682,22 @@ function zetLeerlingOpvolging(data) {
     }
     throw new Error('Leerling niet gevonden.');
   });
+}
+
+/** True als de client nog bij dezelfde cyclus hoort als de opgeslagen reset. */
+function opvolgingResetOpKlopt_(leerling, data) {
+  if (!data || data.resetOp === undefined) return true;
+  return String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim() ===
+    String(data.resetOp || '').trim();
+}
+
+/** Gebruikt het resetmoment van de client, zodat latere kruisjes niet lichtrood worden. */
+function kiesResetTijdstip_(data) {
+  const ruw = String(data && data.nieuwResetOp ? data.nieuwResetOp : '').trim();
+  if (!ruw) return '';
+  const parsed = parseDatumTijd_(ruw);
+  if (!parsed || isNaN(parsed.getTime())) return '';
+  return ruw;
 }
 
 /**

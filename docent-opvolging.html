@@ -275,16 +275,12 @@
     function htmlOpvolgingStappen(leerling) {
       const volgende = opvolgActieNodig(leerling);
       const ov = opvolgingVan(leerling);
-      const toonEvaluatie = !!(ov.nablijf || ov.gepauzeerd ||
-        volgende === 'evaluatie' || volgende === 'pauze-klaar' || volgende === 'gepauzeerd');
       const stappen = [
         { id: 'leerling',  uitleg: 'Laten weten: taken inhalen tegen de volgende les' },
         { id: 'ouders',    uitleg: 'Bericht naar de ouders' },
-        { id: 'nablijf',   uitleg: 'Avondstudie — opnieuw bericht naar de ouders' }
+        { id: 'nablijf',   uitleg: 'Avondstudie — opnieuw bericht naar de ouders' },
+        { id: 'evaluatie', uitleg: 'Evalueer het resultaat van de avondstudie' }
       ];
-      if (toonEvaluatie) {
-        stappen.push({ id: 'evaluatie', uitleg: 'Evalueer het resultaat van de avondstudie' });
-      }
       return stappen.map(function (stap) {
         let klaar = !!ov[stap.id];
         if (stap.id === 'evaluatie') klaar = !!ov.gepauzeerd; // gepauzeerd = evaluatie gezet
@@ -317,17 +313,35 @@
         '</button>';
     }
 
-    function htmlOpvolgGedaanKnop(leerling, stap) {
+    function htmlOpvolgVolgendeKnop(leerling, stap) {
       stap = stap || opvolgActieNodig(leerling);
       if (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') return '';
       const mag = kopieerBerichtMag(stap);
-      const label = !mag ? 'Kies eerst de datum van de avondstudie' : 'Stap als gedaan markeren';
+      const label = !mag ? 'Kies eerst de datum van de avondstudie' : 'Volgende stap';
       return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-30 disabled:hover:bg-amber-600 disabled:cursor-not-allowed" ' +
         'data-actie="opvolging-zet" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
         (mag ? '' : 'disabled ') +
         'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
-        'Gedaan</button>';
+        'Volgende' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>' +
+        '</button>';
+    }
+
+    function htmlOpvolgActieRij(links, rechts) {
+      return '<div class="flex items-center justify-between gap-1.5">' +
+        '<div class="flex items-center gap-1.5 shrink-0">' + (links || '') + '</div>' +
+        '<div class="flex items-center gap-1.5 shrink-0">' + (rechts || '') + '</div>' +
+      '</div>';
+    }
+
+    function htmlOpvolgUitleg(volgende) {
+      if (volgende === 'leerling')    return 'Spreek de leerling aan. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
+      if (volgende === 'ouders')      return 'Kopieer het bericht naar de ouders. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
+      if (volgende === 'nablijf')     return 'Kies de datum en kopieer het bericht. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
+      if (volgende === 'evaluatie')   return 'Pauzeren als de taken nog niet in orde zijn, Opgevolgd om de cyclus af te ronden.';
+      if (volgende === 'gepauzeerd')  return 'Nieuwe tekorten tellen niet mee. Wacht tot de leerling toont dat het in orde is.';
+      if (volgende === 'pauze-klaar') return 'Alle openstaande taken zijn in orde. Rond de cyclus af.';
+      return 'Nog geen actie nodig.';
     }
 
     function htmlOpvolgAfrondingsBlok(leerling) {
@@ -348,25 +362,28 @@
     }
 
     function htmlOpvolgAfrondenKnop(leerling) {
-      return '<button type="button" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-800 hover:bg-amber-100" ' +
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700" ' +
         'data-actie="opvolging-zet" data-stap="reset" data-id="' + escapeAttr(leerling.id) + '" ' +
-        'title="Opvolging afronden" aria-label="Opvolging afronden">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
-        '</button>';
+        'title="Opgevolgd: cyclus afronden — de leerling heeft de taken in orde gebracht" aria-label="Opgevolgd — cyclus afronden">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
+        'Opgevolgd</button>';
     }
 
     function htmlOpvolgTerugKnop(leerling) {
       const stap = laatsteOpvolgStap(leerling);
-      if (!stap) return '';
+      const zichtbaar = !!stap;
       const label = stap === 'pauze-wissen' ? 'Pauze ongedaan maken' : 'Laatste stap ongedaan maken';
-      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-amber-900/80 hover:bg-amber-100 hover:text-amber-950" ' +
-        'data-actie="opvolging-zet" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
-        'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-amber-900/80 hover:bg-amber-100 hover:text-amber-950' +
+        (zichtbaar ? '' : ' invisible pointer-events-none') + '" ' +
+        (zichtbaar
+          ? 'data-actie="opvolging-terug" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '"'
+          : 'disabled tabindex="-1" aria-hidden="true"') +
+        '>' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 2.8L3 13" /></svg>' +
         'Terug</button>';
     }
 
-    function htmlOpvolgEvaluatieKnoppen(leerling, terug) {
+    function htmlOpvolgEvaluatieKnoppen(leerling) {
       const pauzeerKnop =
         '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-amber-950 bg-white border border-amber-200 hover:bg-amber-50" ' +
         'data-actie="opvolging-zet" data-stap="pauzeer" data-id="' + escapeAttr(leerling.id) + '" ' +
@@ -379,13 +396,10 @@
         'title="Opgevolgd: cyclus afronden" aria-label="Opgevolgd — cyclus afronden">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
         'Opgevolgd</button>';
-      return '<div class="flex items-center justify-between gap-1.5">' +
-        '<div>' + (terug || '') + '</div>' +
-        '<div class="flex items-center gap-1.5">' + pauzeerKnop + geslaagdKnop + '</div>' +
-      '</div>';
+      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), pauzeerKnop + geslaagdKnop);
     }
 
-    function htmlOpvolgPauzeBlok(leerling, volgende, terug) {
+    function htmlOpvolgPauzeBlok(leerling, volgende) {
       const klaar = volgende === 'pauze-klaar';
       const opheffenLabel = klaar ? 'Cyclus afronden' : 'Pauze opheffen';
       const opheffenTitle = klaar
@@ -401,17 +415,15 @@
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
         opheffenLabel + '</button>';
 
-      return '<div class="flex items-center justify-between gap-1.5">' +
-        '<div>' + (terug || '') + '</div>' +
-        '<div>' + opheffenKnop + '</div>' +
-      '</div>';
+      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), opheffenKnop);
     }
 
-    function htmlAvondstudieDatumVeld() {
+    function htmlAvondstudieDatumVeld(zichtbaar) {
+      if (!zichtbaar) return '<div class="h-8" aria-hidden="true"></div>';
       const iso = leesAvondstudieDatum();
-      return '<label class="block">' +
-        '<span class="text-[11px] font-semibold text-amber-950">Datum avondstudie</span>' +
-        '<input type="date" class="veld-avondstudie-datum mt-1 w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" value="' + escapeAttr(iso) + '" />' +
+      return '<label class="flex items-center gap-2 h-8">' +
+        '<span class="text-[11px] font-semibold text-amber-950 shrink-0">Datum avondstudie</span>' +
+        '<input type="date" class="veld-avondstudie-datum h-8 min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400" value="' + escapeAttr(iso) + '" />' +
         '</label>';
     }
 
@@ -420,38 +432,29 @@
       const delen = [];
 
       if (volgende === 'evaluatie') {
-        // Twee uitkomstenknoppen: Geen resultaat (pauzeer) of Geslaagd (afronden).
-        const terug = htmlOpvolgTerugKnop(leerling);
-        delen.push(htmlOpvolgEvaluatieKnoppen(leerling, terug));
+        delen.push(htmlAvondstudieDatumVeld(false));
+        delen.push(htmlOpvolgEvaluatieKnoppen(leerling));
 
       } else if (volgende === 'gepauzeerd' || volgende === 'pauze-klaar') {
-        // Pauze-modus: toon blokkerende taken + opheffenknop.
-        const terug = htmlOpvolgTerugKnop(leerling);
-        delen.push(htmlOpvolgPauzeBlok(leerling, volgende, terug));
+        delen.push(htmlAvondstudieDatumVeld(false));
+        delen.push(htmlOpvolgPauzeBlok(leerling, volgende));
 
       } else if (volgende === 'afronden') {
         delen.push(htmlOpvolgAfrondingsBlok(leerling));
 
       } else {
-        // Normale stappen: leerling / ouders / nablijf / reset.
-        if (berichtVraagtDatum(volgende)) delen.push(htmlAvondstudieDatumVeld());
-        const terug = htmlOpvolgTerugKnop(leerling);
         const heeftActie = volgende === 'leerling' || volgende === 'ouders' || volgende === 'nablijf';
-        if (terug || heeftActie) {
-          // Terug staat altijd links, E-mail + Gedaan altijd rechts.
-          const rechts = heeftActie
-            ? htmlOpvolgKopieerKnop(leerling, volgende) + htmlOpvolgGedaanKnop(leerling, volgende)
-            : '';
-          delen.push(
-            '<div class="flex items-center justify-between gap-1.5' + (delen.length ? ' mt-2' : '') + '">' +
-              '<div>' + (terug || '') + '</div>' +
-              '<div class="flex items-center gap-1.5">' + rechts + '</div>' +
-            '</div>'
-          );
+        if (heeftActie) {
+          delen.push(htmlAvondstudieDatumVeld(berichtVraagtDatum(volgende)));
+          delen.push(htmlOpvolgActieRij(
+            htmlOpvolgTerugKnop(leerling) + htmlOpvolgVolgendeKnop(leerling, volgende),
+            htmlOpvolgKopieerKnop(leerling, volgende) + htmlOpvolgAfrondenKnop(leerling)
+          ));
         }
       }
 
-      return delen.join('');
+      if (!delen.length) return '';
+      return '<div class="space-y-2">' + delen.join('') + '</div>';
     }
 
     function openstaandeTakenTekst(lln) {
@@ -511,7 +514,7 @@
         const mag = kopieerBerichtMag(stap);
         knop.disabled = !mag;
         const label = mag
-          ? (knop.getAttribute('data-actie') === 'opvolging-bericht' ? 'Bericht naar ouders kopiëren' : 'Stap als gedaan markeren')
+          ? (knop.getAttribute('data-actie') === 'opvolging-bericht' ? 'Bericht naar ouders kopiëren' : 'Volgende stap')
           : 'Kies eerst de datum van de avondstudie';
         knop.setAttribute('title', label);
         knop.setAttribute('aria-label', label);
@@ -617,18 +620,8 @@
       document.getElementById('fiche-opvolging-titel').textContent =
         (o.gepauzeerd ? '⏸ Gepauzeerd — ' : '') +
         (o.gepauzeerd ? openstaand : n) + '× niet in orde (drempel ' + drempel + ')';
-      let uitleg = 'Nog geen actie nodig.';
-      if (volgende === 'leerling')   uitleg = 'Spreek de leerling aan: openstaande opdrachten moeten tegen de volgende les in orde zijn. Markeer daarna Gedaan.';
-      else if (volgende === 'ouders')    uitleg = 'Kopieer het bericht naar de ouders. Markeer daarna Gedaan.';
-      else if (volgende === 'nablijf')   uitleg = 'Kies de datum, kopieer het bericht, markeer daarna Gedaan.';
-      else if (volgende === 'evaluatie') uitleg = 'Alle stappen gezet. Evalueer het resultaat van de avondstudie: kies "Pauzeren" als de taken nog niet in orde zijn, of "Opgevolgd" als de cyclus afgerond kan worden.';
-      else if (volgende === 'gepauzeerd') uitleg = 'Opvolging gepauzeerd. Nieuwe tekorten tellen niet mee — wacht tot de leerling komt tonen dat het in orde is.';
-      else if (volgende === 'pauze-klaar') uitleg = 'Alle openstaande taken zijn in orde. Klik op "Cyclus afronden" om de opvolging te beëindigen.';
-      document.getElementById('fiche-opvolging-uitleg').textContent = uitleg;
-      // Stappen-grid: 4 kolommen wanneer de evaluatiestap zichtbaar is.
-      const toonEvaluatie = !!(o.nablijf || o.gepauzeerd ||
-        volgende === 'evaluatie' || volgende === 'pauze-klaar' || volgende === 'gepauzeerd');
-      stappenEl.className = 'mt-2 grid ' + (toonEvaluatie ? 'grid-cols-4' : 'grid-cols-3') + ' gap-1.5';
+      document.getElementById('fiche-opvolging-uitleg').textContent = htmlOpvolgUitleg(volgende);
+      stappenEl.className = 'mt-2 grid grid-cols-4 gap-1.5';
       stappenEl.innerHTML = htmlOpvolgingStappen(leerling);
       if (actieEl) actieEl.innerHTML = htmlOpvolgingActiePaneel(leerling);
       reset.classList.add('hidden');
@@ -652,25 +645,15 @@
           '</div>';
       }
 
-      let uitleg = '';
-      if (volgende === 'leerling')     uitleg = 'Spreek de leerling aan: opdrachten in orde tegen de volgende les.';
-      else if (volgende === 'ouders')      uitleg = 'Kopieer het bericht naar ouders, markeer daarna Gedaan.';
-      else if (volgende === 'nablijf')     uitleg = 'Kies datum, kopieer bericht, markeer Gedaan.';
-      else if (volgende === 'evaluatie')   uitleg = 'Pauzeren of opgevolgd markeren.';
-      else if (volgende === 'gepauzeerd')  uitleg = 'Gepauzeerd — ' + openstaand + ' openstaande taken.';
-      else if (volgende === 'pauze-klaar') uitleg = 'Taken in orde — rond de cyclus af.';
       const titelTekst = (o.gepauzeerd ? '⏸ ' : '') + (o.gepauzeerd ? openstaand : n) + '× niet in orde';
-      const toonEvaluatie = !!(o.nablijf || o.gepauzeerd ||
-        volgende === 'evaluatie' || volgende === 'pauze-klaar' || volgende === 'gepauzeerd');
-      const cols = toonEvaluatie ? 'grid-cols-4' : 'grid-cols-3';
       return '<div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5">' +
         '<div class="flex items-start justify-between gap-2">' +
-          '<div class="min-w-0">' +
+          '<div class="min-w-0 w-full">' +
             '<p class="text-[11px] font-semibold text-amber-950">' + escapeHtml(titelTekst) + '</p>' +
-            (uitleg ? '<p class="text-[11px] text-amber-900/80 mt-0.5">' + escapeHtml(uitleg) + '</p>' : '') +
+            '<p class="text-[11px] text-amber-900/80 mt-0.5 leading-snug h-8 overflow-hidden">' + escapeHtml(htmlOpvolgUitleg(volgende)) + '</p>' +
           '</div>' +
         '</div>' +
-        '<div class="mt-2 grid ' + cols + ' gap-1.5">' + htmlOpvolgingStappen(leerling) + '</div>' +
+        '<div class="mt-2 grid grid-cols-4 gap-1.5">' + htmlOpvolgingStappen(leerling) + '</div>' +
         '<div class="mt-2">' + htmlOpvolgingActiePaneel(leerling) + '</div>' +
         '</div>';
     }
@@ -701,6 +684,48 @@
       if (lln) verversOpvolgingUI(lln);
     }
 
+    function isLadderStap(stap) {
+      return stap === 'leerling' || stap === 'ouders' || stap === 'nablijf';
+    }
+
+    function vroegsteResetOp(a, b) {
+      const links = String(a || '').trim();
+      const rechts = String(b || '').trim();
+      if (!links) return rechts;
+      if (!rechts) return links;
+      return links <= rechts ? links : rechts;
+    }
+
+    function volgendeOpvolgingVersie(id) {
+      if (!staat.opvolgingVersie) staat.opvolgingVersie = {};
+      staat.opvolgingVersie[id] = (staat.opvolgingVersie[id] || 0) + 1;
+      return staat.opvolgingVersie[id];
+    }
+
+    function isHuidigeOpvolgingVersie(id, versie) {
+      return !!(staat.opvolgingVersie && staat.opvolgingVersie[id] === versie);
+    }
+
+    function opvolgKlikGeblokkeerd(id) {
+      const tot = staat.opvolgingKlikTot && staat.opvolgingKlikTot[id];
+      return !!(tot && Date.now() < tot);
+    }
+
+    function blokkeerOpvolgKlik(id) {
+      if (!staat.opvolgingKlikTot) staat.opvolgingKlikTot = {};
+      staat.opvolgingKlikTot[id] = Date.now() + 450;
+    }
+
+    function vraagOpvolgingTerug(id, stap) {
+      if (!opvolgingAan() || !id || opvolgKlikGeblokkeerd(id)) return;
+      const leerling = leerlingOpId(id);
+      if (!leerling) return;
+      if (stap !== laatsteOpvolgStap(leerling)) return;
+      blokkeerOpvolgKlik(id);
+      if (stap === 'pauze-wissen') slaOpvolgingOp(id, stap);
+      else slaOpvolgingOp(id, stap, { wissen: true });
+    }
+
     function vraagOpvolging(id, stap) {
       if (!opvolgingAan()) return;
       if (stap === 'afronden') {
@@ -716,9 +741,9 @@
       if (stap === 'reset') {
         openBevestig(
           'Opvolging afronden?',
-          'Deze cyclus is klaar. Bestaande kruisjes blijven staan, maar tellen niet meer mee voor de volgende cyclus.',
+          'De cyclus stopt hier. Bestaande kruisjes blijven staan, maar tellen niet meer mee voor een volgende cyclus.',
           function () { slaOpvolgingOp(id, 'reset'); },
-          'Afronden',
+          'Opgevolgd — afronden',
           'bg-emerald-600 text-white hover:bg-emerald-700'
         );
         return;
@@ -745,10 +770,14 @@
       }
       const leerling = leerlingOpId(id);
       if (!leerling) return;
-      const wissen = stapOpvolgingGezet(leerling, stap);
-      if (!wissen && berichtVraagtDatum(stap) && !leesAvondstudieDatum()) {
-        toonMelding('Kies eerst de datum van de avondstudie.', 'fout');
-        return;
+      if (isLadderStap(stap)) {
+        if (opvolgKlikGeblokkeerd(id)) return;
+        if (opvolgActieNodig(leerling) !== stap) return;
+        if (berichtVraagtDatum(stap) && !leesAvondstudieDatum()) {
+          toonMelding('Kies eerst de datum van de avondstudie.', 'fout');
+          return;
+        }
+        blokkeerOpvolgKlik(id);
       }
       slaOpvolgingOp(id, stap);
     }
@@ -757,8 +786,11 @@
       opties = opties || {};
       const leerling = leerlingOpId(id);
       if (!leerling) return;
-      const isSpeciaalStap = stap === 'pauzeer' || stap === 'pauze-wissen' || stap === 'pauze-opheffen' || stap === 'afronden';
-      const wissen = !isSpeciaalStap && stap !== 'reset' && stapOpvolgingGezet(leerling, stap);
+      const isLadder = isLadderStap(stap);
+      const wissen = !!(opties.wissen && isLadder);
+      if (isLadder && !wissen && stapOpvolgingGezet(leerling, stap)) return;
+      if (isLadder && wissen && !stapOpvolgingGezet(leerling, stap)) return;
+      const versie = volgendeOpvolgingVersie(id);
 
       // Sla de huidige opvolgingstoestand op voor rollback bij fout.
       const oud = {
@@ -825,6 +857,10 @@
 
       const payload = { id: id, stap: stap };
       if (stap === 'pauzeer') payload.blokkeerTaken = leerling.opvolgingBlokkeerTaken;
+      if (isLadder) payload.resetOp = String(oud.opvolgingResetOp || '');
+      if (stap === 'reset' || stap === 'pauze-opheffen') {
+        payload.nieuwResetOp = String(leerling.opvolgingResetOp || '');
+      }
 
       // Bevestig op de achtergrond.
       // Bij succes: merge enkel opvolgingsvelden — vervang NIET het hele object.
@@ -832,6 +868,7 @@
       // terugschrijft over de optimistische opvolgingsstaat en zo een visuele flicker veroorzaakt.
       gasRun()
         .withSuccessHandler(function (antwoord) {
+          if (!isHuidigeOpvolgingVersie(id, versie)) return;
           // Merge ENKEL de velden die DEZE stap heeft gewijzigd.
           // Raak andere velden NIET aan: een parallelle GAS-call kan die
           // al optimistisch hebben bijgewerkt, en we mogen die waarden
@@ -865,10 +902,12 @@
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             } else {
               // reset en pauze-opheffen wissen alles → volledige merge is veilig.
+              // Neem nooit een later resetmoment over: dat zou nieuwe kruisjes
+              // (gezet terwijl GAS nog bezig was) ten onrechte lichtrood maken.
               huidig.opvolgingLeerlingOp    = bevestigd.opvolgingLeerlingOp;
               huidig.opvolgingOudersOp      = bevestigd.opvolgingOudersOp;
               huidig.opvolgingNablijfOp     = bevestigd.opvolgingNablijfOp;
-              huidig.opvolgingResetOp       = bevestigd.opvolgingResetOp;
+              huidig.opvolgingResetOp       = vroegsteResetOp(huidig.opvolgingResetOp, bevestigd.opvolgingResetOp);
               huidig.opvolgingGepauzeerd    = bevestigd.opvolgingGepauzeerd;
               huidig.opvolgingBlokkeerTaken = bevestigd.opvolgingBlokkeerTaken;
             }
@@ -883,6 +922,7 @@
           }
         })
         .withFailureHandler(function (fout) {
+          if (!isHuidigeOpvolgingVersie(id, versie)) return;
           toonMelding('Opvolging bijwerken mislukt: ' + (fout.message || fout), 'fout');
           // Rollback via leerlingOpId om zeker het huidig object te pakken (niet stale closure).
           const huidig = leerlingOpId(id);
