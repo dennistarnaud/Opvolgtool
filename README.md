@@ -39,25 +39,25 @@ Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, ko
 
 Op een smal scherm zie je geen kruistabel, maar twee tabbladen.
 
-**Leerling**, overzicht van de klas. Tik een naam om taken af te vinken.
+**Leerling**: overzicht van de klas. Tik op een naam om taken af te vinken.
 
 ![Docentscherm op telefoon, tabblad Leerling](img/opvolgtool-docentview-lln.png)
 
-Na het tikken van een naam: taken van die leerling, met statusknoppen.
+Na het tikken op een naam: taken van die leerling, met statusknoppen.
 
 ![Docentscherm op telefoon, taken van één leerling](img/opvolgtool-docentview-lln2.png)
 
-**Taak**, overzicht van de taken. Tik een taak om de klas af te vinken.
+**Taak**: overzicht van de taken. Tik op een taak om de leerlingen van de klas af te vinken.
 
 ![Docentscherm op telefoon, tabblad Taak](img/opvolgtool-docentview-taak.png)
 
-Na het tikken van een taak: status per leerling, inclusief lege vakjes in één keer.
+Na het tikken op een taak: status per leerling. Via 'Lege vakjes' vul je alle lege vakjes in één keer in.
 
 ![Docentscherm op telefoon, één taak voor de klas](img/opvolgtool-docentview-taak2.png)
 
 ### Dossier
 
-Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe). Ook daar is geen extra login nodig.
+Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe).
 
 ![Opvolgtool in het leerlingdossier](img/opvolgtool-lvs.png)
 
@@ -74,7 +74,7 @@ De vier stappen:
 | Leerling | Spreek de leerling aan en kopieer eventueel het bericht |
 | Ouders | Kopieer het bericht naar de ouders |
 | Avondstudie | Kies de datum en kopieer het bericht |
-| Evaluatie | **Aan zet** als de taken nog openstaan, **Opgevolgd** om de cyclus af te ronden |
+| Evaluatie | '**Aan zet**' als de taken nog openstaan, **Opgevolgd** om de cyclus af te ronden |
 
 ![Stap Leerling](img/opvolgtool-lln.png)
 
@@ -84,7 +84,7 @@ De vier stappen:
 
 ![Stap Evaluatie](img/opvolgtool-evaluatie.png)
 
-Bij **Aan zet** kopieer je een e-mail naar leerling en ouders. In het leerlingscherm verschijnt bovenaan een melding tot alle openstaande taken in orde of opgevolgd zijn. Nieuwe tekorten starten geen nieuwe cyclus.
+Bij '**Aan zet**' kopieer je een e-mail naar leerling en ouders. In het leerlingscherm verschijnt bovenaan een melding tot alle openstaande taken in orde of opgevolgd zijn. Nieuwe tekorten starten geen nieuwe cyclus.
 
 In de kruistabel is **Opgevolgd** (toets 6) het lichtrode kruisje: de taak telt niet meer mee voor een volgende cyclus. Intern blijft de status `Al opgevolgd`.
 
