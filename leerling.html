@@ -714,7 +714,7 @@
     function statusBadge(reg) {
       const status = statusTekst(reg);
       if (status === 'Al opgevolgd' || isAlOpgevolgd(reg)) {
-        return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde . Al opgevolgd</span>';
+        return '<span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde<span class="inline-block w-1 h-1 rounded-full bg-current" aria-hidden="true"></span>Opgevolgd</span>';
       }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',

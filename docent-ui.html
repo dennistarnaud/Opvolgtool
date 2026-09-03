@@ -332,7 +332,7 @@
         STATUS_OPTIES.map(function (status) {
           const actief = status === huidige;
           const teltNietMee = actief && registratieTeltNietMee(lln, huidigeReg);
-          const titel = teltNietMee ? celStatusLabel(status, true) : status;
+          const titel = (status === 'Al opgevolgd' || teltNietMee) ? celStatusLabel(status, true) : status;
           return '<button type="button" class="lijst-status inline-flex items-center justify-center w-9 h-9 rounded-lg text-sm font-bold ' +
             lijstStatusKlasse(status, actief, teltNietMee) + '" data-actie="' + knopActie + '" data-lln="' + escapeAttr(llnId || '') +
             '" data-taak="' + escapeAttr(taakId || '') + '" data-status="' + escapeAttr(status) +
@@ -369,7 +369,7 @@
       const delen = [];
       if (t.inOrde) delen.push(t.inOrde + ' in orde');
       if (t.nietOk) delen.push(t.nietOk + ' niet OK');
-      if (t.afgehandeld) delen.push(t.afgehandeld + ' al opgevolgd');
+      if (t.afgehandeld) delen.push(t.afgehandeld + ' opgevolgd');
       if (t.teLaat) delen.push(t.teLaat + ' te laat');
       if (t.teMaken) delen.push(t.teMaken + ' te maken');
       if (t.afwezig) delen.push(t.afwezig + ' afwezig');
@@ -872,7 +872,7 @@
 
     function ficheStatusBadge(status, teltNietMee) {
       if (status === 'Al opgevolgd' || teltNietMee) {
-        return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde . Al opgevolgd</span>';
+        return '<span class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde<span class="inline-block w-1 h-1 rounded-full bg-current" aria-hidden="true"></span>Opgevolgd</span>';
       }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
@@ -962,7 +962,7 @@
 
       document.getElementById('fiche-samenvatting').textContent =
         inOrde + ' in orde · ' + nietOk + ' niet OK · ' +
-        (afgehandeld ? afgehandeld + ' al opgevolgd · ' : '') +
+        (afgehandeld ? afgehandeld + ' opgevolgd · ' : '') +
         teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       const lijst = document.getElementById('fiche-lijst');
