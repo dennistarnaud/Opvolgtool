@@ -100,7 +100,7 @@ Aan die Sheet hang je de code uit dit project (een **Apps Script**). Tot slot pu
 
 Het snelst: [maak een kopie van de templatesheet](https://docs.google.com/spreadsheets/d/1su54OKbVJrFEeISrP23PN-aGJ6jebnEwn3U1EeySLhY/copy). Die kopie komt in jouw Drive. De tabbladen en koppen staan er al in, de rijen daaronder blijven leeg. Hang er nog geen script aan, dat komt in stap 2.
 
-Liever zelf opbouwen: maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
+Je kan het ook zelf opbouwen: maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
 
 | Tabblad | Wat de tool erin bewaart |
 |---|---|
@@ -124,17 +124,40 @@ In `Instellingen` schrijft de tool zelf o.a. `opvolgingAan`, `opvolgingDrempel`,
 
 Klaar. Vanaf hier vult de tool de rijen zelf. Leerlingen, taken en statussen voeg je later toe in het docentscherm.
 
-Deel de Sheet **niet** via “iedereen met de link”. Alleen wie het script beheert (en eventueel een collega-beheerder) heeft de Sheet nodig.
+Deel de Sheet **niet** via “iedereen met de link”. 
+
+Alleen wie het de tool moet kunnen gebruiken voeg je toe als bewerker. De Algemene toegang blijft dus op 'Beperkt'.
 
 ---
 
 ### 2. Script koppelen
 
-1. Open de Sheet → **Uitbreidingen → Apps Script**
-2. Verwijder de lege `Code.gs` en plak de inhoud uit dit project
-3. Voeg ook `Config.gs` en `LeerlingCodes.gs` toe (zelfde namen)
-4. Maak deze HTML-bestanden aan. In de editor is de naam **zonder** `.html`. Plak de inhoud uit het gelijknamige bestand in dit project:
-   `docent`, `docent-kern`, `docent-opvolging`, `docent-kruis`, `docent-ui`, `leerling`
+De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze handleiding: `Code.gs`, `Config.gs`, `LeerlingCodes.gs` en de HTML-bestanden (`docent.html`, …). Klik een bestand, kopieer de **hele** inhoud, en plak die in Apps Script. Doe dat bestand per bestand, met dezelfde naam.
+
+1. Open jouw Sheet. Kies **Uitbreidingen → Apps Script**.
+
+![In Google Sheets: Uitbreidingen, dan Apps Script](img/sheets-appsscriptbtn.png)
+
+2. Je ziet een bestand `Code.gs` met een lege `myFunction`. Selecteer die tekst, verwijder ze, en plak de inhoud van `Code.gs` van GitHub.
+
+![In Apps Script: de lege myFunction in Code.gs vervangen](img/gas-code.png)
+
+3. De andere bestanden maak je zelf aan. Klik op **+** naast *Bestanden*. Kies **Script** voor `.gs`-bestanden, of **Html** voor de schermen.
+
+![Nieuw scriptbestand aanmaken](img/gas-script.png)
+
+![Nieuw HTML-bestand aanmaken](img/gas-html.png)
+
+4. Typ alleen de naam, **zonder** `.gs` of `.html`. Die uitgang verschijnt vanzelf. Dus `Config`, niet `Config.gs`. En `docent`, niet `docent.html`.
+
+![Script noemen: alleen Config, zonder .gs](img/gas-script2.png)
+
+![HTML noemen: alleen de naam, zonder .html](img/gas-html2.png)
+
+5. Maak deze bestanden aan en plak telkens de inhoud van het gelijknamige bestand op GitHub (verwijder eerst opnieuw de lege `myFunction` als die er staat):
+
+   - Script: `Config`, `LeerlingCodes`
+   - Html: `docent`, `docent-kern`, `docent-opvolging`, `docent-kruis`, `docent-ui`, `leerling`
 
 ---
 
