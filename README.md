@@ -14,6 +14,7 @@ Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen
 - [Na elke codewijziging](#na-elke-codewijziging)
 - [Dagelijks gebruik](#dagelijks-gebruik)
 - [Licentie](#licentie)
+- [Steun](#steun)
 
 ---
 
@@ -343,3 +344,9 @@ Copyright © 2026 Dennis Tarnaud
 De 'Opvolgtool taken' valt onder [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.nl). Scholen en collega’s mogen de code gebruiken en aanpassen, met naamsvermelding. Die naamsvermelding hoort in LICENSE en README, niet in de schermen van de tool. Aanpassingen die je verder deelt, blijven onder dezelfde licentie. Aanpassingen deel je het liefst via een fork op GitHub. Commercieel gebruik is niet toegestaan. Wie toch commercieel wil gebruiken, opent een issue op deze repository.
 
 De software wordt geleverd zoals ze is. Er is geen garantie en geen aansprakelijkheid als er iets misloopt. De volledige tekst staat in [`LICENSE`](LICENSE).
+
+---
+
+## Steun
+
+Als dit project je helpt, kun je me een koffie trakteren via [Ko-fi](https://ko-fi.com/dennistarnaud).
