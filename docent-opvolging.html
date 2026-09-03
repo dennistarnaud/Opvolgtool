@@ -575,18 +575,24 @@
       extra = extra || {};
       const naam = String(lln && lln.naam ? lln.naam : '').trim();
       const voornaam = naam.split(/\s+/)[0] || naam;
-      const klas = klasLabel(staat.gekozenKlas || (lln && lln.klas) || '');
+      const klasNaam = staat.gekozenKlas || (lln && lln.klas) || '';
+      const klas = klasLabel(klasNaam);
+      const vak = String(extra.vak != null ? extra.vak : klasVak(klasNaam)).trim();
+      const vakzin = vak ? ' voor ' + vak : '';
       const drempel = String(drempelNietInOrde());
       const datum = String(extra.datum || '').trim();
       return String(sjabloon || '')
         .replace(/\{voornaam\}/g, voornaam)
         .replace(/\{naam\}/g, naam)
+        .replace(/\{vakzin\}/g, vakzin)
+        .replace(/\{vak\}/g, vak)
         .replace(/\{klas\}/g, klas)
         .replace(/\{drempel\}/g, drempel)
         .replace(/\{taken\}/g, extra.taken || openstaandeTakenTekst(lln))
         .replace(/\{stappen\}/g, extra.stappen || opvolgStappenTekst(lln))
         .replace(/\{datum\/dag\}/g, datum)
-        .replace(/\{datum\}/g, datum);
+        .replace(/\{datum\}/g, datum)
+        .replace(/taken {2,}/g, 'taken ');
     }
 
     function formatteerOpvolgDatum(waarde) {
@@ -601,10 +607,10 @@
       const voornaam = naam.split(/\s+/)[0] || naam || 'de leerling';
       const o = opvolgingVan(lln);
       const regels = [];
-      if (o.leerling) regels.push('• ' + voornaam + ' is persoonlijk aangesproken (' + formatteerOpvolgDatum(o.leerling) + ')');
-      if (o.ouders) regels.push('• De ouders zijn verwittigd (' + formatteerOpvolgDatum(o.ouders) + ')');
-      if (o.nablijf) regels.push('• Avondstudie is ingepland (' + formatteerOpvolgDatum(o.nablijf) + ')');
-      return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen';
+      if (o.leerling) regels.push('• Ik heb ' + voornaam + ' hier persoonlijk over aangesproken (' + formatteerOpvolgDatum(o.leerling) + ').');
+      if (o.ouders) regels.push('• Ik heb jullie als ouders hiervan op de hoogte gebracht (' + formatteerOpvolgDatum(o.ouders) + ').');
+      if (o.nablijf) regels.push('• Ik heb avondstudie voor ' + voornaam + ' ingepland (' + formatteerOpvolgDatum(o.nablijf) + ').');
+      return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen.';
     }
 
     function formatteerAvondstudieDatum(waarde) {

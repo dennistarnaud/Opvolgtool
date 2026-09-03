@@ -95,6 +95,22 @@ const DEFAULT_BERICHT_NABLIJF =
   'Bedankt voor uw medewerking.\n\n' +
   'Met vriendelijke groeten';
 const DEFAULT_BERICHT_AAN_ZET =
+  'Onderwerp: Opvolging openstaande taken {vak} {voornaam}\n\n' +
+  'Beste {voornaam}, beste ouders,\n\n' +
+  'Tegen de verwachtingen in heeft {voornaam} een aantal opdrachten{vakzin} nog niet gemaakt. Om {voornaam} een duwtje in de rug te geven bij het afwerken van die opdrachten, heb ik de afgelopen tijd de volgende stappen gezet:\n\n' +
+  '{stappen}\n\n' +
+  'Toch zijn de opdrachten op dit moment nog niet in orde.\n' +
+  'Daarom leg ik de verantwoordelijkheid voor het afwerken van de taken nu volledig bij {voornaam}. Ik stuur dit niet langer stap voor stap aan en verwacht dat {voornaam} hierin zelfstandigheid toont.\n\n' +
+  'Het gaat momenteel over de volgende openstaande taken:\n' +
+  '{taken}\n\n' +
+  'Wat ik nu van {voornaam} verwacht:\n' +
+  '• {voornaam} werkt alle ontbrekende (en eventuele nieuwe) taken zelfstandig bij tot de lijst volledig is afgewerkt.\n' +
+  '• Als {voornaam} een taak kwijt is, zorgt {voornaam} zelf voor een lege kopie van een medeleerling. Aan het resultaat wil ik duidelijk kunnen zien dat {voornaam} de taak zelf heeft gemaakt.\n' +
+  '• Zodra alles in orde is, komt {voornaam} met alle afgewerkte opdrachten naar mij toe om dit te laten zien.\n\n' +
+  'Ik reken erop dat {voornaam} deze verantwoordelijkheid serieus neemt. Ik neem zowel de openstaande taken als {voornaam}s inzet mee naar de komende klassenraad. Op basis daarvan bepalen we als lerarenteam welke verdere ondersteuning we kunnen bieden, of welke gevolgen we koppelen aan een eventueel blijvend gebrek aan inzet.\n\n' +
+  'U kunt de actuele status van de taken intussen blijven opvolgen via het leerlingenvolgsysteem. Zodra {voornaam} alles bij mij heeft laten zien, zal de melding daar verdwijnen.\n\n' +
+  'Met vriendelijke groeten';
+const OUD_BERICHT_AAN_ZET = [
   'Onderwerp: {voornaam} is aan zet\n\n' +
   'Beste {voornaam}, beste ouders,\n\n' +
   'Na de eerdere opvolging is {voornaam} nu zelf aan zet. De school volgt de openstaande taken niet verder stap voor stap op. De verantwoordelijkheid ligt vanaf nu bij {voornaam}.\n\n' +
@@ -108,7 +124,8 @@ const DEFAULT_BERICHT_AAN_ZET =
   '• Het is belangrijk dat {voornaam} deze verantwoordelijkheid ter harte neemt.\n\n' +
   'De lijst met taken en de inzet van {voornaam} wordt meegenomen naar de klassenraad. Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.\n\n' +
   'U kunt de actuele status blijven volgen via het leerlingenvolgsysteem.\n\n' +
-  'Met vriendelijke groeten';
+  'Met vriendelijke groeten'
+];
 const OUD_BERICHT_LEERLING = [
   'Hallo {voornaam},\n\n' +
   'Je hebt nog taken die niet in orde zijn:\n' +
@@ -426,6 +443,11 @@ function getLeerlingData(code) {
       stappen: opvolgStappenTekst_(leerling),
       drempel: String(instellingen.opvolgingDrempel || DEFAULT_OPVOLGING_DREMPEL)
     }),
+    opvolgingStappen: {
+      leerling: String(leerling.opvolgingLeerlingOp || '').trim(),
+      ouders: String(leerling.opvolgingOudersOp || '').trim(),
+      nablijf: String(leerling.opvolgingNablijfOp || '').trim()
+    },
     registraties: registraties,
     periodes: instellingen.periodes || []
   };
@@ -442,8 +464,21 @@ function formatteerDatumVoorBericht_(waarde) {
   if (!iso) return s;
   const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   if (isNaN(d.getTime())) return s;
+  const dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   const maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-  return d.getDate() + ' ' + maanden[d.getMonth()] + ' ' + d.getFullYear();
+  return dagen[d.getDay()] + ' ' + d.getDate() + ' ' + maanden[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function klasVak_(naam) {
+  const doel = String(naam || '').trim().toUpperCase();
+  if (!doel) return '';
+  const klassen = leesKlassen_();
+  for (let i = 0; i < klassen.length; i++) {
+    if (String(klassen[i].naam || '').trim().toUpperCase() === doel) {
+      return String(klassen[i].vak || '').trim();
+    }
+  }
+  return '';
 }
 
 function openstaandeTakenTekstUitRegs_(registraties) {
@@ -451,7 +486,9 @@ function openstaandeTakenTekstUitRegs_(registraties) {
   (registraties || []).forEach(function (reg) {
     if (!reg || String(reg.status || '').trim() !== STATUS_NIET_IN_ORDE) return;
     if (reg.teltNietMee) return;
-    namen.push('• ' + (reg.taakNaam || reg.taakId));
+    const soort = String(reg.type || '').trim();
+    const naam = reg.taakNaam || reg.taakId;
+    namen.push('• ' + (soort ? soort + ': ' + naam : naam));
   });
   return namen.length ? namen.join('\n') : '• (geen openstaande taken)';
 }
@@ -462,25 +499,30 @@ function opvolgStappenTekst_(leerling) {
   const leerlingOp = String(leerling && leerling.opvolgingLeerlingOp ? leerling.opvolgingLeerlingOp : '').trim();
   const oudersOp = String(leerling && leerling.opvolgingOudersOp ? leerling.opvolgingOudersOp : '').trim();
   const nablijfOp = String(leerling && leerling.opvolgingNablijfOp ? leerling.opvolgingNablijfOp : '').trim();
-  if (leerlingOp) regels.push('• ' + voornaam + ' is persoonlijk aangesproken (' + formatteerDatumVoorBericht_(leerlingOp) + ')');
-  if (oudersOp) regels.push('• De ouders zijn verwittigd (' + formatteerDatumVoorBericht_(oudersOp) + ')');
-  if (nablijfOp) regels.push('• Avondstudie is ingepland (' + formatteerDatumVoorBericht_(nablijfOp) + ')');
-  return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen';
+  if (leerlingOp) regels.push('• Ik heb ' + voornaam + ' hier persoonlijk over aangesproken (' + formatteerDatumVoorBericht_(leerlingOp) + ').');
+  if (oudersOp) regels.push('• Ik heb jullie als ouders hiervan op de hoogte gebracht (' + formatteerDatumVoorBericht_(oudersOp) + ').');
+  if (nablijfOp) regels.push('• Ik heb avondstudie voor ' + voornaam + ' ingepland (' + formatteerDatumVoorBericht_(nablijfOp) + ').');
+  return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen.';
 }
 
 function vulOpvolgBericht_(sjabloon, leerling, extra) {
   extra = extra || {};
   const naam = String(leerling && leerling.naam ? leerling.naam : '').trim();
   const voornaam = extra.voornaam || voornaamVanLeerling_(leerling);
+  const vak = String(extra.vak != null ? extra.vak : klasVak_(leerling && leerling.klas)).trim();
+  const vakzin = vak ? ' voor ' + vak : '';
   return String(sjabloon || '')
     .replace(/\{voornaam\}/g, voornaam)
     .replace(/\{naam\}/g, naam)
+    .replace(/\{vakzin\}/g, vakzin)
+    .replace(/\{vak\}/g, vak)
     .replace(/\{klas\}/g, String(leerling && leerling.klas ? leerling.klas : ''))
     .replace(/\{drempel\}/g, extra.drempel || String(DEFAULT_OPVOLGING_DREMPEL))
     .replace(/\{taken\}/g, extra.taken || '• (geen openstaande taken)')
-    .replace(/\{stappen\}/g, extra.stappen || '• De eerdere opvolgstappen zijn doorlopen')
+    .replace(/\{stappen\}/g, extra.stappen || '• De eerdere opvolgstappen zijn doorlopen.')
     .replace(/\{datum\/dag\}/g, extra.datum || '')
     .replace(/\{datum\}/g, extra.datum || '')
+    .replace(/taken {2,}/g, 'taken ')
     .trim();
 }
 
@@ -1308,7 +1350,7 @@ function normaliseerInstellingen_(data) {
     berichtLeerling: normaliseerBericht_(bron.berichtLeerling, basis.berichtLeerling, OUD_BERICHT_LEERLING),
     berichtOuders: normaliseerBericht_(bron.berichtOuders, basis.berichtOuders, OUD_BERICHT_OUDERS),
     berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF),
-    berichtAanZet: normaliseerBericht_(bron.berichtAanZet, basis.berichtAanZet, []),
+    berichtAanZet: normaliseerBericht_(bron.berichtAanZet, basis.berichtAanZet, OUD_BERICHT_AAN_ZET),
     periodes: normaliseerPeriodes_(bron.periodes)
   };
 }

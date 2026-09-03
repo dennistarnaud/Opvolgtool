@@ -118,19 +118,20 @@
         'Bedankt voor uw medewerking.\n\n' +
         'Met vriendelijke groeten',
       berichtAanZet:
-        'Onderwerp: {voornaam} is aan zet\n\n' +
+        'Onderwerp: Opvolging openstaande taken {vak} {voornaam}\n\n' +
         'Beste {voornaam}, beste ouders,\n\n' +
-        'Na de eerdere opvolging is {voornaam} nu zelf aan zet. De school volgt de openstaande taken niet verder stap voor stap op. De verantwoordelijkheid ligt vanaf nu bij {voornaam}.\n\n' +
-        'Wat er al gebeurd is:\n' +
+        'Tegen de verwachtingen in heeft {voornaam} een aantal opdrachten{vakzin} nog niet gemaakt. Om {voornaam} een duwtje in de rug te geven bij het afwerken van die opdrachten, heb ik de afgelopen tijd de volgende stappen gezet:\n\n' +
         '{stappen}\n\n' +
-        'Openstaande taken:\n' +
+        'Toch zijn de opdrachten op dit moment nog niet in orde.\n' +
+        'Daarom leg ik de verantwoordelijkheid voor het afwerken van de taken nu volledig bij {voornaam}. Ik stuur dit niet langer stap voor stap aan en verwacht dat {voornaam} hierin zelfstandigheid toont.\n\n' +
+        'Het gaat momenteel over de volgende openstaande taken:\n' +
         '{taken}\n\n' +
-        'Wat we nu verwachten:\n' +
-        '• {voornaam} werkt deze taken zelfstandig bij tot ze in orde of opgevolgd zijn.\n' +
-        '• Nieuwe tekorten starten geen nieuwe opvolgingscyclus, maar moeten wél worden rechtgezet.\n' +
-        '• Het is belangrijk dat {voornaam} deze verantwoordelijkheid ter harte neemt.\n\n' +
-        'De lijst met taken en de inzet van {voornaam} wordt meegenomen naar de klassenraad. Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.\n\n' +
-        'U kunt de actuele status blijven volgen via het leerlingenvolgsysteem.\n\n' +
+        'Wat ik nu van {voornaam} verwacht:\n' +
+        '• {voornaam} werkt alle ontbrekende (en eventuele nieuwe) taken zelfstandig bij tot de lijst volledig is afgewerkt.\n' +
+        '• Als {voornaam} een taak kwijt is, zorgt {voornaam} zelf voor een lege kopie van een medeleerling. Aan het resultaat wil ik duidelijk kunnen zien dat {voornaam} de taak zelf heeft gemaakt.\n' +
+        '• Zodra alles in orde is, komt {voornaam} met alle afgewerkte opdrachten naar mij toe om dit te laten zien.\n\n' +
+        'Ik reken erop dat {voornaam} deze verantwoordelijkheid serieus neemt. Ik neem zowel de openstaande taken als {voornaam}s inzet mee naar de komende klassenraad. Op basis daarvan bepalen we als lerarenteam welke verdere ondersteuning we kunnen bieden, of welke gevolgen we koppelen aan een eventueel blijvend gebrek aan inzet.\n\n' +
+        'U kunt de actuele status van de taken intussen blijven opvolgen via het leerlingenvolgsysteem. Zodra {voornaam} alles bij mij heeft laten zien, zal de melding daar verdwijnen.\n\n' +
         'Met vriendelijke groeten',
       periodes: []
     };
@@ -188,6 +189,22 @@
       '{taken}\n\n' +
       '{voornaam} wordt daarom ingeschreven voor nablijfstudie, zodat dit werk daar kan worden ingehaald.\n\n' +
       'Hebt u vragen over deze stap, dan mag u me gerust contacteren.\n\n' +
+      'Met vriendelijke groeten'
+    ];
+    const OUD_BERICHT_AAN_ZET = [
+      'Onderwerp: {voornaam} is aan zet\n\n' +
+      'Beste {voornaam}, beste ouders,\n\n' +
+      'Na de eerdere opvolging is {voornaam} nu zelf aan zet. De school volgt de openstaande taken niet verder stap voor stap op. De verantwoordelijkheid ligt vanaf nu bij {voornaam}.\n\n' +
+      'Wat er al gebeurd is:\n' +
+      '{stappen}\n\n' +
+      'Openstaande taken:\n' +
+      '{taken}\n\n' +
+      'Wat we nu verwachten:\n' +
+      '• {voornaam} werkt deze taken zelfstandig bij tot ze in orde of opgevolgd zijn.\n' +
+      '• Nieuwe tekorten starten geen nieuwe opvolgingscyclus, maar moeten wél worden rechtgezet.\n' +
+      '• Het is belangrijk dat {voornaam} deze verantwoordelijkheid ter harte neemt.\n\n' +
+      'De lijst met taken en de inzet van {voornaam} wordt meegenomen naar de klassenraad. Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.\n\n' +
+      'U kunt de actuele status blijven volgen via het leerlingenvolgsysteem.\n\n' +
       'Met vriendelijke groeten'
     ];
     const BERICHT_MAX = 4000;
@@ -1275,7 +1292,7 @@
         berichtLeerling: normaliseerBericht(bron.berichtLeerling, DEFAULT_OPVOLGING.berichtLeerling, OUD_BERICHT_LEERLING),
         berichtOuders: normaliseerBericht(bron.berichtOuders, DEFAULT_OPVOLGING.berichtOuders, OUD_BERICHT_OUDERS),
         berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF),
-        berichtAanZet: normaliseerBericht(bron.berichtAanZet, DEFAULT_OPVOLGING.berichtAanZet, []),
+        berichtAanZet: normaliseerBericht(bron.berichtAanZet, DEFAULT_OPVOLGING.berichtAanZet, OUD_BERICHT_AAN_ZET),
         periodes: normaliseerPeriodes(bron.periodes)
       };
     }

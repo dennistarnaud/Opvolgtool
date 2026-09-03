@@ -108,6 +108,11 @@
         berichtAanZet: (typeof vulOpvolgBericht === 'function')
           ? vulOpvolgBericht(opvolgBerichtSjabloon('aan-zet'), leerling).trim()
           : '',
+        opvolgingStappen: {
+          leerling: String(leerling.opvolgingLeerlingOp || '').trim(),
+          ouders: String(leerling.opvolgingOudersOp || '').trim(),
+          nablijf: String(leerling.opvolgingNablijfOp || '').trim()
+        },
         registraties: registraties,
         periodes: (staat.instellingen && staat.instellingen.periodes) || []
       };

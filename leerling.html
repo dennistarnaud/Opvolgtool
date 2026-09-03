@@ -114,15 +114,13 @@
 
           <div class="mt-2 space-y-2">
             <p id="aan-zet-intro" class="text-[11px] text-amber-900/80 leading-snug"></p>
-
             <ul id="aan-zet-stappen" class="list-disc pl-5 text-[11px] text-amber-900/90 leading-snug"></ul>
+            <p id="aan-zet-tussen" class="text-[11px] text-amber-900/80 leading-snug"></p>
 
-            <p class="text-[11px] font-semibold text-amber-950">Wat ik nu verwacht</p>
+            <p class="text-[11px] font-semibold text-amber-950">Wat ik nu van je verwacht</p>
             <ul id="aan-zet-verwachtingen" class="list-disc pl-5 text-[11px] text-amber-900/90 leading-snug"></ul>
 
-            <p id="aan-zet-slot-1" class="text-[11px] text-amber-900/80 leading-snug"></p>
-            <p id="aan-zet-slot-2" class="text-[11px] text-amber-900/80 leading-snug"></p>
-            <p id="aan-zet-slot-3" class="text-[11px] text-amber-900/80 leading-snug"></p>
+            <p id="aan-zet-slot" class="text-[11px] text-amber-900/80 leading-snug"></p>
           </div>
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
@@ -312,6 +310,7 @@
         opvolgingResetOp: '',
         opvolgingGepauzeerd: '',
         berichtAanZet: '',
+        opvolgingStappen: { leerling: '', ouders: '', nablijf: '' },
         registraties: registraties,
         periodes: []
       };
@@ -411,6 +410,7 @@
       opvolgingGepauzeerd: '',
       berichtAanZet: '',
       leerlingNaam: '',
+      opvolgingStappen: { leerling: '', ouders: '', nablijf: '' },
       sortering: 'datum',
       groepFilters: [],
       verborgenPeriodes: [],
@@ -666,60 +666,31 @@
       tekenLijst();
     }
 
-    function extraheerAanZetOnderdelen(bericht) {
-      const s = String(bericht || '');
-      const markerGebeurd = 'Wat er al gebeurd is:';
-      const markerTaken = 'Openstaande taken:';
-      const markerVerwacht = 'Wat we nu verwachten:';
-      const markerKlassenraad = 'De lijst met taken en de inzet';
-      const markerStatus = 'U kunt de actuele status';
-
-      const indexOf = function (needle) {
-        const i = s.indexOf(needle);
-        return i === -1 ? null : i;
-      };
-
-      const iGebeurd = indexOf(markerGebeurd);
-      const iTaken = indexOf(markerTaken);
-      const iVerwacht = indexOf(markerVerwacht);
-      const iKlassenraad = indexOf(markerKlassenraad);
-      const iStatus = indexOf(markerStatus);
-
-      let stappen = '';
-      if (iGebeurd != null && iTaken != null && iTaken > iGebeurd) {
-        stappen = s.slice(iGebeurd + markerGebeurd.length, iTaken).trim();
-      }
-
-      let verwachtingen = '';
-      if (iVerwacht != null && iKlassenraad != null && iKlassenraad > iVerwacht) {
-        verwachtingen = s.slice(iVerwacht + markerVerwacht.length, iKlassenraad).trim();
-      }
-
-      let klassenraad = '';
-      if (iKlassenraad != null) {
-        const end = (iStatus != null && iStatus > iKlassenraad) ? iStatus : s.length;
-        klassenraad = s.slice(iKlassenraad, end).trim();
-      }
-
-      return { stappen: stappen, verwachtingen: verwachtingen, klassenraad: klassenraad };
+    function formaatLangeDatum(waarde) {
+      const m = String(waarde || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return String(waarde || '').trim();
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (isNaN(d.getTime())) return String(waarde || '').trim();
+      const maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+      return d.getDate() + ' ' + maanden[d.getMonth()] + ' ' + d.getFullYear();
     }
 
-    function parseBulletLijnen(tekst) {
-      return String(tekst || '')
-        .split('\n')
-        .map(function (l) { return String(l || '').trim(); })
-        .filter(Boolean)
-        .map(function (l) { return l.replace(/^•\s*/, '').trim(); });
+    function aanZetStappenLijnen(stappen) {
+      const bron = stappen && typeof stappen === 'object' ? stappen : {};
+      const regels = [];
+      if (bron.leerling) regels.push('Je bent hier persoonlijk over aangesproken (' + formaatLangeDatum(bron.leerling) + ').');
+      if (bron.ouders) regels.push('Je ouders zijn verwittigd (' + formaatLangeDatum(bron.ouders) + ').');
+      if (bron.nablijf) regels.push('Er is avondstudie voor je ingepland (' + formaatLangeDatum(bron.nablijf) + ').');
+      return regels;
     }
 
     function tekenAanZetBanner() {
       const banner = document.getElementById('aan-zet-banner');
-      const stappenEl = document.getElementById('aan-zet-stappen');
-      const verwachtingenEl = document.getElementById('aan-zet-verwachtingen');
       const introEl = document.getElementById('aan-zet-intro');
-      const slot1El = document.getElementById('aan-zet-slot-1');
-      const slot2El = document.getElementById('aan-zet-slot-2');
-      const slot3El = document.getElementById('aan-zet-slot-3');
+      const stappenEl = document.getElementById('aan-zet-stappen');
+      const tussenEl = document.getElementById('aan-zet-tussen');
+      const verwachtingenEl = document.getElementById('aan-zet-verwachtingen');
+      const slotEl = document.getElementById('aan-zet-slot');
       if (!banner) return;
 
       const actief = !!staat.opvolgingGepauzeerd;
@@ -730,45 +701,42 @@
       banner.classList.toggle('hidden', !tonen);
       if (!tonen) return;
 
-      const leerling = String(staat.leerlingNaam || '').trim() || 'Leerling';
-
-      // Stappen (wat er al gebeurd is) blijft afgeleid uit de bestaande e-mailtekst,
-      // zodat de inhoud consistent is met wat de leerling/ouders ook krijgen.
-      const bericht = staat.berichtAanZet || '';
-      const delen = extraheerAanZetOnderdelen(bericht);
-      const stappen = parseBulletLijnen(delen.stappen);
-
-      if (stappenEl) {
-        if (stappen.length) stappenEl.innerHTML = stappen.map(function (x) {
-          return '<li>' + escapeHtml(x) + '</li>';
-        }).join('');
-        else stappenEl.innerHTML = '<li>De eerdere opvolgstappen zijn doorlopen</li>';
-      }
-
       if (introEl) {
         introEl.textContent =
-          'Tegen de verwachtingen in, ging je niet in op een reeks leerkansen die aangeboden werden. ' +
-          'Om je hierin een duwtje in de rug te geven, heb ik je hier als leraar geholpen door:';
+          'Tegen de verwachtingen in heb je een aantal opdrachten niet gemaakt. ' +
+          'Om je hierbij een duwtje in de rug te geven, heb ik de volgende stappen gezet:';
       }
 
-      const verwachtingenTekst = [
-        'Leerling werkt deze (en nieuwe) taken die niet in orde zijn zelfstandig bij tot de lijst volledig in orde is.',
-        'Bij verlies van een taak zorgt de Leerling zelf voor een lege kopie van een medeleerling. ' +
-        'Op die kopie wil ik zien dat de taak door Leerling zelf gemaakt werd.',
-        'Wanneer dit gebeurd is komt Leerling zelf tot bij mij met een bundeling van al die opdrachten om dit te laten zien.'
+      const stappen = aanZetStappenLijnen(staat.opvolgingStappen);
+      if (stappenEl) {
+        if (stappen.length) {
+          stappenEl.innerHTML = stappen.map(function (x) {
+            return '<li>' + escapeHtml(x) + '</li>';
+          }).join('');
+        } else {
+          stappenEl.innerHTML = '<li>De eerdere opvolgstappen zijn doorlopen.</li>';
+        }
+      }
+      if (tussenEl) tussenEl.textContent = 'Toch zijn de opdrachten nog niet in orde.';
+
+      const verwachtingen = [
+        'Je werkt alle ontbrekende (en eventuele nieuwe) taken zelfstandig bij tot de lijst volledig afgewerkt is.',
+        'Als je een taak kwijt bent, zorg je zelf voor een lege kopie van een medeleerling. Aan het resultaat wil ik duidelijk kunnen zien dat jij de taak zelf hebt gemaakt.',
+        'Zodra alles in orde is, kom je met alle afgewerkte opdrachten naar mij toe.'
       ];
       if (verwachtingenEl) {
-        verwachtingenEl.innerHTML = verwachtingenTekst.map(function (t) {
-          const s = String(t || '').replace(/Leerling/g, leerling);
-          return '<li>' + escapeHtml(s) + '</li>';
+        verwachtingenEl.innerHTML = verwachtingen.map(function (t) {
+          return '<li>' + escapeHtml(t) + '</li>';
         }).join('');
       }
 
-      if (slot1El) slot1El.textContent = 'Deze melding verdwijnt pas als ' + leerling + ' alle taken van de lijst hieronder in orde heeft gebracht.';
-      if (slot2El) slot2El.textContent = 'Het is belangrijk dat ' + leerling + ' deze verantwoordelijkheid ter harte neemt.';
-      if (slot3El) slot3El.textContent =
-        'De lijst met taken en de inzet van ' + leerling + ' wordt meegenomen naar de klassenraad. ' +
-        'Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.';
+      if (slotEl) {
+        slotEl.textContent =
+          'Deze melding verdwijnt pas als je alle taken van de onderstaande lijst in orde hebt gebracht. ' +
+          'Het is van groot belang dat je deze verantwoordelijkheid neemt. ' +
+          'Zowel je openstaande taken als je inzet worden meegenomen naar de klassenraad. ' +
+          'Dit bepaalt welke ondersteuning we je verder aanbieden, of welke gevolgen we koppelen aan een blijvend gebrek aan inzet.';
+      }
     }
 
     function toonRegistraties(data) {
@@ -779,6 +747,12 @@
       staat.opvolgingGepauzeerd = String(data && data.opvolgingGepauzeerd || '').trim();
       staat.leerlingNaam = String(data && data.naam || '').trim();
       staat.berichtAanZet = String(data && data.berichtAanZet || '').trim();
+      const stappen = (data && data.opvolgingStappen) || {};
+      staat.opvolgingStappen = {
+        leerling: String(stappen.leerling || '').trim(),
+        ouders: String(stappen.ouders || '').trim(),
+        nablijf: String(stappen.nablijf || '').trim()
+      };
       const laatste = {};
       const volgorde = [];
       ruw.forEach(function (reg) {
