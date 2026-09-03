@@ -841,6 +841,7 @@
           klas: klas
         };
         const tempRij = Object.assign({ datumTijd: nieuweTijdstempel() }, payload);
+        payload.datumTijd = tempRij.datumTijd;
         staat.registraties.push(tempRij);
         tempRijen.push(tempRij);
         payloads.push(payload);

@@ -511,7 +511,24 @@
       run
         .withSuccessHandler(function (antwoord) {
           (antwoord.registraties || []).forEach(function (opgeslagen, i) {
-            const idx = staat.registraties.indexOf(tempRijen[i]);
+            const tempRij = tempRijen[i];
+            if (!opgeslagen) return;
+            if (tempRij && tempRij.datumTijd) {
+              opgeslagen.datumTijd = vroegsteTijdstempel(tempRij.datumTijd, opgeslagen.datumTijd);
+            }
+            const lln = leerlingOpId(opgeslagen.llnId);
+            if (registratieAchterhaaldDoorReset(lln, opgeslagen, tempRij)) {
+              if (tempRij) tempRij.status = 'Al opgevolgd';
+              slaRegistratieOp({
+                llnId: opgeslagen.llnId,
+                taakId: opgeslagen.taakId,
+                status: 'Al opgevolgd',
+                opmerking: opgeslagen.opmerking || '',
+                klas: opgeslagen.klas
+              });
+              return;
+            }
+            const idx = staat.registraties.indexOf(tempRij);
             if (idx !== -1) staat.registraties.splice(idx, 1, opgeslagen);
           });
           callbacks.forEach(function (cb) { cb(antwoord.registraties || []); });
@@ -562,13 +579,8 @@
         alOpgevolgd: !!data.alOpgevolgd
       };
 
-      let datumTijd = nieuweTijdstempel();
-      if (payload.alOpgevolgd) {
-        const lln = leerlingOpId(payload.llnId);
-        const reset = String(lln && lln.opvolgingResetOp || '').trim();
-        if (!reset) return false;
-        datumTijd = reset;
-      }
+      const datumTijd = String(data.datumTijd || '').trim() || nieuweTijdstempel();
+      payload.datumTijd = datumTijd;
 
       // Optimistisch: registratie meteen lokaal toevoegen en UI hertekenen.
       const tempRij = {
@@ -1184,6 +1196,44 @@
       return !!(naReset && String(reg.datumTijd || '') <= naReset);
     }
 
+    function vroegsteTijdstempel(a, b) {
+      const sa = String(a || '').trim();
+      const sb = String(b || '').trim();
+      if (!sa) return sb;
+      if (!sb) return sa;
+      return sa <= sb ? sa : sb;
+    }
+
+    /** Trage 'Niet in orde'-save ná Opgevolgd: hoort bij de afgeronde cyclus, niet bij een nieuw tekort. */
+    function registratieAchterhaaldDoorReset(lln, opgeslagen, tempRij) {
+      if (!lln || !opgeslagen) return false;
+      if (opgeslagen.status !== 'Niet in orde') return false;
+      const reset = String(lln.opvolgingResetOp || '').trim();
+      if (!reset) return false;
+      const klikTijd = String(tempRij && tempRij.datumTijd ? tempRij.datumTijd : '').trim();
+      if (klikTijd) return klikTijd <= reset;
+      return String(opgeslagen.datumTijd || '') <= reset;
+    }
+
+    function isNieuwereRegistratie(kandidaat, huidig, lln) {
+      if (!huidig) return true;
+      const kStatus = String(kandidaat && kandidaat.status ? kandidaat.status : '').trim();
+      const hStatus = String(huidig && huidig.status ? huidig.status : '').trim();
+      if (lln && kStatus === 'Al opgevolgd' && hStatus === 'Niet in orde' && registratieTeltNietMee(lln, huidig)) {
+        return true;
+      }
+      if (lln && hStatus === 'Al opgevolgd' && kStatus === 'Niet in orde' && registratieTeltNietMee(lln, kandidaat)) {
+        return false;
+      }
+      const cmp = String(kandidaat.datumTijd || '').localeCompare(String(huidig.datumTijd || ''));
+      if (cmp !== 0) return cmp > 0;
+      const kandidaatOk = !!kStatus;
+      const huidigOk = !!hStatus;
+      if (!kandidaatOk && huidigOk) return true;
+      if (kandidaatOk && !huidigOk) return false;
+      return true;
+    }
+
     function opvolgingAan() {
       return !!(staat.instellingen && staat.instellingen.opvolgingAan !== false);
     }
@@ -1472,7 +1522,7 @@
       staat.registraties.forEach(function (r) {
         if (r.llnId !== lln.id || r.taakId !== taak.id) return;
         if (registratieKlas(r, lln) !== klas) return;
-        laatste = r;
+        if (isNieuwereRegistratie(r, laatste, lln)) laatste = r;
       });
       return laatste;
     }

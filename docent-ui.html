@@ -76,6 +76,48 @@
         const lln = knop ? leerlingOpId(knop.getAttribute('data-id')) : null;
         if (lln && !leerlingVerwijderd(lln)) tekenLeerlingFiche(lln);
       }
+      bewaarLeerlingPreviews();
+    }
+
+    /** Zelfde payload als getLeerlingData, zodat lokaal leerling.html de kruistabel volgt. */
+    function leerlingPreviewPayload(leerling) {
+      const klas = String(leerling && leerling.klas ? leerling.klas : '').trim();
+      const registraties = [];
+      (staat.taken || []).forEach(function (taak) {
+        if (!taakGeldtVoorKlas(taak, klas) || isMateriaalTaak(taak)) return;
+        const reg = laatsteRegistratieVoorKlas(leerling, taak, klas);
+        if (!reg || !String(reg.status || '').trim()) return;
+        registraties.push({
+          datumTijd: reg.datumTijd,
+          taakId: taak.id,
+          taakNaam: taak.naam || taak.id,
+          type: taak.type || '',
+          deadline: taak.deadline || '',
+          status: String(reg.status).trim(),
+          opmerking: reg.opmerking || '',
+          teltNietMee: registratieTeltNietMee(leerling, reg)
+        });
+      });
+      return {
+        code: leerling.code,
+        llnId: leerling.id,
+        klas: leerling.klas,
+        opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
+        registraties: registraties,
+        periodes: (staat.instellingen && staat.instellingen.periodes) || []
+      };
+    }
+
+    function bewaarLeerlingPreviews() {
+      if (isGasOmgeving()) return;
+      try {
+        const alle = {};
+        (staat.leerlingen || []).forEach(function (lln) {
+          if (!lln || !lln.code || leerlingVerwijderd(lln)) return;
+          alle[String(lln.code).toUpperCase()] = leerlingPreviewPayload(lln);
+        });
+        localStorage.setItem('opvolgtool-leerling-preview', JSON.stringify(alle));
+      } catch (e) { /* negeren */ }
     }
 
     function schermIsSmal() {
@@ -595,6 +637,7 @@
           klas: String(item.klas || staat.gekozenKlas || '').trim()
         };
         const tempRij = Object.assign({ datumTijd: nieuweTijdstempel() }, payload);
+        payload.datumTijd = tempRij.datumTijd;
         staat.registraties.push(tempRij);
         tempRijen.push(tempRij);
         item._payload = payload;
@@ -829,18 +872,19 @@
 
     function ficheStatusBadge(status, teltNietMee) {
       const isAlOpgevolgd = status === 'Al opgevolgd' || teltNietMee;
+      if (isAlOpgevolgd) {
+        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-200 text-rose-800 text-sm font-bold" title="Niet in orde — al opgevolgd">✕</span>';
+      }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
-        'Niet in orde': isAlOpgevolgd ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' : 'bg-rose-100 text-rose-800',
-        'Al opgevolgd': 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
+        'Niet in orde': 'bg-rose-100 text-rose-800',
         'Afwezig': 'bg-slate-200 text-slate-700',
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
-      const tekst = isAlOpgevolgd ? 'Niet in orde · al opgevolgd' : (status || 'Nog geen registratie');
-      return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '" title="' +
-        escapeAttr(isAlOpgevolgd ? AL_OPGEVOLGD : tekst) + '">' +
+      const tekst = status || 'Nog geen registratie';
+      return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
         escapeHtml(tekst) + '</span>';
     }
 
@@ -881,9 +925,11 @@
         zichtbaar.forEach(function (item) {
           const status = item.reg.status;
           if (status === 'In orde') inOrde += 1;
+          else if (status === 'Al opgevolgd' || (status === 'Niet in orde' && registratieTeltNietMee(leerling, item.reg))) {
+            afgehandeld += 1;
+          }
           else if (status === 'Niet in orde') {
-            if (registratieTeltNietMee(leerling, item.reg)) afgehandeld += 1;
-            else nietOk += 1;
+            nietOk += 1;
           }
           else if (status === 'Afwezig') afwezig += 1;
           else if (status === 'Te laat') teLaat += 1;
@@ -1200,9 +1246,7 @@
     function leerlingTestUrl(code) {
       if (!code) return '';
       if (!isGasOmgeving()) {
-        const basis = webAppBasisUrl();
-        if (!basis) return '';
-        return basis + (basis.indexOf('?') === -1 ? '?' : '&') + 'id=' + encodeURIComponent(code);
+        return 'leerling.html?id=' + encodeURIComponent(code);
       }
       const pad = String(window.location.href || '').split('#')[0].split('?')[0].replace(/\/+$/, '');
       const basis = /\/exec$/i.test(pad) ? pad.replace(/\/exec$/i, '/dev') : pad;

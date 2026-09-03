@@ -478,6 +478,32 @@
       return namen.length ? namen.join('\n') : '• (geen openstaande taken)';
     }
 
+    function nietInOrdeTaakIds(lln) {
+      const ids = [];
+      if (!lln || !staat.gekozenKlas) return ids;
+      takenVoorKlas(staat.gekozenKlas).forEach(function (taak) {
+        const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
+        if (reg && reg.status === 'Niet in orde') ids.push(taak.id);
+      });
+      return ids;
+    }
+
+    /** Zet openstaande rode kruisjes om naar Al opgevolgd, zodat de leerlingview het ook ziet. */
+    function schrijfNietInOrdeAlsAlOpgevolgd(lln, taakIds) {
+      const klas = staat.gekozenKlas || '';
+      (taakIds || []).forEach(function (taakId) {
+        const taak = taakOpId(taakId);
+        const vorige = laatsteRegistratieVoorKlas(lln, taak, klas);
+        slaRegistratieOp({
+          llnId: lln.id,
+          taakId: taakId,
+          status: AL_OPGEVOLGD,
+          opmerking: (vorige && vorige.opmerking) || '',
+          klas: klas
+        });
+      });
+    }
+
     function opvolgBerichtSjabloon(stap) {
       const inst = staat.instellingen || {};
       if (stap === 'ouders') return inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
@@ -867,7 +893,9 @@
 
       // Optimistisch: pas de lokale staat meteen aan en herteken.
       const nu = nieuweTijdstempel();
+      let teSluiten = [];
       if (stap === 'reset') {
+        teSluiten = nietInOrdeTaakIds(leerling);
         leerling.opvolgingLeerlingOp    = '';
         leerling.opvolgingOudersOp      = '';
         leerling.opvolgingNablijfOp     = '';
@@ -889,6 +917,7 @@
         leerling.opvolgingGepauzeerd    = '';
         leerling.opvolgingBlokkeerTaken = [];
       } else if (stap === 'pauze-opheffen') {
+        teSluiten = nietInOrdeTaakIds(leerling);
         leerling.opvolgingLeerlingOp    = '';
         leerling.opvolgingOudersOp      = '';
         leerling.opvolgingNablijfOp     = '';
@@ -901,6 +930,7 @@
       else if (stap === 'ouders')     leerling.opvolgingOudersOp   = nu;
       else if (stap === 'nablijf')    leerling.opvolgingNablijfOp  = nu;
 
+      if (teSluiten.length) schrijfNietInOrdeAlsAlOpgevolgd(leerling, teSluiten);
       verversOpvolgingUI(leerling);
       zetOpvolgKnoppenBezet(id);
       const berichten = {

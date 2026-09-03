@@ -110,6 +110,15 @@
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
           <p id="samenvatting" class="text-[11px] text-slate-500"></p>
+          <div class="flex items-center gap-1 shrink-0">
+          <button type="button" id="knop-vernieuwen"
+            class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            title="Vernieuwen" aria-label="Vernieuwen">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+          </button>
           <button type="button" id="knop-filter"
             class="relative shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
             title="Filteren en sorteren" aria-label="Filteren en sorteren" aria-expanded="false" aria-controls="paneel-filter">
@@ -120,6 +129,7 @@
             </svg>
             <span id="filter-indicatie" class="hidden absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
           </button>
+          </div>
         </div>
         <div id="paneel-filter" class="hidden mt-2 pt-2 border-t border-slate-100">
           <div class="flex flex-wrap items-center gap-2">
@@ -172,7 +182,7 @@
     /**
      * Leerlingenscherm (iframe) — toont géén namen.
      * GAS: payload via scriplet of google.script.run.getLeerlingData(code).
-     * Lokaal: mockdata, filterbaar via ?id=Geheime_Code.
+     * Lokaal: data van het docentscherm (localStorage), anders mockdata. ?id=Geheime_Code.
      */
 
     const MOCK_TAKEN = [
@@ -196,7 +206,7 @@
       { datumTijd: '2026-08-17 08:12', llnId: 'L001', taakId: 'T001', status: 'In orde', opmerking: '' },
       { datumTijd: '2026-08-17 08:13', llnId: 'L001', taakId: 'T002', status: 'Niet in orde', opmerking: 'Agenda niet ingevuld.' },
       { datumTijd: '2026-08-22 08:10', llnId: 'L001', taakId: 'T005', status: 'Te laat', opmerking: 'Na de deadline ingediend.' },
-      { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Niet in orde', opmerking: 'Voorbereiding ontbreekt.' },
+      { datumTijd: '2026-08-22 08:11', llnId: 'L001', taakId: 'T006', status: 'Al opgevolgd', opmerking: 'Voorbereiding ontbreekt.' },
       { datumTijd: '2026-09-15 08:20', llnId: 'L001', taakId: 'T013', status: 'In orde', opmerking: '' },
       { datumTijd: '2026-08-17 08:15', llnId: 'L002', taakId: 'T001', status: 'Niet in orde', opmerking: 'Niet afgegeven.' },
       { datumTijd: '2026-08-17 08:17', llnId: 'L003', taakId: 'T001', status: 'In orde', opmerking: '' },
@@ -248,7 +258,8 @@
             type: (taak && taak.type) ? taak.type : '',
             deadline: (taak && taak.deadline) ? taak.deadline : '',
             status: r.status,
-            opmerking: r.opmerking
+            opmerking: r.opmerking,
+            teltNietMee: r.status === 'Al opgevolgd'
           };
         });
 
@@ -256,29 +267,60 @@
         code: leerling.code,
         llnId: leerling.id,
         klas: leerling.klas,
+        opvolgingResetOp: '',
         registraties: registraties,
         periodes: []
       };
     }
 
-    function haalLeerlingData() {
-      const payload = leesGasPayload();
-      if (payload && payload.registraties) {
-        toonRegistraties(payload);
-        return;
+    function leesLokalePreview(code) {
+      try {
+        const ruw = localStorage.getItem('opvolgtool-leerling-preview');
+        if (!ruw) return null;
+        const alle = JSON.parse(ruw);
+        if (!alle || typeof alle !== 'object') return null;
+        const sleutel = String(code || '').trim().toUpperCase();
+        return alle[sleutel] || null;
+      } catch (e) {
+        return null;
       }
+    }
 
+    let refreshBezig = false;
+
+    function haalLeerlingData(stiltjes) {
       const code = leesUrlCode();
 
       if (isGasOmgeving()) {
+        // Toon scriplet-payload meteen als startdata zodat de pagina snel laadt.
+        if (!stiltjes) {
+          const snel = leesGasPayload();
+          if (snel && snel.registraties) toonRegistraties(snel);
+        }
+        // Haal daarna altijd verse data op via de API.
+        if (refreshBezig) return;
+        refreshBezig = true;
         google.script.run
-          .withSuccessHandler(toonRegistraties)
+          .withSuccessHandler(function (data) {
+            refreshBezig = false;
+            toonRegistraties(data);
+          })
           .withFailureHandler(function (fout) {
-            document.getElementById('lijst').innerHTML =
-              '<p class="p-4 text-sm text-rose-700">Kon gegevens niet laden.</p>';
+            refreshBezig = false;
+            if (!stiltjes) {
+              document.getElementById('lijst').innerHTML =
+                '<p class="p-4 text-sm text-rose-700">Kon gegevens niet laden.</p>';
+            }
             console.log('getLeerlingData mislukt', fout);
           })
           .getLeerlingData(code);
+        return;
+      }
+
+      const lokaal = leesLokalePreview(code);
+      if (lokaal && lokaal.registraties) {
+        console.log('[LOKAAL] leerling-preview uit docentscherm', code);
+        toonRegistraties(lokaal);
         return;
       }
 
@@ -308,6 +350,7 @@
     const staat = {
       registraties: [],
       periodes: [],
+      opvolgingResetOp: '',
       sortering: 'datum',
       groepFilters: [],
       verborgenPeriodes: [],
@@ -390,16 +433,28 @@
       return String(reg && reg.status ? reg.status : '').trim();
     }
 
-    function heeftBekendeStatus(reg) {
-      return BEKENDE_STATUSSEN.indexOf(statusTekst(reg)) !== -1;
+    function isAlOpgevolgd(reg) {
+      if (!reg) return false;
+      if (reg.teltNietMee || statusTekst(reg) === 'Al opgevolgd') return true;
+      if (statusTekst(reg) !== 'Niet in orde') return false;
+      const reset = String(staat.opvolgingResetOp || '').trim();
+      return !!(reset && String(reg.datumTijd || '') <= reset);
     }
 
-    /** Nieuwere registratie wint. Bij gelijke timestamp wint een wis (lege status), zoals in de fiche. */
+    function heeftBekendeStatus(reg) {
+      return isAlOpgevolgd(reg) || BEKENDE_STATUSSEN.indexOf(statusTekst(reg)) !== -1;
+    }
+
+    /** Nieuwere registratie wint. Bij gelijke timestamp wint een wis (lege status); anders de latere rij. */
     function isNieuwereRegistratie(kandidaat, huidig) {
       if (!huidig) return true;
       const cmp = String(kandidaat.datumTijd || '').localeCompare(String(huidig.datumTijd || ''));
       if (cmp !== 0) return cmp > 0;
-      return !heeftBekendeStatus(kandidaat) && heeftBekendeStatus(huidig);
+      const kandidaatOk = heeftBekendeStatus(kandidaat);
+      const huidigOk = heeftBekendeStatus(huidig);
+      if (!kandidaatOk && huidigOk) return true;
+      if (kandidaatOk && !huidigOk) return false;
+      return true;
     }
 
     function taakGroep(reg) {
@@ -555,6 +610,7 @@
       // Zelfde regel als de fiche: laatste registratie per taak; geen (bekende) status = niet tonen.
       const ruw = (data && data.registraties) ? data.registraties : [];
       staat.periodes = normaliseerPeriodes(data && data.periodes);
+      staat.opvolgingResetOp = String(data && data.opvolgingResetOp || '').trim();
       const laatste = {};
       const volgorde = [];
       ruw.forEach(function (reg) {
@@ -573,8 +629,8 @@
       tekenSorteerFilterKnoppen();
 
       const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
-      const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
-      const opgevolgd = regs.filter(function (r) { return r.status === 'Al opgevolgd'; }).length;
+      const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde' && !isAlOpgevolgd(r); }).length;
+      const opgevolgd = regs.filter(isAlOpgevolgd).length;
       const afwezig = regs.filter(function (r) { return r.status === 'Afwezig'; }).length;
       const teLaat = regs.filter(function (r) { return r.status === 'Te laat'; }).length;
       const teMaken = regs.filter(function (r) { return r.status === 'Te maken'; }).length;
@@ -593,7 +649,7 @@
       }
 
       lijst.innerHTML = regs.filter(heeftBekendeStatus).map(function (reg) {
-        const badge = statusBadge(reg.status);
+        const badge = statusBadge(reg);
         const groep = taakGroep(reg);
         const kleur = GROEP_KLEUR[groep] || GROEP_KLEUR.optioneel;
         const meta = [formaatDatum(reg.deadline), reg.type].filter(Boolean).join(' · ');
@@ -617,17 +673,29 @@
       }).join('');
     }
 
-    function statusBadge(status) {
+    function statusBadge(reg) {
+      const status = statusTekst(reg);
+      if (isAlOpgevolgd(reg)) {
+        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-200 text-rose-800 text-sm font-bold" title="Niet in orde — al opgevolgd">✕</span>';
+      }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
-        'Niet in orde': 'bg-rose-100 text-rose-800',
-        'Al opgevolgd': 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
+        'Niet in orde': 'bg-rose-500 text-white',
         'Afwezig': 'bg-slate-200 text-slate-700',
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status];
       if (!klasse) return '';
+      const tekens = { 'In orde': '✓', 'Niet in orde': '✕', 'Afwezig': 'A', 'Te laat': 'L', 'Te maken': 'M' };
+      const teken = tekens[status];
+      if (teken && (status === 'Niet in orde' || status === 'In orde')) {
+        const vakKlasse = status === 'Niet in orde'
+          ? 'bg-rose-500 text-white'
+          : 'bg-emerald-500 text-white';
+        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg ' +
+          vakKlasse + ' text-sm font-bold" title="' + escapeHtml(status) + '">' + teken + '</span>';
+      }
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
         escapeHtml(status) + '</span>';
     }
@@ -637,6 +705,9 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    document.getElementById('knop-vernieuwen').addEventListener('click', function () {
+      haalLeerlingData();
+    });
     document.getElementById('knop-filter').addEventListener('click', wisselFilterPaneel);
     document.getElementById('sort-datum').addEventListener('click', function () { zetSortering('datum'); });
     document.getElementById('sort-soort').addEventListener('click', function () { zetSortering('soort'); });
@@ -662,6 +733,17 @@
       staat.periodeMenuOpen = false;
       tekenPeriodeKeuze();
     });
+
+    window.addEventListener('storage', function (event) {
+      if (event.key !== 'opvolgtool-leerling-preview') return;
+      if (isGasOmgeving()) return;
+      haalLeerlingData();
+    });
+
+    // Op GAS: automatisch vernieuwen elke 30 seconden zodat wijzigingen zichtbaar worden.
+    if (typeof google !== 'undefined' && google.script) {
+      setInterval(function () { haalLeerlingData(true); }, 30000);
+    }
 
     haalLeerlingData();
   </script>

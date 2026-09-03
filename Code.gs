@@ -368,10 +368,11 @@ function getLeerlingData(code) {
   leesRegistraties_().forEach(function (reg) {
     if (reg.llnId !== leerling.id) return;
     if (registratieKlas_(reg, leerling) !== klas) return;
-    laatstePerTaak[reg.taakId] = reg;
+    if (isNieuwereRegistratie_(reg, laatstePerTaak[reg.taakId], leerling)) laatstePerTaak[reg.taakId] = reg;
   });
 
   // Zelfde regel als de leerlingfiche: taken van de klas, laatste registratie, geen status = niet tonen.
+  // 'Al opgevolgd' en lichtrode kruisjes na reset blijven zichtbaar.
   const registraties = [];
   taken.forEach(function (taak) {
     if (!taakGeldtVoorKlas_(taak, klas) || isMateriaalTaak_(taak)) return;
@@ -385,7 +386,8 @@ function getLeerlingData(code) {
       type: taak.type || '',
       deadline: taak.deadline || '',
       status: String(reg.status).trim(),
-      opmerking: reg.opmerking
+      opmerking: reg.opmerking,
+      teltNietMee: registratieTeltNietMee_(leerling, reg)
     });
   });
 
@@ -393,9 +395,40 @@ function getLeerlingData(code) {
     code: leerling.code,
     llnId: leerling.id,
     klas: leerling.klas,
+    opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
     registraties: registraties,
     periodes: leesInstellingen_().periodes || []
   };
+}
+
+function isNieuwereRegistratie_(kandidaat, huidig, leerling) {
+  if (!huidig) return true;
+  const kStatus = String(kandidaat && kandidaat.status ? kandidaat.status : '').trim();
+  const hStatus = String(huidig && huidig.status ? huidig.status : '').trim();
+  if (leerling && kStatus === STATUS_AL_OPGEVOLGD && hStatus === STATUS_NIET_IN_ORDE &&
+      registratieTeltNietMee_(leerling, huidig)) {
+    return true;
+  }
+  if (leerling && hStatus === STATUS_AL_OPGEVOLGD && kStatus === STATUS_NIET_IN_ORDE &&
+      registratieTeltNietMee_(leerling, kandidaat)) {
+    return false;
+  }
+  const cmp = String(kandidaat.datumTijd || '').localeCompare(String(huidig.datumTijd || ''));
+  if (cmp !== 0) return cmp > 0;
+  const kandidaatOk = TOEGESTANE_STATUSSEN.indexOf(kStatus) !== -1;
+  const huidigOk = TOEGESTANE_STATUSSEN.indexOf(hStatus) !== -1;
+  if (!kandidaatOk && huidigOk) return true;
+  if (kandidaatOk && !huidigOk) return false;
+  return true;
+}
+
+function registratieTeltNietMee_(leerling, reg) {
+  if (!leerling || !reg) return false;
+  const status = String(reg.status || '').trim();
+  if (status === STATUS_AL_OPGEVOLGD) return true;
+  if (status !== STATUS_NIET_IN_ORDE) return false;
+  const naReset = String(leerling.opvolgingResetOp || '').trim();
+  return !!(naReset && String(reg.datumTijd || '') <= naReset);
 }
 
 /**
@@ -439,14 +472,8 @@ function saveRegistraties(arrayData) {
       }
 
       let tijdstip = new Date(basis.getTime() + i);
-      if (data.alOpgevolgd) {
-        const leerling = leerlingOpId_(String(data.llnId).trim());
-        const reset = String(leerling && leerling.opvolgingResetOp ? leerling.opvolgingResetOp : '').trim();
-        if (!reset) throw new Error('Al opgevolgd vereist een afgeronde opvolging.');
-        const parsed = parseDatumTijd_(reset);
-        if (!parsed || isNaN(parsed.getTime())) throw new Error('Ongeldig resetmoment.');
-        tijdstip = parsed;
-      }
+      const gevraagd = parseDatumTijd_(String(data.datumTijd || '').trim());
+      if (gevraagd && !isNaN(gevraagd.getTime())) tijdstip = gevraagd;
 
       const rij = [
         tijdstip,
