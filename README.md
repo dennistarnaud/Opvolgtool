@@ -1,6 +1,6 @@
 # Opvolgtool taken
 
-Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen wanneer die niet in orde zijn. In het **docentscherm** zie je per leerling en per taak de status. Leerlingen en ouders zien hun eigen overzicht via een link, of in een elektronische leeromgeving (ELO) zoals Smartschool.
+Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen wanneer die niet in orde zijn. In het **docentscherm** zie je per leerling en per taak de status. Leerlingen en ouders zien hun eigen overzicht meestal ingesloten in de elektronische leeromgeving (ELO), bijvoorbeeld in Smartschool. Daarvoor is geen login nodig. Hetzelfde overzicht werkt ook als losse link, zonder Google-account.
 
 ---
 
@@ -19,11 +19,14 @@ Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen
 
 ## Wat doet de tool?
 
-**Als leerkracht** open je het docentscherm. Op een computer zie je een kruistabel: leerlingen × taken. Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus de persoonlijke code en de link die je met leerling of ouders deelt.
+**Als leerkracht** open je het docentscherm. 
+- Op een computer zie je een kruistabel: leerlingen × taken. 
+- Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. 
+Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus wat je nodig hebt om dat overzicht in de ELO te zetten of als losse link te delen. Leerling en ouder loggen niet in.
 
-Als een leerling een drempel haalt (standaard 3× niet in orde), volg je een vaste ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
+Als een leerling een drempel haalt (standaard 3× niet in orde), volg je een vaste escalatie-ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken ongemaakt, dan zet je de leerling '**Aan zet**': de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
-**Als leerling of ouder** open je die link, of het overzicht in Smartschool / het leerlingvolgsysteem. Je ziet de taken en statussen van die ene leerling. Iedereen met die link kan de pagina bekijken — daarvoor hoef je niet in te loggen.
+**Als leerling of ouder** zie je dat overzicht in de ELO, of via een losse link. Geen login, geen schoolaccount: de pagina is anoniem toegankelijk. Je ziet alleen de taken en statussen van die ene leerling. Wie de link of het venster heeft, kan meekijken.
 
 ---
 
@@ -33,7 +36,7 @@ Als een leerling een drempel haalt (standaard 3× niet in orde), volg je een vas
 
 Op een smal scherm zie je geen kruistabel, maar twee tabbladen.
 
-**Leerling** — overzicht van de klas. Tik een naam om taken af te vinken.
+**Leerling**, overzicht van de klas. Tik een naam om taken af te vinken.
 
 ![Docentscherm op telefoon, tabblad Leerling](img/opvolgtool-docentview-lln.png)
 
@@ -41,7 +44,7 @@ Na het tikken van een naam: taken van die leerling, met statusknoppen.
 
 ![Docentscherm op telefoon, taken van één leerling](img/opvolgtool-docentview-lln2.png)
 
-**Taak** — overzicht van de taken. Tik een taak om de klas af te vinken.
+**Taak**, overzicht van de taken. Tik een taak om de klas af te vinken.
 
 ![Docentscherm op telefoon, tabblad Taak](img/opvolgtool-docentview-taak.png)
 
@@ -55,7 +58,7 @@ Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, ko
 
 ![Docentscherm op de computer, kruistabel](img/opvolgtool-docentview.png)
 
-De leerlingpagina kun je in het dossier zetten (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe).
+Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe). Ook daar is geen extra login nodig.
 
 ![Opvolgtool in het leerlingdossier](img/opvolgtool-lvs.png)
 
@@ -149,7 +152,7 @@ const TOEGANG_EMAIL_DOCENT = [
 ];
 ```
 
-Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het docentscherm niet te zien — ook niet via de docent-URL.
+Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het docentscherm niet te zien, ook niet via de docent-URL.
 
 ---
 
@@ -157,13 +160,13 @@ Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het 
 
 Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-app, daarna die voor leerlingen.
 
-| | Implementatie A — Docent | Implementatie B — Leerling |
+| | Implementatie A, Docent | Implementatie B, Leerling |
 |---|---|---|
 | **Voor wie** | Leerkrachten die data mogen wijzigen | Leerlingen en ouders die alleen kijken |
 | **Login** | Ja, school-Google-account | Nee |
 | **Wie mag openen?** | Alleen adressen in `TOEGANG_EMAIL_DOCENT` | Iedereen met de juiste `?id=CODE`-link |
 
-### Implementatie A — Docent
+### Implementatie A, Docent
 
 1. Apps Script → **Implementeren → Nieuwe implementatie** (of een bestaande bewerken)
 2. Type: **Web-app**
@@ -180,7 +183,7 @@ Docent-URL:
 https://script.google.com/macros/s/.../exec
 ```
 
-### Implementatie B — Leerling
+### Implementatie B, Leerling
 
 1. **Implementeren → Nieuwe implementatie** (een tweede web-app, niet A overschrijven)
 2. Type: **Web-app**
@@ -241,7 +244,7 @@ Als je `Code.gs`, `Config.gs`, `LeerlingCodes.gs` of een van de HTML-bestanden a
 
 De `/exec`-URL blijft hetzelfde. Ververs daarna de pagina.
 
-De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar alleen voor wie het script mag bewerken. Handig om het docentscherm te proberen. De kopieerknop in de fiche maakt op `/dev` een testlink (`/dev?id=CODE`) van hetzelfde script. De iframe-code blijft de publieke `/exec`-URL van implementatie B — die gebruik je voor Smartschool en ouders.
+De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar alleen voor wie het script mag bewerken. Handig om het docentscherm te proberen. De kopieerknop in de fiche maakt op `/dev` een testlink (`/dev?id=CODE`) van hetzelfde script. De iframe-code blijft de publieke `/exec`-URL van implementatie B, die gebruik je voor Smartschool en ouders.
 
 ---
 
@@ -251,9 +254,9 @@ De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar
 
 - Open de docent-URL en log in met een account uit de e-maillijst
 - Maak een klas aan op de startpagina (klas + vak); daarna kies je die klas in de balk
-- **Computer — kruistabel:** status per leerling en taak (sneltoetsen 1–6, slepen, periodes filteren)
-- **Telefoon — Leerling / Taak:** tik een naam of taak om af te vinken
-- **Leerlingfiche:** klik of tik op een naam — zelfde overzicht als de leerling, plus code, link en iframe
+- **Computer, kruistabel:** status per leerling en taak (sneltoetsen 1–6, slepen, periodes filteren)
+- **Telefoon, Leerling / Taak:** tik een naam of taak om af te vinken
+- **Leerlingfiche:** klik of tik op een naam, hetzelfde overzicht als de leerling, plus code, link en iframe
 - **Taken:** nieuwe taak onderaan de tabel, via *Nieuwe taak*, of via het formulier; soort en datum kun je later nog zetten
 - **Opvolging:** bij de drempel de stappen zetten; e-mail kopiëren per stap; bij evaluatie *Aan zet* of *Opgevolgd*
 - **Instellingen:** opvolging aan/uit, drempel, de vier standaardberichten (leerling, ouders, avondstudie, aan zet) en periodes
@@ -262,7 +265,7 @@ Statussen: In orde · Niet in orde · Opgevolgd · Afwezig · Te laat · Te make
 
 ### Leerlingscherm
 
-- Unieke URL met `?id=CODE` — geen login
+- Unieke URL met `?id=CODE`, geen login
 - Toont alleen taken met een echte status (leeg of gewist verschijnt niet)
 - Filter op periode en soort via het filtericoon
 - Bij **Aan zet** staat bovenaan een melding tot de openstaande taken in orde of opgevolgd zijn
@@ -299,6 +302,6 @@ Statussen: In orde · Niet in orde · Opgevolgd · Afwezig · Te laat · Te make
 
 Copyright © 2026 Dennis Tarnaud
 
-De 'Opvolgtool taken' valt onder [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.nl). Scholen en collega’s mogen de code gebruiken en aanpassen, met naamsvermelding. Die naamsvermelding hoort in LICENSE en README, niet in de schermen van de tool. Aanpassingen die je verder deelt, blijven onder dezelfde licentie. Commercieel gebruik is niet toegestaan. Wie toch commercieel wil gebruiken, opent een issue op deze repository.
+De 'Opvolgtool taken' valt onder [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.nl). Scholen en collega’s mogen de code gebruiken en aanpassen, met naamsvermelding. Die naamsvermelding hoort in LICENSE en README, niet in de schermen van de tool. Aanpassingen die je verder deelt, blijven onder dezelfde licentie. Aanpassingen deel je het liefst via een fork op GitHub. Commercieel gebruik is niet toegestaan. Wie toch commercieel wil gebruiken, opent een issue op deze repository.
 
 De software wordt geleverd zoals ze is. Er is geen garantie en geen aansprakelijkheid als er iets misloopt. De volledige tekst staat in [`LICENSE`](LICENSE).
