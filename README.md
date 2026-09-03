@@ -57,7 +57,7 @@ Na het tikken op een taak: status per leerling. Via 'Lege vakjes' vul je alle le
 
 ### Dossier
 
-Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe).
+Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe). Dat venster vraagt geen extra login: wie het dossier mag openen in de ELO, ziet het overzicht. De pagina toont de taken van die ene leerling, zonder de naam. De koppeling “dit is die leerling” gebeurt in de ELO, achter die login.
 
 ![Opvolgtool in het leerlingdossier](img/opvolgtool-lvs.png)
 
@@ -242,7 +242,9 @@ https://script.google.com/macros/s/.../exec
 const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
 ```
 
-Dat moet omdat A en B dezelfde code delen. In `Config.gs` zegt de tool welke URL de **leerlingpagina** is. Het docentscherm gebruikt die URL voor de link en de iframe in de fiche (Smartschool). Op die URL wordt het docentscherm én elke bewerk-functie geblokkeerd, zodat niemand via de leerling-web-app kan wijzigen.
+Dat moet omdat A en B dezelfde code delen. In `Config.gs` zegt de tool welke URL de **leerlingpagina** is. Het docentscherm gebruikt die URL voor de link en de iframe in de fiche (Smartschool). Op die URL wordt het docentscherm én elke bewerk-functie geblokkeerd, zodat niemand via de leerling-web-app kan wijzigen. Daarom kan deze implementatie op **Iedereen** staan: er is geen Google-login nodig voor het venster in de ELO, en er valt niets te bewerken.
+
+**Iedereen** betekent niet dat alle leerlingen openbaar zijn. Zonder de persoonlijke code zie je niets. Met de code zie je alleen dat ene overzicht, zonder naam. Wie welk kind ziet, bepaalt de ELO (het dossier achter de login). Een losse link deel je alleen met de betrokken leerling of ouders.
 
 6. Open daarna **beide** implementaties opnieuw (potlood), kies **Versie: Nieuwe versie**, en sla op. De nieuwe `Config.gs` zit anders niet in de gepubliceerde versie.
 
@@ -267,9 +269,9 @@ https://script.google.com/macros/s/.../exec?id=AB2CD3EF
 | Iedereen met de juiste leerlinglink | Het taakoverzicht van die leerling |
 | Iemand met een foute of ontbrekende code | Foutpagina |
 
-De e-maillijst regelt **bewerkingsrecht**, niet of het leerlingscherm bestaat. Dat scherm is bewust publiek via de link, zodat ouders geen schoolaccount nodig hebben.
+De e-maillijst regelt **bewerkingsrecht**, niet of het leerlingscherm bestaat. Dat scherm heeft geen Google-login, zodat het in de ELO past. Het toont geen leerlingnaam. De koppeling aan de juiste leerling zit in het dossier, achter de ELO-login.
 
-Deel de link alleen met de betrokken leerling of ouders. Wie de link heeft, kan meekijken.
+Een losse link deel je alleen met de betrokken leerling of ouders. Wie die link heeft, kan dat overzicht zien.
 
 Verdere aandachtspunten:
 
@@ -277,7 +279,6 @@ Verdere aandachtspunten:
 - Op de leerling-URL worden bewerk-functies altijd geblokkeerd
 - Zet de Google Sheet op **Beperkt**, niet op “iedereen met de link”
 - Opmerkingen bij taken kunnen persoonsgegevens bevatten
-- Registreer de tool in het verwerkingsregister van de school als dat bij jullie hoort
 
 ---
 
