@@ -304,7 +304,7 @@ Op de telefoon kies je het tabblad **Leerling** of **Taak**. Tik een naam om die
 
 Klik of tik op een naam om de **leerlingfiche** te openen. Daar zie je hetzelfde overzicht als de leerling, en knoppen om de link of de iframe-code te kopiëren (voor Smartschool).
 
-Een nieuwe taak voeg je toe onderaan de tabel, via **+**, of via het formulier. Soort en datum kun je later nog zetten. Per taak kies je onder meer: in orde, niet in orde, opgevolgd, afwezig, te laat, te maken, of leeg.
+Een nieuwe taak voeg je toe met **Nieuwe taak** rechtsboven. Per cel kies je onder meer: in orde, niet in orde, opgevolgd, afwezig, te laat, te maken, of leeg.
 
 Haalt een leerling de drempel, dan volg je in de fiche de stappen (leerling, ouders, avondstudie, evaluatie). Per stap kun je het bericht kopiëren. Bij evaluatie kies je **Aan zet** of **Opgevolgd**.
 
