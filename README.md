@@ -1,14 +1,15 @@
-# Opvolgtool
+# Opvolgtool taken
 
-Een tool voor leerkrachten om bij te houden welke taken (leerkansen) leerlingen kregen en hoe die zijn afgerond. Leerlingen en ouders zien hun eigen overzicht via een persoonlijke link — zonder inloggen en zonder naam.
+Een tool voor leerkrachten om bij te houden welke taken (leerkansen) leerlingen kregen en hoe die zijn afgerond. Leerlingen en ouders zien hun eigen overzicht via een persoonlijke link — zonder inloggen.
 
-Alles wat je dagelijks doet, gebeurt in het **docentscherm** (een webpagina). De Google Sheet is alleen de opslag op de achtergrond. Daar typ je geen leerlingen, taken of statussen in.
+Alles wat je dagelijks doet, gebeurt in het **docentscherm** (tabblad: *Opvolgtool taken*). De Google Sheet is alleen de opslag op de achtergrond. Daar typ je geen leerlingen, taken of statussen in.
 
 ---
 
 ## Inhoud
 
 - [Wat doet de tool?](#wat-doet-de-tool)
+- [Schermen](#schermen)
 - [Eerste keer opzetten](#eerste-keer-opzetten)
 - [De twee implementaties](#de-twee-implementaties)
 - [Beveiliging en privacy](#beveiliging-en-privacy)
@@ -19,11 +20,74 @@ Alles wat je dagelijks doet, gebeurt in het **docentscherm** (een webpagina). De
 
 ## Wat doet de tool?
 
-**Als leerkracht** open je het docentscherm. Daar kies je een klas en zie je een kruistabel: leerlingen × taken. Je vult per cel in of iets in orde is, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik op een naam) zie je hetzelfde overzicht als de leerling, plus de persoonlijke link.
+**Als leerkracht** open je het docentscherm. Op een computer zie je een kruistabel: leerlingen × taken. Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus de persoonlijke code, link en iframe.
 
-**Als leerling of ouder** open je een unieke link (of een iframe in Smartschool). Je ziet alleen de taken en statussen van die ene leerling, zonder naam. Iedereen met die link kan de pagina bekijken — daarvoor hoef je niet in een e-maillijst te staan.
+Als een leerling de opvolgingsdrempel haalt, volg je een vaste ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
+
+**Als leerling of ouder** open je een unieke link (of een iframe in Smartschool / het leerlingvolgsysteem). Je ziet de taken en statussen van die ene leerling. Iedereen met die link kan de pagina bekijken — daarvoor hoef je niet in een e-maillijst te staan.
 
 Data staat in een Google Sheet die aan het script hangt. De tool schrijft zelf in die Sheet. Jij werkt in de webpagina.
+
+---
+
+## Schermen
+
+### Telefoon
+
+Op een smal scherm vervangt de kruistabel twee tabbladen.
+
+**Leerling** — overzicht van de klas. Tik een naam om taken af te vinken.
+
+![Docentscherm op telefoon, tabblad Leerling](img/opvolgtool-docentview-lln.png)
+
+Na het tikken van een naam: taken van die leerling, met statusknoppen.
+
+![Docentscherm op telefoon, taken van één leerling](img/opvolgtool-docentview-lln2.png)
+
+**Taak** — overzicht van de taken. Tik een taak om de klas af te vinken.
+
+![Docentscherm op telefoon, tabblad Taak](img/opvolgtool-docentview-taak.png)
+
+Na het tikken van een taak: status per leerling, inclusief lege vakjes in één keer.
+
+![Docentscherm op telefoon, één taak voor de klas](img/opvolgtool-docentview-taak2.png)
+
+### Computer
+
+Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, kolommen zijn taken.
+
+![Docentscherm op de computer, kruistabel](img/opvolgtool-docentview.png)
+
+De leerlingpagina past in het dossier (Smartschool of een ander leerlingvolgsysteem) via een iframe.
+
+![Opvolgtool in het leerlingdossier](img/opvolgtool-lvs.png)
+
+### Opvolging
+
+Haalt een leerling de drempel (standaard 3× niet in orde), dan opent de fiche een opvolgbalk.
+
+![Leerlingfiche bij 3× of meer niet in orde](img/opvolgtool-docentview-opvolging.png)
+
+De vier stappen:
+
+| Stap | Wat je doet |
+|---|---|
+| Leerling | Spreek de leerling aan en kopieer eventueel het bericht |
+| Ouders | Kopieer het bericht naar de ouders |
+| Avondstudie | Kies de datum en kopieer het bericht |
+| Evaluatie | **Aan zet** als de taken nog openstaan, **Opgevolgd** om de cyclus af te ronden |
+
+![Stap Leerling](img/opvolgtool-lln.png)
+
+![Stap Ouders](img/opvolgtool-ouders.png)
+
+![Stap Avondstudie](img/opvolgtool-avond.png)
+
+![Stap Evaluatie](img/opvolgtool-evaluatie.png)
+
+Bij **Aan zet** kopieer je een e-mail naar leerling en ouders. In de leerlingview verschijnt bovenaan een melding tot alle openstaande taken in orde of opgevolgd zijn. Nieuwe tekorten starten geen nieuwe cyclus.
+
+In de kruistabel is **Opgevolgd** (toets 6) het lichtrode kruisje: de taak telt niet meer mee voor een volgende cyclus. Intern blijft de status `Al opgevolgd`.
 
 ---
 
@@ -50,6 +114,8 @@ Maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (
 | `Registraties` | `datumTijd` · `llnId` · `taakId` · `status` · `opmerking` · `klas` |
 | `Klassen` | `naam` · `vak` |
 | `Instellingen` | `sleutel` · `waarde` |
+
+In `Instellingen` schrijft de tool zelf o.a. `opvolgingAan`, `opvolgingDrempel`, `berichtLeerling`, `berichtOuders`, `berichtNablijf`, `berichtAanZet` en `periodes`.
 
 Klaar. Vanaf hier vult de tool de rijen zelf. Leerlingen, taken en statussen voeg je later toe in het docentscherm.
 
@@ -158,12 +224,12 @@ https://script.google.com/macros/s/.../exec?id=AB2CD3EF
 |---|---|
 | Leerkracht in de e-maillijst | Docentscherm: alles bekijken en bewerken |
 | Iemand met de docent-URL maar zonder adres in de lijst | Geen toegang tot het docentscherm |
-| Iedereen met de juiste leerlinglink | Alleen dat ene taakoverzicht, zonder naam |
+| Iedereen met de juiste leerlinglink | Het taakoverzicht van die leerling |
 | Iemand met een foute of ontbrekende code | Foutpagina |
 
 De e-maillijst regelt **bewerkingsrecht**, niet of het leerlingscherm bestaat. Dat scherm is bewust publiek via de link, zodat ouders geen schoolaccount nodig hebben.
 
-De leerlingpagina toont geen naam. Deel de link alleen met de betrokken leerling of ouders. Wie de link heeft, kan meekijken.
+Deel de link alleen met de betrokken leerling of ouders. Wie de link heeft, kan meekijken.
 
 Verdere aandachtspunten:
 
@@ -185,7 +251,7 @@ Als je `Code.gs`, `Config.gs`, `LeerlingCodes.gs` of een van de HTML-bestanden a
 
 De `/exec`-URL blijft hetzelfde. Ververs daarna de pagina.
 
-De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar alleen voor de eigenaar. Handig om het docentscherm te proberen. Het leerlingscherm test je op dezelfde test-URL met `?id=CODE` (of via het oog-icoon in de fiche). De gekopieerde leerlinglink en iframe blijven de live `/exec`-URL van implementatie B.
+De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar alleen voor wie het script mag bewerken. Handig om het docentscherm te proberen. De kopieerknop in de fiche maakt op `/dev` een testlink (`/dev?id=CODE`) van hetzelfde script. De iframe-code blijft de publieke `/exec`-URL van implementatie B — die gebruik je voor Smartschool en ouders.
 
 ---
 
@@ -194,17 +260,22 @@ De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar
 ### Docentscherm
 
 - Open de docent-URL en log in met een account uit de e-maillijst
-- Maak een klas aan op de startpagina; daarna kies je die klas in de balk
-- **Kruistabel:** status per leerling en taak (sneltoetsen, slepen, periodes filteren)
-- **Leerlingfiche:** klik op een naam — zelfde overzicht als de leerling, plus code, link en iframe
-- **Taken:** nieuwe taak onderaan de tabel of via het formulier; soort en datum kun je later nog zetten
-- **Instellingen:** opvolgingsdrempel, berichten en periodes (trimesters)
+- Maak een klas aan op de startpagina (klas + vak); daarna kies je die klas in de balk
+- **Computer — kruistabel:** status per leerling en taak (sneltoetsen 1–6, slepen, periodes filteren)
+- **Telefoon — Leerling / Taak:** tik een naam of taak om af te vinken
+- **Leerlingfiche:** klik of tik op een naam — zelfde overzicht als de leerling, plus code, link en iframe
+- **Taken:** nieuwe taak onderaan de tabel, via *Nieuwe taak*, of via het formulier; soort en datum kun je later nog zetten
+- **Opvolging:** bij de drempel de stappen zetten; e-mail kopiëren per stap; bij evaluatie *Aan zet* of *Opgevolgd*
+- **Instellingen:** opvolging aan/uit, drempel, de vier standaardberichten (leerling, ouders, avondstudie, aan zet) en periodes
+
+Statussen: In orde · Niet in orde · Opgevolgd · Afwezig · Te laat · Te maken · leeg.
 
 ### Leerlingscherm
 
 - Unieke URL met `?id=CODE` — geen login
 - Toont alleen taken met een echte status (leeg of gewist verschijnt niet)
 - Filter op periode en soort via het filtericoon
+- Bij **Aan zet** staat bovenaan een melding tot de openstaande taken in orde of opgevolgd zijn
 - Geschikt als iframe in Smartschool of Google Sites:
 
 ```html
@@ -230,4 +301,4 @@ De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar
 | `docent-opvolging.html` | Opvolgingsladder en berichten |
 | `docent-kruis.html` | Kruistabel, selectie, slepen |
 | `docent-ui.html` | Lijsten, fiche, instellingen |
-| `leerling.html` | Leerlingscherm (anoniem, via code) |
+| `leerling.html` | Leerlingscherm (via code) |
