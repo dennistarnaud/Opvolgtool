@@ -167,7 +167,10 @@ De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze h
 
 ### 3. Wie mag het docentscherm bewerken?
 
-Dit is **alleen** voor het docentscherm: wie leerlingen, taken en statussen mag wijzigen.
+Dit is **alleen** voor het docentscherm: wie leerlingen, taken en statussen mag wijzigen. Daarvoor moeten **twee** dingen kloppen, met dezelfde school-Google-adressen:
+
+1. Het adres staat in `Config.gs`. Anders opent het docentscherm niet.
+2. Het adres staat als **Bewerker** op de Google Sheet (*Bestand → Delen*). Anders kan de tool niets opslaan.
 
 Het leerlingscherm hangt hier niet van af. Iedereen met de persoonlijke leerlinglink kan dat overzicht zien, ook zonder dat hun e-mail hier staat en zonder Google-account.
 
@@ -182,7 +185,7 @@ const TOEGANG_EMAIL_DOCENT = [
 
 Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het docentscherm niet te zien, ook niet via de docent-URL.
 
-Via deze weg kunnen leraren met die e-mailadressen aan de opvolgtool (frontend), maar diezelfde e-mailadressen moeten ook toegevoegd zijn aan de google sheet (backend) om aanpassingen te kunnen maken.
+Zet daarna **dezelfde** adressen op de Sheet: *Bestand → Delen*, als Bewerker. Jij als eigenaar van de kopie hoeft jezelf niet extra toe te voegen. Deel de Sheet niet via “iedereen met de link”.
 
 ---
 
