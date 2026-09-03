@@ -312,20 +312,11 @@ Onder **Instellingen** zet je opvolging aan of uit, de drempel, de vier standaar
 
 ### Leerlingscherm
 
-Leerling en ouder zien het overzicht in de ELO, of via de persoonlijke link. Er is geen login. Alleen taken met een status verschijnen; een leeg vakje blijft onzichtbaar. Via het filtericoon filteren ze op periode of soort.
+Leerling en ouder zien het overzicht in de ELO. Alleen taken met een status verschijnen; een leeg vakje blijft onzichtbaar. Via het filtericoon filteren ze op periode of soort.
 
 Staat de leerling **Aan zet**, dan staat bovenaan een melding tot de openstaande taken in orde of opgevolgd zijn.
 
-De iframe-code kopieer je in de fiche. Die plak je in Smartschool of een andere ELO. Een voorbeeld:
-
-```html
-<iframe
-  src="https://script.google.com/macros/s/.../exec?id=AB2CD3EF"
-  width="100%"
-  height="600"
-  frameborder="0">
-</iframe>
-```
+De iframe-code kopieer je in de fiche. Die plak je in de broncode van Smartschool of een andere ELO.
 
 ---
 
