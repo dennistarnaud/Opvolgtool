@@ -299,7 +299,7 @@ function serveerDocentPagina_() {
     devUrl: execUrl.replace(/\/exec$/i, '/dev')
   };
   return template.evaluate()
-    .setTitle('Opvolgtool — Docent')
+    .setTitle('Opvolgtool taken')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
