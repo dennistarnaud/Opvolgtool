@@ -218,7 +218,7 @@ Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-
 
 **Uitvoeren als: Gebruiker die de web-app opent** laat de tool zien met welk Google-account iemand is ingelogd. Alleen dat adres wordt vergeleken met `Config.gs`.
 
-**Wie heeft toegang: Iedereen met een Google-account** betekent alleen dat je kunt inloggen. Bewerken mag je pas als je adres in `Config.gs` staat én als Bewerker op de Sheet. Iemand die niet in die lijst staat, ziet het docentscherm niet.
+**Wie heeft toegang: Iedereen met een Google-account** kies je zodat meerdere leerkrachten de tool kunnen openen, elk met hun eigen Google-account. Die adressen zet je in `Config.gs`. De instelling betekent alleen dat je kunt inloggen. Bewerken mag je pas als je adres in die lijst staat én als Bewerker op de Sheet. Iemand die niet in de lijst staat, ziet het docentscherm niet.
 
 Docent-URL:
 
