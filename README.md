@@ -216,7 +216,9 @@ Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-
    - **Wie heeft toegang:** Iedereen met een Google-account
 4. Klik op **Implementeren** en bewaar de URL.
 
-*Uitvoeren als de bezoeker* is nodig zodat het script het echte schoolaccount ziet en kan toetsen aan de e-maillijst. *Iedereen met een Google-account* betekent niet dat iedereen mag bewerken: wie niet in de lijst staat, wordt alsnog geweigerd.
+**Uitvoeren als: Gebruiker die de web-app opent** laat de tool zien met welk Google-account iemand is ingelogd. Alleen dat adres wordt vergeleken met `Config.gs`.
+
+**Wie heeft toegang: Iedereen met een Google-account** betekent alleen dat je kunt inloggen. Bewerken mag je pas als je adres in `Config.gs` staat én als Bewerker op de Sheet. Iemand die niet in die lijst staat, ziet het docentscherm niet.
 
 Docent-URL:
 
