@@ -152,7 +152,8 @@ const STATUS_NIET_IN_ORDE = 'Niet in orde';
 const STATUS_AFWEZIG = 'Afwezig';
 const STATUS_TE_LAAT = 'Te laat';
 const STATUS_TE_MAKEN = 'Te maken';
-const TOEGESTANE_STATUSSEN = [STATUS_IN_ORDE, STATUS_NIET_IN_ORDE, STATUS_AFWEZIG, STATUS_TE_LAAT, STATUS_TE_MAKEN];
+const STATUS_AL_OPGEVOLGD = 'Al opgevolgd';
+const TOEGESTANE_STATUSSEN = [STATUS_IN_ORDE, STATUS_NIET_IN_ORDE, STATUS_AFWEZIG, STATUS_TE_LAAT, STATUS_TE_MAKEN, STATUS_AL_OPGEVOLGD];
 const TOEGESTANE_TAAKTYPES = [
   'Lesopdracht', 'Huistaak', 'Huiswerk', 'Bookwidgetsopdracht',
   'Schriftelijke voorbereiding', 'Remediëringstaak', 'Remediëringsopdracht',

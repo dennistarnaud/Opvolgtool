@@ -269,8 +269,10 @@
 
     function lijstStatusKlasse(status, actief, teltNietMee) {
       if (status === 'In orde') return actief ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-800';
+      if (status === 'Al opgevolgd' || (status === 'Niet in orde' && teltNietMee)) {
+        return actief ? 'bg-rose-200 text-rose-800 ring-1 ring-rose-300' : 'bg-rose-50 text-rose-800';
+      }
       if (status === 'Niet in orde') {
-        if (teltNietMee && actief) return 'bg-rose-200 text-rose-800 ring-1 ring-rose-300';
         return actief ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-800';
       }
       if (status === 'Afwezig') return actief ? 'bg-slate-500 text-white' : 'bg-slate-100 text-slate-600';
@@ -307,10 +309,10 @@
           const reg = laatsteRegistratieVoorKlas(leerling, item, staat.gekozenKlas);
           const status = reg && reg.status;
           if (status === 'In orde') result.inOrde += 1;
-          else if (status === 'Niet in orde') {
-            if (registratieTeltNietMee(leerling, reg)) result.afgehandeld += 1;
-            else result.nietOk += 1;
+          else if (status === 'Al opgevolgd' || (status === 'Niet in orde' && registratieTeltNietMee(leerling, reg))) {
+            result.afgehandeld += 1;
           }
+          else if (status === 'Niet in orde') result.nietOk += 1;
           else if (status === 'Afwezig') result.afwezig += 1;
           else if (status === 'Te laat') result.teLaat += 1;
           else if (status === 'Te maken') result.teMaken += 1;
@@ -826,17 +828,19 @@
     }
 
     function ficheStatusBadge(status, teltNietMee) {
+      const isAlOpgevolgd = status === 'Al opgevolgd' || teltNietMee;
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
-        'Niet in orde': teltNietMee ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' : 'bg-rose-100 text-rose-800',
+        'Niet in orde': isAlOpgevolgd ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' : 'bg-rose-100 text-rose-800',
+        'Al opgevolgd': 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
         'Afwezig': 'bg-slate-200 text-slate-700',
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status] || 'bg-slate-100 text-slate-600';
-      const tekst = teltNietMee ? 'Niet in orde · al opgevolgd' : (status || 'Nog geen registratie');
+      const tekst = isAlOpgevolgd ? 'Niet in orde · al opgevolgd' : (status || 'Nog geen registratie');
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '" title="' +
-        escapeAttr(teltNietMee ? AL_OPGEVOLGD : tekst) + '">' +
+        escapeAttr(isAlOpgevolgd ? AL_OPGEVOLGD : tekst) + '">' +
         escapeHtml(tekst) + '</span>';
     }
 

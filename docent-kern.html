@@ -78,9 +78,10 @@
       '2': 'Niet in orde', n: 'Niet in orde',
       '3': 'Afwezig', a: 'Afwezig',
       '4': 'Te laat', l: 'Te laat',
-      '5': 'Te maken', t: 'Te maken'
+      '5': 'Te maken', t: 'Te maken',
+      '6': 'Al opgevolgd', o: 'Al opgevolgd'
     };
-    const STATUS_OPTIES = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
+    const STATUS_OPTIES = ['In orde', 'Niet in orde', 'Al opgevolgd', 'Afwezig', 'Te laat', 'Te maken'];
     const DREMPEL_MIN = 2;
     const DREMPEL_MAX = 6;
     const DEFAULT_OPVOLGING = {
@@ -1176,7 +1177,9 @@
 
     /** Rood kruisje van vóór de laatste reset: blijft zichtbaar, telt niet mee. */
     function registratieTeltNietMee(lln, reg) {
-      if (!lln || !reg || reg.status !== 'Niet in orde') return false;
+      if (!lln || !reg) return false;
+      if (reg.status === 'Al opgevolgd') return true;
+      if (reg.status !== 'Niet in orde') return false;
       const naReset = String(lln.opvolgingResetOp || '').trim();
       return !!(naReset && String(reg.datumTijd || '') <= naReset);
     }

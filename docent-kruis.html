@@ -509,17 +509,16 @@
     }
 
     function celStatusLabel(status, teltNietMee) {
-      if (teltNietMee) return 'Niet in orde — al opgevolgd';
+      if (status === 'Al opgevolgd' || teltNietMee) return 'Niet in orde — al opgevolgd';
       return status || 'Nog geen registratie';
     }
 
     function celKlassen(status, teltNietMee) {
       if (status === 'In orde') return 'bg-emerald-500 text-white hover:bg-emerald-600';
-      if (status === 'Niet in orde') {
-        return teltNietMee
-          ? 'bg-rose-200 text-rose-800 hover:bg-rose-300'
-          : 'bg-rose-500 text-white hover:bg-rose-600';
+      if (status === 'Al opgevolgd' || (status === 'Niet in orde' && teltNietMee)) {
+        return 'bg-rose-200 text-rose-800 hover:bg-rose-300';
       }
+      if (status === 'Niet in orde') return 'bg-rose-500 text-white hover:bg-rose-600';
       if (status === 'Afwezig') return 'bg-slate-400 text-white hover:bg-slate-500';
       if (status === 'Te laat') return 'bg-yellow-400 text-yellow-950 hover:bg-yellow-500';
       if (status === 'Te maken') return 'bg-yellow-100 text-yellow-900 hover:bg-yellow-200';
@@ -528,7 +527,7 @@
 
     function celTekst(status) {
       if (status === 'In orde') return '✓';
-      if (status === 'Niet in orde') return '✕';
+      if (status === 'Niet in orde' || status === 'Al opgevolgd') return '✕';
       if (status === 'Afwezig') return 'A';
       if (status === 'Te laat') return 'L';
       if (status === 'Te maken') return '•';
@@ -854,48 +853,7 @@
     }
 
     function pasGeselecteerdeAlOpgevolgd() {
-      const cellen = staat.selectie && staat.selectie.length
-        ? staat.selectie
-        : (staat.geselecteerd ? [staat.geselecteerd] : []);
-      if (!cellen.length) return;
-      const klas = staat.gekozenKlas || '';
-
-      const geenReset = [];
-      const payloads = [];
-      const tempRijen = [];
-
-      cellen.forEach(function (cel) {
-        const lln = leerlingOpId(cel.llnId);
-        if (!String(lln && lln.opvolgingResetOp || '').trim()) {
-          if (lln) geenReset.push(lln.naam);
-          return;
-        }
-        const vorige = laatsteRegistratieVoorKlas(lln, taakOpId(cel.taakId), klas);
-        const payload = {
-          llnId: cel.llnId,
-          taakId: cel.taakId,
-          status: 'Niet in orde',
-          opmerking: vorige ? vorige.opmerking : '',
-          klas: klas,
-          alOpgevolgd: true
-        };
-        const tempRij = Object.assign({ datumTijd: nieuweTijdstempel() }, payload);
-        staat.registraties.push(tempRij);
-        tempRijen.push(tempRij);
-        payloads.push(payload);
-        werkCelNaRegistratie(cel, tempRij, 'Niet in orde');
-      });
-      tekenSelectie();
-
-      if (payloads.length) slaRegistratiesOp(payloads, tempRijen);
-
-      if (geenReset.length) {
-        const uniek = geenReset.filter(function (naam, i, arr) { return arr.indexOf(naam) === i; });
-        toonMelding(
-          'Al opgevolgd kan pas nadat je de opvolging hebt afgerond voor: ' + uniek.join(', ') + '.',
-          'fout'
-        );
-      }
+      pasGeselecteerdeStatus('Al opgevolgd');
     }
 
     function verplaatsSelectie(richting) {
@@ -952,11 +910,6 @@
       if (toets === 'backspace' || toets === 'delete') {
         event.preventDefault();
         pasGeselecteerdeStatus('');
-        return;
-      }
-      if (toets === '6') {
-        event.preventDefault();
-        pasGeselecteerdeAlOpgevolgd();
         return;
       }
       if (STATUS_TOETSEN[toets]) {

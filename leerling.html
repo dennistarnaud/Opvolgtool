@@ -384,7 +384,7 @@
       return staat.verborgenPeriodes.indexOf(id) === -1;
     }
 
-    const BEKENDE_STATUSSEN = ['In orde', 'Niet in orde', 'Afwezig', 'Te laat', 'Te maken'];
+    const BEKENDE_STATUSSEN = ['In orde', 'Niet in orde', 'Al opgevolgd', 'Afwezig', 'Te laat', 'Te maken'];
 
     function statusTekst(reg) {
       return String(reg && reg.status ? reg.status : '').trim();
@@ -574,11 +574,14 @@
 
       const inOrde = regs.filter(function (r) { return r.status === 'In orde'; }).length;
       const nietOk = regs.filter(function (r) { return r.status === 'Niet in orde'; }).length;
+      const opgevolgd = regs.filter(function (r) { return r.status === 'Al opgevolgd'; }).length;
       const afwezig = regs.filter(function (r) { return r.status === 'Afwezig'; }).length;
       const teLaat = regs.filter(function (r) { return r.status === 'Te laat'; }).length;
       const teMaken = regs.filter(function (r) { return r.status === 'Te maken'; }).length;
       document.getElementById('samenvatting').textContent =
-        inOrde + ' in orde · ' + nietOk + ' niet OK · ' + teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
+        inOrde + ' in orde · ' + nietOk + ' niet OK · ' +
+        (opgevolgd ? opgevolgd + ' opgevolgd · ' : '') +
+        teLaat + ' te laat · ' + teMaken + ' te maken · ' + afwezig + ' afwezig';
 
       if (!staat.registraties.length) {
         lijst.innerHTML = '<p class="p-4 text-sm text-slate-500">Nog geen registraties.</p>';
@@ -618,6 +621,7 @@
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
         'Niet in orde': 'bg-rose-100 text-rose-800',
+        'Al opgevolgd': 'bg-rose-50 text-rose-700 ring-1 ring-rose-200',
         'Afwezig': 'bg-slate-200 text-slate-700',
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'

@@ -47,25 +47,34 @@
       return !!(o.leerling || o.ouders || o.nablijf || o.gepauzeerd);
     }
 
-    /** Wis opvolgingsstappen stil zodra er geen openstaande tekorten meer zijn. */
+    /** Rond de cyclus af als er niets meer openstaat, of als een pauze volledig is afgevinkt. */
     function wisOpvolgingBijGeenTekorten(lln) {
       if (!lln || !opvolgingAan()) return;
+      if (opvolgingVan(lln).gepauzeerd) {
+        if (isPauzeKlaar(lln)) slaOpvolgingOp(lln.id, 'pauze-opheffen');
+        return;
+      }
       if (aantalOpenstaandeTaken(lln) > 0) return;
       if (!heeftLopendeOpvolging(lln)) return;
       slaOpvolgingOp(lln.id, 'afronden', { stil: true });
     }
 
-    /** True als alle oorspronkelijk blokkerende taken expliciet 'In orde' zijn. */
+    function taakAfgehandeldVoorPauze(lln, reg) {
+      if (!reg) return false;
+      if (reg.status === 'In orde' || reg.status === 'Al opgevolgd') return true;
+      return registratieTeltNietMee(lln, reg);
+    }
+
+    /** True als oude én nieuwe openstaande taken in orde of al opgevolgd zijn. */
     function isPauzeKlaar(lln) {
       const o = opvolgingVan(lln);
-      if (!o.gepauzeerd || aantalOpenstaandeTaken(lln) > 0) return false;
+      if (!o.gepauzeerd || !staat.gekozenKlas) return false;
+      if (aantalOpenstaandeTaken(lln) > 0) return false;
       if (!o.blokkeerTaken.length) return false;
-      if (!staat.gekozenKlas) return false;
       return o.blokkeerTaken.every(function (taakId) {
         const taak = taakOpId(taakId);
         if (!taak) return true;
-        const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
-        return !!(reg && reg.status === 'In orde');
+        return taakAfgehandeldVoorPauze(lln, laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas));
       });
     }
 
@@ -161,8 +170,8 @@
         ouders:       'Bericht naar de ouders',
         nablijf:      'Avondstudie',
         evaluatie:    'Evalueer het resultaat van de avondstudie',
-        gepauzeerd:   'Opvolging gepauzeerd — taken moeten in orde worden gebracht',
-        'pauze-klaar':'Taken in orde — opvolging kan worden afgerond',
+        gepauzeerd:   'Opvolging gepauzeerd — oude én nieuwe taken moeten in orde of al opgevolgd zijn',
+        'pauze-klaar':'Alle taken afgevinkt — opvolging kan worden afgerond',
         afronden:     'Opvolging kan worden afgesloten'
       }[stap];
       return '<span class="opvolg-sein" title="' + escapeAttr(titel || '') + '">' + opvolgIcoonSvg(stap, 14) + '</span>';
@@ -176,8 +185,7 @@
     }
 
     function htmlOpvolgActies() {
-      // Gepauzeerd telt niet mee: de leerling moet zelf komen tonen dat het in orde is.
-      // Pas bij pauze-klaar (taken gemarkeerd als In orde) hoort de docent te handelen.
+      // Gepauzeerd: geen nieuwe cyclus. Pas als oude én nieuwe taken afgevinkt zijn, afronden.
       const items = leerlingenVanKlas().filter(function (lln) {
         const stap = opvolgActieNodig(lln);
         return !!stap && stap !== 'gepauzeerd';
@@ -339,8 +347,8 @@
       if (volgende === 'ouders')      return 'Kopieer het bericht naar de ouders. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'nablijf')     return 'Kies de datum en kopieer het bericht. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'evaluatie')   return 'Pauzeren als de taken nog niet in orde zijn, Opgevolgd om de cyclus af te ronden.';
-      if (volgende === 'gepauzeerd')  return 'Nieuwe tekorten tellen niet mee. Wacht tot de leerling toont dat het in orde is.';
-      if (volgende === 'pauze-klaar') return 'Alle openstaande taken zijn in orde. Rond de cyclus af.';
+      if (volgende === 'gepauzeerd')  return 'Nieuwe tekorten starten geen nieuwe cyclus. Oude én nieuwe taken moeten in orde of al opgevolgd zijn.';
+      if (volgende === 'pauze-klaar') return 'Alle openstaande taken zijn afgevinkt. Rond de cyclus af.';
       return 'Nog geen actie nodig.';
     }
 
@@ -805,7 +813,7 @@
       if (stap === 'pauzeer') {
         openBevestig(
           'Opvolging pauzeren?',
-          'Nieuwe tekorten tellen niet meer mee zolang de openstaande taken niet in orde zijn. De pauze heft zichzelf automatisch op zodra alle geblokkeerde taken "In orde" zijn.',
+          'Nieuwe tekorten starten geen nieuwe cyclus. De pauze eindigt pas als oude én nieuwe openstaande taken in orde of al opgevolgd zijn.',
           function () { slaOpvolgingOp(id, 'pauzeer'); },
           'Pauzeren',
           'bg-amber-600 text-white hover:bg-amber-700'
