@@ -242,7 +242,9 @@ https://script.google.com/macros/s/.../exec
 const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
 ```
 
-6. Open daarna **beide** implementaties opnieuw (potlood), kies **Versie: Nieuwe versie**, en sla op. Zo weet de tool welke URL de leerlingpagina is, en blokkeert ze bewerk-functies op die URL.
+Dat moet omdat A en B dezelfde code delen. In `Config.gs` zegt de tool welke URL de **leerlingpagina** is. Het docentscherm gebruikt die URL voor de link en de iframe in de fiche (Smartschool). Op die URL wordt het docentscherm én elke bewerk-functie geblokkeerd, zodat niemand via de leerling-web-app kan wijzigen.
+
+6. Open daarna **beide** implementaties opnieuw (potlood), kies **Versie: Nieuwe versie**, en sla op. De nieuwe `Config.gs` zit anders niet in de gepubliceerde versie.
 
 `SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt. Alleen bij een losstaand script vul je het spreadsheet-ID in.
 
