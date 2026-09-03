@@ -109,20 +109,20 @@
           <p>Het onderstaande overzicht geeft weer welke leerkansen er werden aangeboden en in welke mate erop werd ingegaan.
           Toevoegingen en aanpassingen gebeuren te allen tijde in dit overzicht. Gelieve dit goed mee op te volgen.</p>
         </div>
-        <div id="aan-zet-banner" class="hidden mt-2 rounded-lg border border-amber-200 bg-amber-50" role="status">
-          <button type="button" id="aan-zet-toggle"
-            class="w-full flex items-start justify-between gap-2 px-2.5 py-2 text-left"
-            aria-expanded="false" aria-controls="aan-zet-brief-wrap">
-            <span class="min-w-0">
-              <span class="block text-[12px] font-semibold text-amber-950">Jij bent aan zet</span>
-              <span class="block mt-0.5 text-[11px] text-amber-900/80 leading-snug">De verantwoordelijkheid ligt nu bij jou. Werk je openstaande taken bij tot ze in orde of opgevolgd zijn.</span>
-            </span>
-            <svg id="aan-zet-chevron" class="shrink-0 mt-0.5 text-amber-800" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          <div id="aan-zet-brief-wrap" class="hidden px-2.5 pb-2.5">
-            <p id="aan-zet-brief" class="text-[11px] text-amber-950/90 leading-snug whitespace-pre-wrap"></p>
+        <div id="aan-zet-banner" class="hidden mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2" role="status">
+          <p class="text-[12px] font-semibold text-amber-950">Jij bent aan zet</p>
+
+          <div class="mt-2 space-y-2">
+            <p id="aan-zet-intro" class="text-[11px] text-amber-900/80 leading-snug"></p>
+
+            <ul id="aan-zet-stappen" class="list-disc pl-5 text-[11px] text-amber-900/90 leading-snug"></ul>
+
+            <p class="text-[11px] font-semibold text-amber-950">Wat ik nu verwacht</p>
+            <ul id="aan-zet-verwachtingen" class="list-disc pl-5 text-[11px] text-amber-900/90 leading-snug"></ul>
+
+            <p id="aan-zet-slot-1" class="text-[11px] text-amber-900/80 leading-snug"></p>
+            <p id="aan-zet-slot-2" class="text-[11px] text-amber-900/80 leading-snug"></p>
+            <p id="aan-zet-slot-3" class="text-[11px] text-amber-900/80 leading-snug"></p>
           </div>
         </div>
         <div class="mt-2 flex items-center justify-between gap-2">
@@ -307,6 +307,7 @@
       return {
         code: leerling.code,
         llnId: leerling.id,
+        naam: String(leerling && leerling.naam ? leerling.naam : 'Leerling').trim(),
         klas: leerling.klas,
         opvolgingResetOp: '',
         opvolgingGepauzeerd: '',
@@ -409,7 +410,7 @@
       opvolgingResetOp: '',
       opvolgingGepauzeerd: '',
       berichtAanZet: '',
-      aanZetOpen: false,
+      leerlingNaam: '',
       sortering: 'datum',
       groepFilters: [],
       verborgenPeriodes: [],
@@ -665,24 +666,109 @@
       tekenLijst();
     }
 
+    function extraheerAanZetOnderdelen(bericht) {
+      const s = String(bericht || '');
+      const markerGebeurd = 'Wat er al gebeurd is:';
+      const markerTaken = 'Openstaande taken:';
+      const markerVerwacht = 'Wat we nu verwachten:';
+      const markerKlassenraad = 'De lijst met taken en de inzet';
+      const markerStatus = 'U kunt de actuele status';
+
+      const indexOf = function (needle) {
+        const i = s.indexOf(needle);
+        return i === -1 ? null : i;
+      };
+
+      const iGebeurd = indexOf(markerGebeurd);
+      const iTaken = indexOf(markerTaken);
+      const iVerwacht = indexOf(markerVerwacht);
+      const iKlassenraad = indexOf(markerKlassenraad);
+      const iStatus = indexOf(markerStatus);
+
+      let stappen = '';
+      if (iGebeurd != null && iTaken != null && iTaken > iGebeurd) {
+        stappen = s.slice(iGebeurd + markerGebeurd.length, iTaken).trim();
+      }
+
+      let verwachtingen = '';
+      if (iVerwacht != null && iKlassenraad != null && iKlassenraad > iVerwacht) {
+        verwachtingen = s.slice(iVerwacht + markerVerwacht.length, iKlassenraad).trim();
+      }
+
+      let klassenraad = '';
+      if (iKlassenraad != null) {
+        const end = (iStatus != null && iStatus > iKlassenraad) ? iStatus : s.length;
+        klassenraad = s.slice(iKlassenraad, end).trim();
+      }
+
+      return { stappen: stappen, verwachtingen: verwachtingen, klassenraad: klassenraad };
+    }
+
+    function parseBulletLijnen(tekst) {
+      return String(tekst || '')
+        .split('\n')
+        .map(function (l) { return String(l || '').trim(); })
+        .filter(Boolean)
+        .map(function (l) { return l.replace(/^•\s*/, '').trim(); });
+    }
+
     function tekenAanZetBanner() {
       const banner = document.getElementById('aan-zet-banner');
-      const brief = document.getElementById('aan-zet-brief');
-      const wrap = document.getElementById('aan-zet-brief-wrap');
-      const knop = document.getElementById('aan-zet-toggle');
-      const chevron = document.getElementById('aan-zet-chevron');
+      const stappenEl = document.getElementById('aan-zet-stappen');
+      const verwachtingenEl = document.getElementById('aan-zet-verwachtingen');
+      const introEl = document.getElementById('aan-zet-intro');
+      const slot1El = document.getElementById('aan-zet-slot-1');
+      const slot2El = document.getElementById('aan-zet-slot-2');
+      const slot3El = document.getElementById('aan-zet-slot-3');
       if (!banner) return;
+
       const actief = !!staat.opvolgingGepauzeerd;
-      banner.classList.toggle('hidden', !actief);
-      if (brief) brief.textContent = staat.berichtAanZet;
-      if (!actief) {
-        staat.aanZetOpen = false;
+      const openCount = (staat.registraties || []).filter(function (reg) {
+        return statusTekst(reg) === 'Niet in orde' && !isAlOpgevolgd(reg);
+      }).length;
+      const tonen = actief && openCount > 0;
+      banner.classList.toggle('hidden', !tonen);
+      if (!tonen) return;
+
+      const leerling = String(staat.leerlingNaam || '').trim() || 'Leerling';
+
+      // Stappen (wat er al gebeurd is) blijft afgeleid uit de bestaande e-mailtekst,
+      // zodat de inhoud consistent is met wat de leerling/ouders ook krijgen.
+      const bericht = staat.berichtAanZet || '';
+      const delen = extraheerAanZetOnderdelen(bericht);
+      const stappen = parseBulletLijnen(delen.stappen);
+
+      if (stappenEl) {
+        if (stappen.length) stappenEl.innerHTML = stappen.map(function (x) {
+          return '<li>' + escapeHtml(x) + '</li>';
+        }).join('');
+        else stappenEl.innerHTML = '<li>De eerdere opvolgstappen zijn doorlopen</li>';
       }
-      const open = !!(staat.aanZetOpen && staat.berichtAanZet);
-      if (wrap) wrap.classList.toggle('hidden', !open);
-      if (knop) knop.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
-      if (chevron) chevron.classList.toggle('hidden', !staat.berichtAanZet);
+
+      if (introEl) {
+        introEl.textContent =
+          'Tegen de verwachtingen in, ging je niet in op een reeks leerkansen die aangeboden werden. ' +
+          'Om je hierin een duwtje in de rug te geven, heb ik je hier als leraar geholpen door:';
+      }
+
+      const verwachtingenTekst = [
+        'Leerling werkt deze (en nieuwe) taken die niet in orde zijn zelfstandig bij tot de lijst volledig in orde is.',
+        'Bij verlies van een taak zorgt de Leerling zelf voor een lege kopie van een medeleerling. ' +
+        'Op die kopie wil ik zien dat de taak door Leerling zelf gemaakt werd.',
+        'Wanneer dit gebeurd is komt Leerling zelf tot bij mij met een bundeling van al die opdrachten om dit te laten zien.'
+      ];
+      if (verwachtingenEl) {
+        verwachtingenEl.innerHTML = verwachtingenTekst.map(function (t) {
+          const s = String(t || '').replace(/Leerling/g, leerling);
+          return '<li>' + escapeHtml(s) + '</li>';
+        }).join('');
+      }
+
+      if (slot1El) slot1El.textContent = 'Deze melding verdwijnt pas als ' + leerling + ' alle taken van de lijst hieronder in orde heeft gebracht.';
+      if (slot2El) slot2El.textContent = 'Het is belangrijk dat ' + leerling + ' deze verantwoordelijkheid ter harte neemt.';
+      if (slot3El) slot3El.textContent =
+        'De lijst met taken en de inzet van ' + leerling + ' wordt meegenomen naar de klassenraad. ' +
+        'Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.';
     }
 
     function toonRegistraties(data) {
@@ -691,8 +777,8 @@
       staat.periodes = normaliseerPeriodes(data && data.periodes);
       staat.opvolgingResetOp = String(data && data.opvolgingResetOp || '').trim();
       staat.opvolgingGepauzeerd = String(data && data.opvolgingGepauzeerd || '').trim();
+      staat.leerlingNaam = String(data && data.naam || '').trim();
       staat.berichtAanZet = String(data && data.berichtAanZet || '').trim();
-      tekenAanZetBanner();
       const laatste = {};
       const volgorde = [];
       ruw.forEach(function (reg) {
@@ -702,6 +788,7 @@
         if (isNieuwereRegistratie(reg, laatste[id])) laatste[id] = reg;
       });
       staat.registraties = volgorde.map(function (id) { return laatste[id]; }).filter(heeftBekendeStatus);
+      tekenAanZetBanner();
       tekenLijst();
     }
 
@@ -778,11 +865,6 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    document.getElementById('aan-zet-toggle').addEventListener('click', function () {
-      if (!staat.berichtAanZet) return;
-      staat.aanZetOpen = !staat.aanZetOpen;
-      tekenAanZetBanner();
-    });
     document.getElementById('knop-vernieuwen').addEventListener('click', function () {
       haalLeerlingData();
     });

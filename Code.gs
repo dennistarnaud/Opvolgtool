@@ -417,6 +417,7 @@ function getLeerlingData(code) {
   return {
     code: leerling.code,
     llnId: leerling.id,
+    naam: leerling.naam,
     klas: leerling.klas,
     opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
     opvolgingGepauzeerd: String(leerling.opvolgingGepauzeerd || '').trim(),
