@@ -308,12 +308,15 @@
 
     function htmlOpvolgKopieerKnop(leerling, stap) {
       stap = stap || opvolgActieNodig(leerling);
-      if (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf') return '';
-      const mag = kopieerBerichtMag(stap);
+      const berichtStap = opvolgBerichtStap(stap);
+      if (!berichtStap) return '';
+      const mag = kopieerBerichtMag(berichtStap);
       const label = !mag ? 'Kies eerst de datum van de avondstudie'
-        : (stap === 'leerling' ? 'Bericht naar leerling kopiëren' : 'Bericht naar ouders kopiëren');
+        : (berichtStap === 'leerling' ? 'Bericht naar leerling kopiëren'
+          : (berichtStap === 'aan-zet' ? 'Bericht leerling aan zet kopiëren'
+            : 'Bericht naar ouders kopiëren'));
       return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-amber-950 bg-white border border-amber-200 hover:bg-amber-100 disabled:opacity-30 disabled:hover:bg-white disabled:cursor-not-allowed" ' +
-        'data-actie="opvolging-bericht" data-stap="' + stap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'data-actie="opvolging-bericht" data-stap="' + berichtStap + '" data-id="' + escapeAttr(leerling.id) + '" ' +
         (mag ? '' : 'disabled ') +
         'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
         'E-mail' +
@@ -346,7 +349,7 @@
       if (volgende === 'leerling')    return 'Spreek de leerling aan. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'ouders')      return 'Kopieer het bericht naar de ouders. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'nablijf')     return 'Kies de datum en kopieer het bericht. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
-      if (volgende === 'evaluatie')   return 'Aan zet als de taken nog niet in orde zijn, Opgevolgd om de cyclus af te ronden.';
+      if (volgende === 'evaluatie')   return 'Kopieer de e-mail, Aan zet legt de verantwoordelijkheid bij de leerling, Opgevolgd rondt de cyclus af.';
       if (volgende === 'gepauzeerd')  return 'De leerling is aan zet. Nieuwe tekorten starten geen nieuwe cyclus. Oude én nieuwe taken moeten in orde of opgevolgd zijn.';
       if (volgende === 'pauze-klaar') return 'Alle openstaande taken zijn afgevinkt. Rond de cyclus af.';
       return 'Nog geen actie nodig.';
@@ -404,7 +407,7 @@
         'title="Opgevolgd: cyclus afronden" aria-label="Opgevolgd — cyclus afronden">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
         'Opgevolgd</button>';
-      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), pauzeerKnop + geslaagdKnop);
+      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), htmlOpvolgKopieerKnop(leerling, 'aan-zet') + pauzeerKnop + geslaagdKnop);
     }
 
     function htmlOpvolgPauzeBlok(leerling, volgende) {
@@ -423,7 +426,7 @@
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
         opheffenLabel + '</button>';
 
-      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), opheffenKnop);
+      return htmlOpvolgActieRij(htmlOpvolgTerugKnop(leerling), htmlOpvolgKopieerKnop(leerling, 'aan-zet') + opheffenKnop);
     }
 
     function htmlAvondstudieDatumVeld(zichtbaar) {
@@ -504,10 +507,18 @@
       });
     }
 
+    function opvolgBerichtStap(stap) {
+      if (stap === 'leerling' || stap === 'ouders' || stap === 'nablijf' || stap === 'aan-zet') return stap;
+      if (stap === 'evaluatie' || stap === 'gepauzeerd' || stap === 'pauze-klaar') return 'aan-zet';
+      return '';
+    }
+
     function opvolgBerichtSjabloon(stap) {
       const inst = staat.instellingen || {};
-      if (stap === 'ouders') return inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
-      if (stap === 'nablijf') return inst.berichtNablijf || DEFAULT_OPVOLGING.berichtNablijf;
+      const berichtStap = opvolgBerichtStap(stap) || stap;
+      if (berichtStap === 'ouders') return inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
+      if (berichtStap === 'nablijf') return inst.berichtNablijf || DEFAULT_OPVOLGING.berichtNablijf;
+      if (berichtStap === 'aan-zet') return inst.berichtAanZet || DEFAULT_OPVOLGING.berichtAanZet;
       return inst.berichtLeerling || DEFAULT_OPVOLGING.berichtLeerling;
     }
 
@@ -572,9 +583,28 @@
         .replace(/\{naam\}/g, naam)
         .replace(/\{klas\}/g, klas)
         .replace(/\{drempel\}/g, drempel)
-        .replace(/\{taken\}/g, openstaandeTakenTekst(lln))
+        .replace(/\{taken\}/g, extra.taken || openstaandeTakenTekst(lln))
+        .replace(/\{stappen\}/g, extra.stappen || opvolgStappenTekst(lln))
         .replace(/\{datum\/dag\}/g, datum)
         .replace(/\{datum\}/g, datum);
+    }
+
+    function formatteerOpvolgDatum(waarde) {
+      const s = String(waarde || '').trim();
+      const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (!iso) return s;
+      return formatteerAvondstudieDatum(iso[1] + '-' + iso[2] + '-' + iso[3]);
+    }
+
+    function opvolgStappenTekst(lln) {
+      const naam = String(lln && lln.naam ? lln.naam : '').trim();
+      const voornaam = naam.split(/\s+/)[0] || naam || 'de leerling';
+      const o = opvolgingVan(lln);
+      const regels = [];
+      if (o.leerling) regels.push('• ' + voornaam + ' is persoonlijk aangesproken (' + formatteerOpvolgDatum(o.leerling) + ')');
+      if (o.ouders) regels.push('• De ouders zijn verwittigd (' + formatteerOpvolgDatum(o.ouders) + ')');
+      if (o.nablijf) regels.push('• Avondstudie is ingepland (' + formatteerOpvolgDatum(o.nablijf) + ')');
+      return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen';
     }
 
     function formatteerAvondstudieDatum(waarde) {
@@ -590,7 +620,7 @@
 
     function kopieerOpvolgBericht(id, stap) {
       const leerling = leerlingOpId(id);
-      if (!leerling || (stap !== 'leerling' && stap !== 'ouders' && stap !== 'nablijf')) return;
+      if (!leerling || !opvolgBerichtStap(stap)) return;
       const sjabloon = opvolgBerichtSjabloon(stap);
       const extra = {};
       if (berichtVraagtDatum(stap)) {

@@ -104,6 +104,9 @@
         klas: leerling.klas,
         opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
         opvolgingGepauzeerd: String(leerling.opvolgingGepauzeerd || '').trim(),
+        berichtAanZet: (typeof vulOpvolgBericht === 'function')
+          ? vulOpvolgBericht(opvolgBerichtSjabloon('aan-zet'), leerling).trim()
+          : '',
         registraties: registraties,
         periodes: (staat.instellingen && staat.instellingen.periodes) || []
       };
@@ -1418,6 +1421,7 @@
       document.getElementById('veld-bericht-leerling').value = inst.berichtLeerling || DEFAULT_OPVOLGING.berichtLeerling;
       document.getElementById('veld-bericht-ouders').value = inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
       document.getElementById('veld-bericht-nablijf').value = inst.berichtNablijf || DEFAULT_OPVOLGING.berichtNablijf;
+      document.getElementById('veld-bericht-aanzet').value = inst.berichtAanZet || DEFAULT_OPVOLGING.berichtAanZet;
       tekenPeriodeRijen(inst.periodes || []);
     }
 
@@ -1509,6 +1513,7 @@
         berichtLeerling: document.getElementById('veld-bericht-leerling').value,
         berichtOuders: document.getElementById('veld-bericht-ouders').value,
         berichtNablijf: document.getElementById('veld-bericht-nablijf').value,
+        berichtAanZet: document.getElementById('veld-bericht-aanzet').value,
         periodes: periodes.lijst
       });
       if (isGasOmgeving()) {

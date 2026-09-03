@@ -117,6 +117,21 @@
         'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
         'Bedankt voor uw medewerking.\n\n' +
         'Met vriendelijke groeten',
+      berichtAanZet:
+        'Onderwerp: {voornaam} is aan zet\n\n' +
+        'Beste {voornaam}, beste ouders,\n\n' +
+        'Na de eerdere opvolging is {voornaam} nu zelf aan zet. De school volgt de openstaande taken niet verder stap voor stap op. De verantwoordelijkheid ligt vanaf nu bij {voornaam}.\n\n' +
+        'Wat er al gebeurd is:\n' +
+        '{stappen}\n\n' +
+        'Openstaande taken:\n' +
+        '{taken}\n\n' +
+        'Wat we nu verwachten:\n' +
+        '• {voornaam} werkt deze taken zelfstandig bij tot ze in orde of opgevolgd zijn.\n' +
+        '• Nieuwe tekorten starten geen nieuwe opvolgingscyclus, maar moeten wél worden rechtgezet.\n' +
+        '• Het is belangrijk dat {voornaam} deze verantwoordelijkheid ter harte neemt.\n\n' +
+        'De lijst met taken en de inzet van {voornaam} wordt meegenomen naar de klassenraad. Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.\n\n' +
+        'U kunt de actuele status blijven volgen via het leerlingenvolgsysteem.\n\n' +
+        'Met vriendelijke groeten',
       periodes: []
     };
     const PERIODES_MAX = 20;
@@ -193,6 +208,7 @@
         berichtLeerling: '',
         berichtOuders: '',
         berichtNablijf: '',
+        berichtAanZet: '',
         periodes: []
       },
       gekozenKlas: '',
@@ -1259,6 +1275,7 @@
         berichtLeerling: normaliseerBericht(bron.berichtLeerling, DEFAULT_OPVOLGING.berichtLeerling, OUD_BERICHT_LEERLING),
         berichtOuders: normaliseerBericht(bron.berichtOuders, DEFAULT_OPVOLGING.berichtOuders, OUD_BERICHT_OUDERS),
         berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF),
+        berichtAanZet: normaliseerBericht(bron.berichtAanZet, DEFAULT_OPVOLGING.berichtAanZet, []),
         periodes: normaliseerPeriodes(bron.periodes)
       };
     }
@@ -1470,6 +1487,7 @@
         berichtLeerling: DEFAULT_OPVOLGING.berichtLeerling,
         berichtOuders: DEFAULT_OPVOLGING.berichtOuders,
         berichtNablijf: DEFAULT_OPVOLGING.berichtNablijf,
+        berichtAanZet: DEFAULT_OPVOLGING.berichtAanZet,
         periodes: []
       };
     }

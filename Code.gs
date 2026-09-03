@@ -22,7 +22,7 @@
  *    Tab "Instellingen"
  *      A sleutel  B waarde
  *      (opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders,
- *       berichtNablijf, periodes — tool schrijft dit zelf)
+ *       berichtNablijf, berichtAanZet, periodes — tool schrijft dit zelf)
  *
  * 2. Scriptbestanden in Apps Script
  *    Plak: Config.gs, Code.gs, LeerlingCodes.gs
@@ -57,6 +57,7 @@ const INST_OPVOLGING_DREMPEL = 'opvolgingDrempel';
 const INST_BERICHT_LEERLING = 'berichtLeerling';
 const INST_BERICHT_OUDERS = 'berichtOuders';
 const INST_BERICHT_NABLIJF = 'berichtNablijf';
+const INST_BERICHT_AAN_ZET = 'berichtAanZet';
 const INST_PERIODES = 'periodes';
 const PERIODES_MAX = 20;
 const PERIODE_NAAM_MAX = 40;
@@ -92,6 +93,21 @@ const DEFAULT_BERICHT_NABLIJF =
   'We verwachten dat {voornaam} daar aanwezig is, om onder toezicht aan deze opdrachten te werken en ze af te ronden. Gelieve ervoor te zorgen dat {voornaam} het nodige lesmateriaal meeneemt om zelfstandig aan de slag te kunnen.\n\n' +
   'Zodra alles is afgewerkt, kan het werk alsnog worden geüpload in de voorziene uploadmap \'Opdrachten inhalen\'. U kunt de opvolging hiervan blijven bekijken via het leerlingenvolgsysteem.\n\n' +
   'Bedankt voor uw medewerking.\n\n' +
+  'Met vriendelijke groeten';
+const DEFAULT_BERICHT_AAN_ZET =
+  'Onderwerp: {voornaam} is aan zet\n\n' +
+  'Beste {voornaam}, beste ouders,\n\n' +
+  'Na de eerdere opvolging is {voornaam} nu zelf aan zet. De school volgt de openstaande taken niet verder stap voor stap op. De verantwoordelijkheid ligt vanaf nu bij {voornaam}.\n\n' +
+  'Wat er al gebeurd is:\n' +
+  '{stappen}\n\n' +
+  'Openstaande taken:\n' +
+  '{taken}\n\n' +
+  'Wat we nu verwachten:\n' +
+  '• {voornaam} werkt deze taken zelfstandig bij tot ze in orde of opgevolgd zijn.\n' +
+  '• Nieuwe tekorten starten geen nieuwe opvolgingscyclus, maar moeten wél worden rechtgezet.\n' +
+  '• Het is belangrijk dat {voornaam} deze verantwoordelijkheid ter harte neemt.\n\n' +
+  'De lijst met taken en de inzet van {voornaam} wordt meegenomen naar de klassenraad. Dat bepaalt welke ondersteuning we kunnen aanbieden, of welke gevolgen er gegeven worden aan een eventueel gebrek aan inzet.\n\n' +
+  'U kunt de actuele status blijven volgen via het leerlingenvolgsysteem.\n\n' +
   'Met vriendelijke groeten';
 const OUD_BERICHT_LEERLING = [
   'Hallo {voornaam},\n\n' +
@@ -397,15 +413,74 @@ function getLeerlingData(code) {
     });
   });
 
+  const instellingen = leesInstellingen_();
   return {
     code: leerling.code,
     llnId: leerling.id,
     klas: leerling.klas,
     opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
     opvolgingGepauzeerd: String(leerling.opvolgingGepauzeerd || '').trim(),
+    berichtAanZet: vulOpvolgBericht_(instellingen.berichtAanZet || DEFAULT_BERICHT_AAN_ZET, leerling, {
+      taken: openstaandeTakenTekstUitRegs_(registraties),
+      stappen: opvolgStappenTekst_(leerling),
+      drempel: String(instellingen.opvolgingDrempel || DEFAULT_OPVOLGING_DREMPEL)
+    }),
     registraties: registraties,
-    periodes: leesInstellingen_().periodes || []
+    periodes: instellingen.periodes || []
   };
+}
+
+function voornaamVanLeerling_(leerling) {
+  const naam = String(leerling && leerling.naam ? leerling.naam : '').trim();
+  return naam.split(/\s+/)[0] || naam;
+}
+
+function formatteerDatumVoorBericht_(waarde) {
+  const s = String(waarde || '').trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!iso) return s;
+  const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  if (isNaN(d.getTime())) return s;
+  const maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  return d.getDate() + ' ' + maanden[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function openstaandeTakenTekstUitRegs_(registraties) {
+  const namen = [];
+  (registraties || []).forEach(function (reg) {
+    if (!reg || String(reg.status || '').trim() !== STATUS_NIET_IN_ORDE) return;
+    if (reg.teltNietMee) return;
+    namen.push('• ' + (reg.taakNaam || reg.taakId));
+  });
+  return namen.length ? namen.join('\n') : '• (geen openstaande taken)';
+}
+
+function opvolgStappenTekst_(leerling) {
+  const voornaam = voornaamVanLeerling_(leerling);
+  const regels = [];
+  const leerlingOp = String(leerling && leerling.opvolgingLeerlingOp ? leerling.opvolgingLeerlingOp : '').trim();
+  const oudersOp = String(leerling && leerling.opvolgingOudersOp ? leerling.opvolgingOudersOp : '').trim();
+  const nablijfOp = String(leerling && leerling.opvolgingNablijfOp ? leerling.opvolgingNablijfOp : '').trim();
+  if (leerlingOp) regels.push('• ' + voornaam + ' is persoonlijk aangesproken (' + formatteerDatumVoorBericht_(leerlingOp) + ')');
+  if (oudersOp) regels.push('• De ouders zijn verwittigd (' + formatteerDatumVoorBericht_(oudersOp) + ')');
+  if (nablijfOp) regels.push('• Avondstudie is ingepland (' + formatteerDatumVoorBericht_(nablijfOp) + ')');
+  return regels.length ? regels.join('\n') : '• De eerdere opvolgstappen zijn doorlopen';
+}
+
+function vulOpvolgBericht_(sjabloon, leerling, extra) {
+  extra = extra || {};
+  const naam = String(leerling && leerling.naam ? leerling.naam : '').trim();
+  const voornaam = extra.voornaam || voornaamVanLeerling_(leerling);
+  return String(sjabloon || '')
+    .replace(/\{voornaam\}/g, voornaam)
+    .replace(/\{naam\}/g, naam)
+    .replace(/\{klas\}/g, String(leerling && leerling.klas ? leerling.klas : ''))
+    .replace(/\{drempel\}/g, extra.drempel || String(DEFAULT_OPVOLGING_DREMPEL))
+    .replace(/\{taken\}/g, extra.taken || '• (geen openstaande taken)')
+    .replace(/\{stappen\}/g, extra.stappen || '• De eerdere opvolgstappen zijn doorlopen')
+    .replace(/\{datum\/dag\}/g, extra.datum || '')
+    .replace(/\{datum\}/g, extra.datum || '')
+    .trim();
 }
 
 function isNieuwereRegistratie_(kandidaat, huidig, leerling) {
@@ -750,6 +825,7 @@ function saveInstellingen(data) {
     zetInstellingRij_(sheet, INST_BERICHT_LEERLING, instellingen.berichtLeerling);
     zetInstellingRij_(sheet, INST_BERICHT_OUDERS, instellingen.berichtOuders);
     zetInstellingRij_(sheet, INST_BERICHT_NABLIJF, instellingen.berichtNablijf);
+    zetInstellingRij_(sheet, INST_BERICHT_AAN_ZET, instellingen.berichtAanZet);
     zetInstellingRij_(sheet, INST_PERIODES, JSON.stringify(instellingen.periodes || []));
     return { ok: true, instellingen: instellingen };
   });
@@ -1148,6 +1224,7 @@ function standaardInstellingen_() {
     berichtLeerling: DEFAULT_BERICHT_LEERLING,
     berichtOuders: DEFAULT_BERICHT_OUDERS,
     berichtNablijf: DEFAULT_BERICHT_NABLIJF,
+    berichtAanZet: DEFAULT_BERICHT_AAN_ZET,
     periodes: []
   };
 }
@@ -1230,6 +1307,7 @@ function normaliseerInstellingen_(data) {
     berichtLeerling: normaliseerBericht_(bron.berichtLeerling, basis.berichtLeerling, OUD_BERICHT_LEERLING),
     berichtOuders: normaliseerBericht_(bron.berichtOuders, basis.berichtOuders, OUD_BERICHT_OUDERS),
     berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF),
+    berichtAanZet: normaliseerBericht_(bron.berichtAanZet, basis.berichtAanZet, []),
     periodes: normaliseerPeriodes_(bron.periodes)
   };
 }
@@ -1264,6 +1342,7 @@ function leesInstellingen_() {
     berichtLeerling: map[INST_BERICHT_LEERLING],
     berichtOuders: map[INST_BERICHT_OUDERS],
     berichtNablijf: map[INST_BERICHT_NABLIJF],
+    berichtAanZet: map[INST_BERICHT_AAN_ZET],
     periodes: map[INST_PERIODES]
   });
 }
