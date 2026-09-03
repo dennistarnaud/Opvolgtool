@@ -201,12 +201,20 @@ Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-
 
 ### Implementatie A, Docent
 
-1. Apps Script → **Implementeren → Nieuwe implementatie** (of een bestaande bewerken)
-2. Type: **Web-app**
-3. Instellingen:
+1. Klik rechtsboven op **Implementeren → Implementaties beheren**.
+
+![Implementeren, dan Implementaties beheren](img/gas-implementatie1.png)
+
+2. Klik op het tandwiel bij *Type selecteren* en kies **Web-app**.
+
+![Tandwiel, dan Web-app](img/gas-implementatie2.png)
+
+3. Vul in:
+   - **Beschrijving:** Docent
+   - **Versie:** Nieuwe versie
    - **Uitvoeren als:** Gebruiker die de web-app opent
    - **Wie heeft toegang:** Iedereen met een Google-account
-4. Implementeren en de URL bewaren
+4. Klik op **Implementeren** en bewaar de URL.
 
 *Uitvoeren als de bezoeker* is nodig zodat het script het echte schoolaccount ziet en kan toetsen aan de e-maillijst. *Iedereen met een Google-account* betekent niet dat iedereen mag bewerken: wie niet in de lijst staat, wordt alsnog geweigerd.
 
@@ -218,19 +226,21 @@ https://script.google.com/macros/s/.../exec
 
 ### Implementatie B, Leerling
 
-1. **Implementeren → Nieuwe implementatie** (een tweede web-app, niet A overschrijven)
-2. Type: **Web-app**
-3. Instellingen:
+1. Opnieuw **Implementeren → Implementaties beheren**. Dit is een **tweede** web-app: overschrijf A niet.
+2. Tandwiel → **Web-app** (zelfde stappen als bij de afbeeldingen hierboven).
+3. Vul in:
+   - **Beschrijving:** Leerling
+   - **Versie:** Nieuwe versie
    - **Uitvoeren als:** Ik (eigenaar van het script)
    - **Wie heeft toegang:** Iedereen
-4. Implementeren en de URL bewaren
+4. Klik op **Implementeren** en bewaar de URL.
 5. Plak die URL in `Config.gs`:
 
 ```javascript
 const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
 ```
 
-6. Publiceer **beide** implementaties opnieuw als nieuwe versie. Zo weet de tool welke URL de leerlingpagina is, en blokkeert ze bewerk-functies op die URL.
+6. Open daarna **beide** implementaties opnieuw (potlood), kies **Versie: Nieuwe versie**, en sla op. Zo weet de tool welke URL de leerlingpagina is, en blokkeert ze bewerk-functies op die URL.
 
 `SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt. Alleen bij een losstaand script vul je het spreadsheet-ID in.
 
