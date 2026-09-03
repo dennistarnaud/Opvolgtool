@@ -92,13 +92,15 @@ In de kruistabel is **Opgevolgd** (toets 6) het lichtrode kruisje: de taak telt 
 
 ## Eerste keer opzetten
 
-Je zet de tool één keer klaar in Google. De gegevens (leerlingen, taken, statussen) bewaart ze in een **Google Sheet**. Jij maakt alleen de lege structuur; daarna schrijft de tool zelf in die Sheet. Het dagelijkse werk blijft in het docentscherm (tabblad: *Opvolgtool taken*).
+Je zet de tool één keer klaar in Google. De gegevens (leerlingen, taken, statussen) bewaart de tool in een **Google Sheet**. Jij maakt alleen de lege structuur; daarna schrijft de tool zelf in die Sheet. Het dagelijkse werk blijft in het docentscherm (tabblad: *Opvolgtool taken*).
 
 Aan die Sheet hang je de code uit dit project (een **Apps Script**). Tot slot publiceer je twee web-apps: één om te bewerken, één om te bekijken.
 
 ### 1. Google Sheet aanmaken (alleen de structuur)
 
-Maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
+Het snelst: [maak een kopie van de templatesheet](https://docs.google.com/spreadsheets/d/1su54OKbVJrFEeISrP23PN-aGJ6jebnEwn3U1EeySLhY/copy). Die kopie komt in jouw Drive. De tabbladen en koppen staan er al in, de rijen daaronder blijven leeg. Hang er nog geen script aan, dat komt in stap 2.
+
+Liever zelf opbouwen: maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
 
 | Tabblad | Wat de tool erin bewaart |
 |---|---|
