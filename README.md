@@ -1,6 +1,6 @@
 # Opvolgtool taken
 
-Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen wanneer die niet in orde zijn. In het **docentscherm** zie je per leerling en per taak de status. Leerlingen en ouders zien hun eigen overzicht meestal ingesloten in de elektronische leeromgeving (ELO), bijvoorbeeld in Smartschool. Daarvoor is geen login nodig. Hetzelfde overzicht werkt ook als losse link, zonder Google-account.
+Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen. In het **docentscherm** zie je per leerling en per taak de status. Leerlingen en ouders zien hun eigen overzicht. Die is meestal ingesloten in de elektronische leeromgeving (ELO), bijvoorbeeld in Smartschool.
 
 ---
 
@@ -19,14 +19,11 @@ Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen
 
 ## Wat doet de tool?
 
-**Als leerkracht** open je het docentscherm. 
-- Op een computer zie je een kruistabel: leerlingen × taken. 
-- Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. 
-Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus wat je nodig hebt om dat overzicht in de ELO te zetten of als losse link te delen. Leerling en ouder loggen niet in.
+Je houdt per leerling bij hoe taken zijn afgerond: in orde, niet in orde, te laat, nog te maken, en dergelijke.
 
-Als een leerling een drempel haalt (standaard 3× niet in orde), volg je een vaste escalatie-ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken ongemaakt, dan zet je de leerling '**Aan zet**': de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
+Haalt een leerling de drempel (standaard 3× niet in orde), dan volg je een vaste ladder: leerling aanspreken, ouders verwittigen, avondstudie, evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
-**Als leerling of ouder** zie je dat overzicht in de ELO, of via een losse link. Geen login, geen schoolaccount: de pagina is anoniem toegankelijk. Je ziet alleen de taken en statussen van die ene leerling. Wie de link of het venster heeft, kan meekijken.
+Leerling en ouder zien alleen het overzicht van die ene leerling, zonder in te loggen. Wie het venster of de link heeft, kan meekijken.
 
 ---
 
