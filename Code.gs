@@ -402,6 +402,7 @@ function getLeerlingData(code) {
     llnId: leerling.id,
     klas: leerling.klas,
     opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
+    opvolgingGepauzeerd: String(leerling.opvolgingGepauzeerd || '').trim(),
     registraties: registraties,
     periodes: leesInstellingen_().periodes || []
   };
@@ -655,7 +656,7 @@ function zetLeerlingOpvolging(data) {
 
       } else if (stap === 'pauzeer') {
         // Sla de pauze op: datum + welke taken nog uitstaan.
-        if (!gezet.nablijf) throw new Error('Avondstudie moet al ingepland zijn voor pauze.');
+        if (!gezet.nablijf) throw new Error('Avondstudie moet al ingepland zijn voor leerling aan zet.');
         const blokkeerTaken = Array.isArray(data.blokkeerTaken)
           ? data.blokkeerTaken.filter(Boolean)
           : parseLijst_(data.blokkeerTaken);

@@ -1,7 +1,7 @@
 <!--
   docent-opvolging.html
   Opvolgingsladder van het docentscherm.
-  Inhoud: drempel, stappen (leerling / ouders / avondstudie / pauze),
+  Inhoud: drempel, stappen (leerling / ouders / avondstudie / leerling aan zet),
   afronden, berichten, iconen en het actiepaneel.
 -->
 <script>
@@ -157,7 +157,7 @@
         return kop + '<circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>';
       }
       if (stap === 'gepauzeerd' || stap === 'pauze-klaar') {
-        return kop + '<rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>';
+        return kop + '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>';
       }
       return kop + '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>';
     }
@@ -170,7 +170,7 @@
         ouders:       'Bericht naar de ouders',
         nablijf:      'Avondstudie',
         evaluatie:    'Evalueer het resultaat van de avondstudie',
-        gepauzeerd:   'Opvolging gepauzeerd — oude én nieuwe taken moeten in orde of al opgevolgd zijn',
+        gepauzeerd:   'Leerling aan zet — oude én nieuwe taken moeten in orde of opgevolgd zijn',
         'pauze-klaar':'Alle taken afgevinkt — opvolging kan worden afgerond',
         afronden:     'Opvolging kan worden afgesloten'
       }[stap];
@@ -346,8 +346,8 @@
       if (volgende === 'leerling')    return 'Spreek de leerling aan. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'ouders')      return 'Kopieer het bericht naar de ouders. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
       if (volgende === 'nablijf')     return 'Kies de datum en kopieer het bericht. Volgende zet de stap, Opgevolgd rondt de cyclus af.';
-      if (volgende === 'evaluatie')   return 'Pauzeren als de taken nog niet in orde zijn, Opgevolgd om de cyclus af te ronden.';
-      if (volgende === 'gepauzeerd')  return 'Nieuwe tekorten starten geen nieuwe cyclus. Oude én nieuwe taken moeten in orde of al opgevolgd zijn.';
+      if (volgende === 'evaluatie')   return 'Aan zet als de taken nog niet in orde zijn, Opgevolgd om de cyclus af te ronden.';
+      if (volgende === 'gepauzeerd')  return 'De leerling is aan zet. Nieuwe tekorten starten geen nieuwe cyclus. Oude én nieuwe taken moeten in orde of opgevolgd zijn.';
       if (volgende === 'pauze-klaar') return 'Alle openstaande taken zijn afgevinkt. Rond de cyclus af.';
       return 'Nog geen actie nodig.';
     }
@@ -380,7 +380,7 @@
     function htmlOpvolgTerugKnop(leerling) {
       const stap = laatsteOpvolgStap(leerling);
       const zichtbaar = !!stap;
-      const label = stap === 'pauze-wissen' ? 'Pauze ongedaan maken' : 'Laatste stap ongedaan maken';
+      const label = stap === 'pauze-wissen' ? 'Aan zet ongedaan maken' : 'Laatste stap ongedaan maken';
       return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-amber-900/80 hover:bg-amber-100 hover:text-amber-950' +
         (zichtbaar ? '' : ' invisible pointer-events-none') + '" ' +
         (zichtbaar
@@ -395,9 +395,9 @@
       const pauzeerKnop =
         '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-amber-950 bg-white border border-amber-200 hover:bg-amber-50" ' +
         'data-actie="opvolging-zet" data-stap="pauzeer" data-id="' + escapeAttr(leerling.id) + '" ' +
-        'title="Pauzeren: opvolging pauzeren tot de openstaande taken in orde zijn" aria-label="Pauzeren">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>' +
-        'Pauzeren</button>';
+        'title="Leerling aan zet: de verantwoordelijkheid ligt bij de leerling tot de openstaande taken in orde of opgevolgd zijn" aria-label="Leerling aan zet">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>' +
+        'Aan zet</button>';
       const geslaagdKnop =
         '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700" ' +
         'data-actie="opvolging-zet" data-stap="pauze-opheffen" data-id="' + escapeAttr(leerling.id) + '" ' +
@@ -409,10 +409,10 @@
 
     function htmlOpvolgPauzeBlok(leerling, volgende) {
       const klaar = volgende === 'pauze-klaar';
-      const opheffenLabel = klaar ? 'Cyclus afronden' : 'Pauze opheffen';
+      const opheffenLabel = klaar ? 'Cyclus afronden' : 'Toch afronden';
       const opheffenTitle = klaar
         ? 'Alle taken in orde — cyclus afronden'
-        : 'Pauze handmatig opheffen en cyclus afronden';
+        : 'Aan zet handmatig stoppen en cyclus afronden';
       const opheffenKlasse = klaar
         ? 'text-white bg-emerald-600 hover:bg-emerald-700'
         : 'text-amber-950 bg-white border border-amber-200 hover:bg-amber-50';
@@ -652,7 +652,7 @@
       }
 
       document.getElementById('fiche-opvolging-titel').textContent =
-        (o.gepauzeerd ? '⏸ Gepauzeerd — ' : '') +
+        (o.gepauzeerd ? 'Leerling aan zet — ' : '') +
         (o.gepauzeerd ? openstaand : n) + '× niet in orde (drempel ' + drempel + ')';
       document.getElementById('fiche-opvolging-uitleg').textContent = htmlOpvolgUitleg(volgende);
       stappenEl.className = 'mt-2 grid grid-cols-4 gap-1.5';
@@ -679,7 +679,7 @@
           '</div>';
       }
 
-      const titelTekst = (o.gepauzeerd ? '⏸ ' : '') + (o.gepauzeerd ? openstaand : n) + '× niet in orde';
+      const titelTekst = (o.gepauzeerd ? 'Leerling aan zet — ' : '') + (o.gepauzeerd ? openstaand : n) + '× niet in orde';
       return '<div class="mx-2 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5">' +
         '<div class="flex items-start justify-between gap-2">' +
           '<div class="min-w-0 w-full">' +
@@ -838,10 +838,10 @@
       }
       if (stap === 'pauzeer') {
         openBevestig(
-          'Opvolging pauzeren?',
-          'Nieuwe tekorten starten geen nieuwe cyclus. De pauze eindigt pas als oude én nieuwe openstaande taken in orde of al opgevolgd zijn.',
+          'Leerling aan zet?',
+          'De verantwoordelijkheid ligt bij de leerling. Nieuwe tekorten starten geen nieuwe cyclus. Dit eindigt pas als oude én nieuwe openstaande taken in orde of opgevolgd zijn.',
           function () { slaOpvolgingOp(id, 'pauzeer'); },
-          'Pauzeren',
+          'Aan zet',
           'bg-amber-600 text-white hover:bg-amber-700'
         );
         return;
@@ -936,8 +936,8 @@
       const berichten = {
         reset:          'Opvolging afgerond.',
         afronden:       'Opvolging afgesloten.',
-        pauzeer:        'Opvolging gepauzeerd — nieuwe tekorten tellen niet meer mee.',
-        'pauze-wissen': 'Pauze ongedaan gemaakt.',
+        pauzeer:        'Leerling is aan zet — nieuwe tekorten starten geen nieuwe cyclus.',
+        'pauze-wissen': 'Aan zet ongedaan gemaakt.',
         'pauze-opheffen': 'Opvolging afgerond.'
       };
       if (!opties.stil) {

@@ -109,6 +109,10 @@
           <p>Het onderstaande overzicht geeft weer welke leerkansen er werden aangeboden en in welke mate erop werd ingegaan.
           Toevoegingen en aanpassingen gebeuren te allen tijde in dit overzicht. Gelieve dit goed mee op te volgen.</p>
         </div>
+        <div id="aan-zet-banner" class="hidden mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2" role="status">
+          <p class="text-[12px] font-semibold text-amber-950">Jij bent aan zet</p>
+          <p class="mt-0.5 text-[11px] text-amber-900/80 leading-snug">De verantwoordelijkheid ligt nu bij jou. Werk je openstaande taken bij tot ze in orde of opgevolgd zijn.</p>
+        </div>
         <div class="mt-2 flex items-center justify-between gap-2">
           <p id="samenvatting" class="text-[11px] text-slate-500"></p>
           <div class="flex items-center gap-1 shrink-0">
@@ -293,6 +297,7 @@
         llnId: leerling.id,
         klas: leerling.klas,
         opvolgingResetOp: '',
+        opvolgingGepauzeerd: '',
         registraties: registraties,
         periodes: []
       };
@@ -389,6 +394,7 @@
       registraties: [],
       periodes: [],
       opvolgingResetOp: '',
+      opvolgingGepauzeerd: '',
       sortering: 'datum',
       groepFilters: [],
       verborgenPeriodes: [],
@@ -649,6 +655,9 @@
       const ruw = (data && data.registraties) ? data.registraties : [];
       staat.periodes = normaliseerPeriodes(data && data.periodes);
       staat.opvolgingResetOp = String(data && data.opvolgingResetOp || '').trim();
+      staat.opvolgingGepauzeerd = String(data && data.opvolgingGepauzeerd || '').trim();
+      const banner = document.getElementById('aan-zet-banner');
+      if (banner) banner.classList.toggle('hidden', !staat.opvolgingGepauzeerd);
       const laatste = {};
       const volgorde = [];
       ruw.forEach(function (reg) {

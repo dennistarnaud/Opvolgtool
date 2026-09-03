@@ -103,6 +103,7 @@
         llnId: leerling.id,
         klas: leerling.klas,
         opvolgingResetOp: String(leerling.opvolgingResetOp || '').trim(),
+        opvolgingGepauzeerd: String(leerling.opvolgingGepauzeerd || '').trim(),
         registraties: registraties,
         periodes: (staat.instellingen && staat.instellingen.periodes) || []
       };
