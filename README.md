@@ -124,7 +124,7 @@ In `Instellingen` schrijft de tool zelf o.a. `opvolgingAan`, `opvolgingDrempel`,
 
 Klaar. Vanaf hier vult de tool de rijen zelf. Leerlingen, taken en statussen voeg je later toe in het docentscherm.
 
-Deel de Sheet **niet** via “iedereen met de link”. 
+Zet bij *Bestand → Delen* de algemene toegang op **Beperkt**, niet op “iedereen met de link”. 
 
 Alleen wie het de tool moet kunnen gebruiken voeg je toe als bewerker. De Algemene toegang blijft dus op 'Beperkt'.
 
@@ -167,7 +167,7 @@ De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze h
 
 ### 3. Wie mag het docentscherm bewerken?
 
-Dit is **alleen** voor het docentscherm: wie leerlingen, taken en statussen mag wijzigen. Daarvoor moeten **twee** dingen kloppen, met dezelfde school-Google-adressen:
+Dit is **alleen** voor het docentscherm: wie leerlingen, taken en statussen mag wijzigen. Daarvoor moeten **twee** dingen kloppen, met dezelfde Google-accounts:
 
 1. Het adres staat in `Config.gs`. Anders opent het docentscherm niet.
 2. Het adres staat als **Bewerker** op de Google Sheet (*Bestand → Delen*). Anders kan de tool niets opslaan.
@@ -185,7 +185,7 @@ const TOEGANG_EMAIL_DOCENT = [
 
 Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het docentscherm niet te zien, ook niet via de docent-URL.
 
-Zet daarna **dezelfde** adressen op de Sheet: *Bestand → Delen*, als Bewerker. Jij als eigenaar van de kopie hoeft jezelf niet extra toe te voegen. Deel de Sheet niet via “iedereen met de link”.
+Zet daarna **dezelfde** adressen op de Sheet: *Bestand → Delen*, als Bewerker. Jij hebt als eigenaar al toegang. Zet de algemene toegang op **Beperkt**, niet op “iedereen met de link”.
 
 ---
 
@@ -196,7 +196,7 @@ Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-
 | | Implementatie A, Docent | Implementatie B, Leerling |
 |---|---|---|
 | **Voor wie** | Leerkrachten die data mogen wijzigen | Leerlingen en ouders die alleen kijken |
-| **Login** | Ja, school-Google-account | Nee |
+| **Login** | Ja, Google-account | Nee |
 | **Wie mag openen?** | Alleen adressen in `TOEGANG_EMAIL_DOCENT` | Iedereen met de juiste `?id=CODE`-link |
 
 ### Implementatie A, Docent
@@ -261,7 +261,7 @@ Verdere aandachtspunten:
 
 - Bewerk-functies controleren altijd het Google-account van de bezoeker
 - Op de leerling-URL worden bewerk-functies altijd geblokkeerd
-- Deel de Google Sheet zelf nooit via “iedereen met de link”
+- Zet de Google Sheet op **Beperkt**, niet op “iedereen met de link”
 - Opmerkingen bij taken kunnen persoonsgegevens bevatten
 - Registreer de tool in het verwerkingsregister van de school als dat bij jullie hoort
 
