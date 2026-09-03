@@ -104,6 +104,7 @@
     <section class="embed-kaart">
       <div class="embed-kop px-3 py-2.5 border-b border-slate-100">
         <h1 class="text-sm font-semibold">Opvolging leerkansen</h1>
+        <p id="testversie-banner" class="hidden mt-1 text-[11px] font-semibold text-amber-800">Testversie (/dev) — nieuwste code, niet de publieke link.</p>
         <div class="mt-2 space-y-1 text-[12px] text-slate-600 leading-relaxed">
           <p>Het onderstaande overzicht geeft weer welke leerkansen er werden aangeboden en in welke mate erop werd ingegaan.
           Toevoegingen en aanpassingen gebeuren te allen tijde in dit overzicht. Gelieve dit goed mee op te volgen.</p>
@@ -217,12 +218,36 @@
     ];
 
     function isGasOmgeving() {
-      return typeof google !== 'undefined' && google.script && typeof google.script.run === 'function';
+      var url = window.location.href;
+      return url.indexOf('script.google.com') !== -1 ||
+             url.indexOf('googleusercontent.com') !== -1 ||
+             url.indexOf('/macros/') !== -1;
+    }
+
+    function gasRun() {
+      try {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          return google.script.run;
+        }
+      } catch (e) { /* defensief */ }
+      return null;
+    }
+
+    function isTestModus() {
+      const bron = String(window.location.href || '') + ' ' + String(document.referrer || '');
+      return /\/dev(?:[/?#]|$)/i.test(bron);
     }
 
     function leesUrlCode() {
       const params = new URLSearchParams(window.location.search);
-      return (params.get('id') || 'A7X9A7X9').trim();
+      return (params.get('id') || '').trim();
+    }
+
+    function leerlingCode(payload) {
+      const uitUrl = leesUrlCode();
+      if (uitUrl) return uitUrl;
+      if (payload && payload.code) return String(payload.code).trim();
+      return '';
     }
 
     /** Probeert de GAS-scriplet-JSON te parsen. Lokaal is dit geen geldige JSON. */
@@ -288,26 +313,38 @@
 
     let refreshBezig = false;
 
-    function haalLeerlingData(stiltjes) {
-      const code = leesUrlCode();
+    function haalLeerlingData(stiltjes, pogingNr) {
+      const snel = leesGasPayload();
+      const code = leerlingCode(snel);
 
       if (isGasOmgeving()) {
         // Toon scriplet-payload meteen als startdata zodat de pagina snel laadt.
-        if (!stiltjes) {
-          const snel = leesGasPayload();
-          if (snel && snel.registraties) toonRegistraties(snel);
+        if (!stiltjes && snel && snel.registraties) toonRegistraties(snel);
+
+        var run = gasRun();
+        if (!run) {
+          if ((pogingNr || 0) < 100) {
+            setTimeout(function () { haalLeerlingData(stiltjes, (pogingNr || 0) + 1); }, 50);
+          }
+          return;
         }
-        // Haal daarna altijd verse data op via de API.
+        if (!code) {
+          if (!stiltjes && !(snel && snel.registraties)) {
+            document.getElementById('lijst').innerHTML =
+              '<p class="p-4 text-sm text-rose-700">Kon gegevens niet laden.</p>';
+          }
+          return;
+        }
         if (refreshBezig) return;
         refreshBezig = true;
-        google.script.run
+        run
           .withSuccessHandler(function (data) {
             refreshBezig = false;
             toonRegistraties(data);
           })
           .withFailureHandler(function (fout) {
             refreshBezig = false;
-            if (!stiltjes) {
+            if (!stiltjes && !(snel && snel.registraties)) {
               document.getElementById('lijst').innerHTML =
                 '<p class="p-4 text-sm text-rose-700">Kon gegevens niet laden.</p>';
             }
@@ -317,15 +354,16 @@
         return;
       }
 
-      const lokaal = leesLokalePreview(code);
+      const lokaleCode = code || 'A7X9A7X9';
+      const lokaal = leesLokalePreview(lokaleCode);
       if (lokaal && lokaal.registraties) {
-        console.log('[LOKAAL] leerling-preview uit docentscherm', code);
+        console.log('[LOKAAL] leerling-preview uit docentscherm', lokaleCode);
         toonRegistraties(lokaal);
         return;
       }
 
-      console.log('[LOKAAL] getLeerlingData — mockdata voor code', code);
-      toonRegistraties(mockLeerlingData(code));
+      console.log('[LOKAAL] getLeerlingData — mockdata voor code', lokaleCode);
+      toonRegistraties(mockLeerlingData(lokaleCode));
     }
 
     const GROEP_KLEUR = {
@@ -675,27 +713,18 @@
 
     function statusBadge(reg) {
       const status = statusTekst(reg);
-      if (isAlOpgevolgd(reg)) {
-        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-200 text-rose-800 text-sm font-bold" title="Niet in orde — al opgevolgd">✕</span>';
+      if (status === 'Al opgevolgd' || isAlOpgevolgd(reg)) {
+        return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde . Al opgevolgd</span>';
       }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
-        'Niet in orde': 'bg-rose-500 text-white',
+        'Niet in orde': 'bg-rose-100 text-rose-800',
         'Afwezig': 'bg-slate-200 text-slate-700',
         'Te laat': 'bg-yellow-200 text-yellow-900',
         'Te maken': 'bg-yellow-50 text-yellow-800'
       };
       const klasse = stijlen[status];
       if (!klasse) return '';
-      const tekens = { 'In orde': '✓', 'Niet in orde': '✕', 'Afwezig': 'A', 'Te laat': 'L', 'Te maken': 'M' };
-      const teken = tekens[status];
-      if (teken && (status === 'Niet in orde' || status === 'In orde')) {
-        const vakKlasse = status === 'Niet in orde'
-          ? 'bg-rose-500 text-white'
-          : 'bg-emerald-500 text-white';
-        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg ' +
-          vakKlasse + ' text-sm font-bold" title="' + escapeHtml(status) + '">' + teken + '</span>';
-      }
       return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ' + klasse + '">' +
         escapeHtml(status) + '</span>';
     }
@@ -741,11 +770,12 @@
     });
 
     // Op GAS: automatisch vernieuwen elke 30 seconden zodat wijzigingen zichtbaar worden.
-    if (typeof google !== 'undefined' && google.script) {
+    if (isGasOmgeving()) {
       setInterval(function () { haalLeerlingData(true); }, 30000);
     }
 
     haalLeerlingData();
+    document.getElementById('testversie-banner').classList.toggle('hidden', !isTestModus());
   </script>
 </body>
 </html>

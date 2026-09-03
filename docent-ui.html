@@ -871,9 +871,8 @@
     }
 
     function ficheStatusBadge(status, teltNietMee) {
-      const isAlOpgevolgd = status === 'Al opgevolgd' || teltNietMee;
-      if (isAlOpgevolgd) {
-        return '<span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-200 text-rose-800 text-sm font-bold" title="Niet in orde — al opgevolgd">✕</span>';
+      if (status === 'Al opgevolgd' || teltNietMee) {
+        return '<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">Niet in orde . Al opgevolgd</span>';
       }
       const stijlen = {
         'In orde': 'bg-emerald-100 text-emerald-800',
@@ -893,10 +892,17 @@
       document.getElementById('fiche-code-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('fiche-url-knop').setAttribute('data-code', leerling.code || '');
       document.getElementById('fiche-iframe-knop').setAttribute('data-code', leerling.code || '');
-      const testKnop = document.getElementById('fiche-test-knop');
-      if (testKnop) {
-        testKnop.setAttribute('data-code', leerling.code || '');
-        testKnop.classList.toggle('hidden', !isTestModus());
+      const urlKnop = document.getElementById('fiche-url-knop');
+      if (urlKnop) {
+        urlKnop.title = isTestModus()
+          ? 'Testlink kopiëren (/dev?id=…)'
+          : 'Leerlinglink kopiëren';
+        urlKnop.setAttribute('aria-label', urlKnop.title);
+      }
+      const iframeKnop = document.getElementById('fiche-iframe-knop');
+      if (iframeKnop) {
+        iframeKnop.title = 'Iframe-code kopiëren (publieke leerlinglink)';
+        iframeKnop.setAttribute('aria-label', iframeKnop.title);
       }
       document.getElementById('knop-leerling-verwijderen').setAttribute('data-id', leerling.id);
       zetFicheNaamWeergave(leerling);
@@ -1238,9 +1244,39 @@
       });
     }
 
+    function leesDocentMeta() {
+      const el = document.getElementById('gas-docent-meta');
+      if (!el) return {};
+      const tekst = (el.textContent || '').trim();
+      if (!tekst || tekst.indexOf('<' + '?') !== -1) return {};
+      try { return JSON.parse(tekst) || {}; } catch (e) { return {}; }
+    }
+
+    function extraheerDevBasis() {
+      const list = [];
+      const meta = leesDocentMeta();
+      if (meta.devUrl) list.push(String(meta.devUrl));
+      if (staat.webAppDevUrl) list.push(String(staat.webAppDevUrl));
+      try { list.push(window.location.href); } catch (e) { /* negeren */ }
+      try { list.push(document.referrer); } catch (e) { /* negeren */ }
+      try { list.push(window.parent.location.href); } catch (e) { /* negeren */ }
+      try { list.push(window.top.location.href); } catch (e) { /* negeren */ }
+      for (let i = 0; i < list.length; i++) {
+        const raw = String(list[i] || '').replace(/\/+$/, '');
+        const match = raw.match(/https:\/\/script\.google\.com\/macros\/s\/[^/?#]+\/dev/i);
+        if (match) return match[0];
+        if (/\/dev$/i.test(raw) && /^https:\/\//i.test(raw)) {
+          return raw.replace(/[?#].*$/, '');
+        }
+      }
+      const execBron = String(meta.execUrl || staat.webAppUrl || '').replace(/\/+$/, '');
+      if (/\/exec$/i.test(execBron)) return execBron.replace(/\/exec$/i, '/dev');
+      return '';
+    }
+
     function isTestModus() {
       if (!isGasOmgeving()) return true;
-      return /\/dev(?:[/?#]|$)/i.test(String(window.location.href || ''));
+      return !!extraheerDevBasis();
     }
 
     function leerlingTestUrl(code) {
@@ -1248,19 +1284,9 @@
       if (!isGasOmgeving()) {
         return 'leerling.html?id=' + encodeURIComponent(code);
       }
-      const pad = String(window.location.href || '').split('#')[0].split('?')[0].replace(/\/+$/, '');
-      const basis = /\/exec$/i.test(pad) ? pad.replace(/\/exec$/i, '/dev') : pad;
+      const basis = extraheerDevBasis();
+      if (!basis) return '';
       return basis + '?id=' + encodeURIComponent(code);
-    }
-
-    function openLeerlingTest(knop) {
-      const code = (knop && knop.getAttribute('data-code')) || '';
-      const url = leerlingTestUrl(code);
-      if (!url) {
-        toonMelding('Geen leerlingcode om te openen.', 'fout');
-        return;
-      }
-      window.open(url, '_blank', 'noopener');
     }
 
     function leerlingUrl(code) {
@@ -1273,9 +1299,11 @@
     function kopieerLeerlingUrl(knop) {
       const code = (knop && knop.getAttribute('data-code')) || '';
       if (!code) return;
-      const url = leerlingUrl(code);
+      const url = leerlingTestUrl(code) || leerlingUrl(code);
       if (!url) {
-        toonMelding('Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
+        toonMelding(isTestModus()
+          ? 'Kon de testlink niet bepalen.'
+          : 'Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
         return;
       }
       const icoon = knop.innerHTML;
@@ -1290,7 +1318,9 @@
       if (!code) return;
       const html = leerlingIframeHtml(code);
       if (!html) {
-        toonMelding('Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
+        toonMelding(isTestModus()
+          ? 'Kon de testlink niet bepalen.'
+          : 'Vul de URL van implementatie B in bij LEERLING_IMPLEMENTATIE_URL in Code.gs.', 'fout');
         return;
       }
       const icoon = knop.innerHTML;
@@ -1733,7 +1763,6 @@
       else if (actie === 'code-kopieren') kopieerLeerlingCode(doel);
       else if (actie === 'url-kopieren') kopieerLeerlingUrl(doel);
       else if (actie === 'iframe-kopieren') kopieerLeerlingIframe(doel);
-      else if (actie === 'leerling-testen') openLeerlingTest(doel);
       else if (actie === 'leerling-verwijderen') vraagLeerlingVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-verwijderen') vraagTaakVerwijderen(doel.getAttribute('data-id'));
       else if (actie === 'taak-bewerken') openTaakBewerken(doel.getAttribute('data-id'));

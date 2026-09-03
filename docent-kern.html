@@ -238,6 +238,7 @@
       opvolgingBezig: false,
       leerlingSleep: null,
       webAppUrl: '',
+      webAppDevUrl: '',
       leerlingUrl: ''
     };
 
@@ -1552,6 +1553,7 @@
         return { naam: String(item || '').trim(), vak: '' };
       }).filter(function (item) { return item.naam; });
       staat.webAppUrl = String(data.webAppUrl || '').trim();
+      staat.webAppDevUrl = String(data.webAppDevUrl || '').trim();
       staat.leerlingUrl = String(data.leerlingUrl || '').trim();
       staat.instellingen = normaliseerInstellingen(data.instellingen);
       vulKlasKeuze();

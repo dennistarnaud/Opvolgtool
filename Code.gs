@@ -259,8 +259,13 @@ function serveerDocentPagina_() {
     );
   }
 
-  return HtmlService.createTemplateFromFile('docent')
-    .evaluate()
+  const execUrl = String(ScriptApp.getService().getUrl() || '').replace(/\/+$/, '');
+  const template = HtmlService.createTemplateFromFile('docent');
+  template.docentMeta = {
+    execUrl: execUrl,
+    devUrl: execUrl.replace(/\/exec$/i, '/dev')
+  };
+  return template.evaluate()
     .setTitle('Opvolgtool — Docent')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -316,6 +321,7 @@ function getDocentData() {
     klassen: leesKlassen_(),
     instellingen: leesInstellingen_(),
     webAppUrl: ScriptApp.getService().getUrl() || '',
+    webAppDevUrl: String(ScriptApp.getService().getUrl() || '').replace(/\/+$/, '').replace(/\/exec$/i, '/dev'),
     leerlingUrl: String(LEERLING_IMPLEMENTATIE_URL || '').trim()
   };
 }

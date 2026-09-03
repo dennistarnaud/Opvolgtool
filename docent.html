@@ -19,6 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <script id="gas-docent-meta" type="application/json"><?!= typeof docentMeta !== 'undefined' ? JSON.stringify(docentMeta) : '{}' ?></script>
   <style>
     html {
       overflow-y: scroll;
@@ -738,14 +739,6 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-            </button>
-            <button type="button" id="fiche-test-knop" data-actie="leerling-testen"
-              class="hidden inline-flex items-center justify-center w-8 min-h-8 rounded-full bg-amber-50 text-amber-800 hover:bg-amber-100"
-              title="Leerlingscherm openen in testmodus" aria-label="Leerlingscherm openen in testmodus">
-              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
             <button type="button" id="fiche-iframe-knop" data-actie="iframe-kopieren"
