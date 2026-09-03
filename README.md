@@ -277,7 +277,6 @@ Verdere aandachtspunten:
 - Bewerk-functies controleren altijd het Google-account van de bezoeker
 - Op de leerling-URL worden bewerk-functies altijd geblokkeerd
 - Zet de Google Sheet op **Beperkt**, niet op “iedereen met de link”
-- Opmerkingen bij taken kunnen persoonsgegevens bevatten
 
 ---
 
@@ -291,32 +290,33 @@ Als je `Code.gs`, `Config.gs`, `LeerlingCodes.gs` of een van de HTML-bestanden a
 
 De `/exec`-URL blijft hetzelfde. Ververs daarna de pagina.
 
-De **testimplementatie** (`/dev`) toont altijd de laatst *opgeslagen* code, maar alleen voor wie het script mag bewerken. Handig om het docentscherm te proberen. De kopieerknop in de fiche maakt op `/dev` een testlink (`/dev?id=CODE`) van hetzelfde script. De iframe-code blijft de publieke `/exec`-URL van implementatie B, die gebruik je voor Smartschool en ouders.
-
 ---
 
 ## Dagelijks gebruik
 
 ### Docentscherm
 
-- Open de docent-URL en log in met een account uit de e-maillijst
-- Maak een klas aan op de startpagina (klas + vak); daarna kies je die klas in de balk
-- **Computer, kruistabel:** status per leerling en taak (sneltoetsen 1–6, slepen, periodes filteren)
-- **Telefoon, Leerling / Taak:** tik een naam of taak om af te vinken
-- **Leerlingfiche:** klik of tik op een naam, hetzelfde overzicht als de leerling, plus code, link en iframe
-- **Taken:** nieuwe taak onderaan de tabel, via *Nieuwe taak*, of via het formulier; soort en datum kun je later nog zetten
-- **Opvolging:** bij de drempel de stappen zetten; e-mail kopiëren per stap; bij evaluatie *Aan zet* of *Opgevolgd*
-- **Instellingen:** opvolging aan/uit, drempel, de vier standaardberichten (leerling, ouders, avondstudie, aan zet) en periodes
+Open de docent-URL en log in met een Google-account dat in `Config.gs` staat. De eerste keer maak je een klas aan (naam + vak). Daarna kies je die klas in de balk bovenaan.
 
-Statussen: In orde · Niet in orde · Opgevolgd · Afwezig · Te laat · Te maken · leeg.
+Op de computer werk je in de kruistabel: elke cel is één leerling en één taak. Je zet de status met de muis of met de toetsen 1 tot 6. Je kunt een status over meerdere cellen slepen. Periodes filter je in de balk.
+
+Op de telefoon kies je het tabblad **Leerling** of **Taak**. Tik een naam om die leerling af te vinken, of een taak om de hele klas af te vinken.
+
+Klik of tik op een naam om de **leerlingfiche** te openen. Daar zie je hetzelfde overzicht als de leerling, en knoppen om de link of de iframe-code te kopiëren (voor Smartschool).
+
+Een nieuwe taak voeg je toe onderaan de tabel, via **+**, of via het formulier. Soort en datum kun je later nog zetten. Per taak kies je onder meer: in orde, niet in orde, opgevolgd, afwezig, te laat, te maken, of leeg.
+
+Haalt een leerling de drempel, dan volg je in de fiche de stappen (leerling, ouders, avondstudie, evaluatie). Per stap kun je het bericht kopiëren. Bij evaluatie kies je **Aan zet** of **Opgevolgd**.
+
+Onder **Instellingen** zet je opvolging aan of uit, de drempel, de vier standaardberichten en de periodes.
 
 ### Leerlingscherm
 
-- Unieke URL met `?id=CODE`, geen login
-- Toont alleen taken met een echte status (leeg of gewist verschijnt niet)
-- Filter op periode en soort via het filtericoon
-- Bij **Aan zet** staat bovenaan een melding tot de openstaande taken in orde of opgevolgd zijn
-- Geschikt als iframe in Smartschool of Google Sites:
+Leerling en ouder zien het overzicht in de ELO, of via de persoonlijke link. Er is geen login. Alleen taken met een status verschijnen; een leeg vakje blijft onzichtbaar. Via het filtericoon filteren ze op periode of soort.
+
+Staat de leerling **Aan zet**, dan staat bovenaan een melding tot de openstaande taken in orde of opgevolgd zijn.
+
+De iframe-code kopieer je in de fiche. Die plak je in Smartschool of een andere ELO. Een voorbeeld:
 
 ```html
 <iframe
