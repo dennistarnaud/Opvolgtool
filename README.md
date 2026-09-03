@@ -1,8 +1,6 @@
 # Opvolgtool taken
 
-Een tool voor leerkrachten om bij te houden welke taken (leerkansen) leerlingen kregen en hoe die zijn afgerond. Leerlingen en ouders zien hun eigen overzicht via een persoonlijke link — zonder inloggen.
-
-Alles wat je dagelijks doet, gebeurt in het **docentscherm** (tabblad: *Opvolgtool taken*). De Google Sheet is alleen de opslag op de achtergrond. Daar typ je geen leerlingen, taken of statussen in.
+Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen wanneer die niet in orde zijn. In het **docentscherm** zie je per leerling en per taak de status. Leerlingen en ouders zien hun eigen overzicht via een link, of in een elektronische leeromgeving (ELO) zoals Smartschool.
 
 ---
 
@@ -21,13 +19,11 @@ Alles wat je dagelijks doet, gebeurt in het **docentscherm** (tabblad: *Opvolgto
 
 ## Wat doet de tool?
 
-**Als leerkracht** open je het docentscherm. Op een computer zie je een kruistabel: leerlingen × taken. Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus de persoonlijke code, link en iframe.
+**Als leerkracht** open je het docentscherm. Op een computer zie je een kruistabel: leerlingen × taken. Op de telefoon werk je via twee tabbladen: **Leerling** en **Taak**. Je vult per taak in of iets in orde is, niet in orde, te laat, nog te maken, enzovoort. Via de leerlingfiche (klik of tik op een naam) zie je hetzelfde overzicht als de leerling, plus de persoonlijke code en de link die je met leerling of ouders deelt.
 
-Als een leerling de opvolgingsdrempel haalt, volg je een vaste ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
+Als een leerling een drempel haalt (standaard 3× niet in orde), volg je een vaste ladder: leerling aanspreken → ouders verwittigen → avondstudie → evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
-**Als leerling of ouder** open je een unieke link (of een iframe in Smartschool / het leerlingvolgsysteem). Je ziet de taken en statussen van die ene leerling. Iedereen met die link kan de pagina bekijken — daarvoor hoef je niet in een e-maillijst te staan.
-
-Data staat in een Google Sheet die aan het script hangt. De tool schrijft zelf in die Sheet. Jij werkt in de webpagina.
+**Als leerling of ouder** open je die link, of het overzicht in Smartschool / het leerlingvolgsysteem. Je ziet de taken en statussen van die ene leerling. Iedereen met die link kan de pagina bekijken — daarvoor hoef je niet in te loggen.
 
 ---
 
@@ -35,7 +31,7 @@ Data staat in een Google Sheet die aan het script hangt. De tool schrijft zelf i
 
 ### Telefoon
 
-Op een smal scherm vervangt de kruistabel twee tabbladen.
+Op een smal scherm zie je geen kruistabel, maar twee tabbladen.
 
 **Leerling** — overzicht van de klas. Tik een naam om taken af te vinken.
 
@@ -59,7 +55,7 @@ Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, ko
 
 ![Docentscherm op de computer, kruistabel](img/opvolgtool-docentview.png)
 
-De leerlingpagina past in het dossier (Smartschool of een ander leerlingvolgsysteem) via een iframe.
+De leerlingpagina kun je in het dossier zetten (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe).
 
 ![Opvolgtool in het leerlingdossier](img/opvolgtool-lvs.png)
 
@@ -86,13 +82,17 @@ De vier stappen:
 
 ![Stap Evaluatie](img/opvolgtool-evaluatie.png)
 
-Bij **Aan zet** kopieer je een e-mail naar leerling en ouders. In de leerlingview verschijnt bovenaan een melding tot alle openstaande taken in orde of opgevolgd zijn. Nieuwe tekorten starten geen nieuwe cyclus.
+Bij **Aan zet** kopieer je een e-mail naar leerling en ouders. In het leerlingscherm verschijnt bovenaan een melding tot alle openstaande taken in orde of opgevolgd zijn. Nieuwe tekorten starten geen nieuwe cyclus.
 
 In de kruistabel is **Opgevolgd** (toets 6) het lichtrode kruisje: de taak telt niet meer mee voor een volgende cyclus. Intern blijft de status `Al opgevolgd`.
 
 ---
 
 ## Eerste keer opzetten
+
+Je zet de tool één keer klaar in Google. De gegevens (leerlingen, taken, statussen) bewaart ze in een **Google Sheet**. Jij maakt alleen de lege structuur; daarna schrijft de tool zelf in die Sheet. Het dagelijkse werk blijft in het docentscherm (tabblad: *Opvolgtool taken*).
+
+Aan die Sheet hang je de code uit dit project (een **Apps Script**). Tot slot publiceer je twee web-apps: één om te bewerken, één om te bekijken.
 
 ### 1. Google Sheet aanmaken (alleen de structuur)
 
@@ -153,29 +153,9 @@ Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het 
 
 ---
 
-### 4. Twee web-apps publiceren
-
-De tool heeft **twee** publicaties van dezelfde code nodig: één om te bewerken, één om (anoniem) te bekijken. Zie [De twee implementaties](#de-twee-implementaties).
-
----
-
-### 5. Leerling-URL in Config.gs zetten
-
-Na het aanmaken van de leerling-web-app (implementatie B) plak je die URL in `Config.gs`:
-
-```javascript
-const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
-```
-
-Publiceer daarna **beide** implementaties opnieuw als nieuwe versie. Zo weet de server welke URL de publieke leerlingpagina is, en blokkeert hij bewerk-functies op die URL.
-
-`SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt (gebonden script). Alleen bij een losstaand script vul je het spreadsheet-ID in.
-
----
-
 ## De twee implementaties
 
-Zelfde code, andere toegangsinstellingen.
+Zelfde code, twee publicaties, andere toegangsinstellingen. Eerst de docent-web-app, daarna die voor leerlingen.
 
 | | Implementatie A — Docent | Implementatie B — Leerling |
 |---|---|---|
@@ -207,9 +187,18 @@ https://script.google.com/macros/s/.../exec
 3. Instellingen:
    - **Uitvoeren als:** Ik (eigenaar van het script)
    - **Wie heeft toegang:** Iedereen
-4. Implementeren en de URL in `Config.gs` zetten (stap 5 hierboven)
+4. Implementeren en de URL bewaren
+5. Plak die URL in `Config.gs`:
 
-*Uitvoeren als ik* laat de pagina de Sheet lezen zonder dat de bezoeker Sheet-rechten heeft. *Iedereen* laat leerlingen en ouders toe zonder Google-account. De 8-tekens code in de URL is de enige sleutel.
+```javascript
+const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../exec';
+```
+
+6. Publiceer **beide** implementaties opnieuw als nieuwe versie. Zo weet de tool welke URL de leerlingpagina is, en blokkeert ze bewerk-functies op die URL.
+
+`SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt. Alleen bij een losstaand script vul je het spreadsheet-ID in.
+
+*Uitvoeren als ik* laat de pagina de Sheet lezen zonder dat de bezoeker de Sheet zelf mag openen. *Iedereen* laat leerlingen en ouders toe zonder Google-account. De code van 8 tekens in de URL is de enige sleutel.
 
 Link per leerling (code staat in de leerlingfiche in het docentscherm):
 
