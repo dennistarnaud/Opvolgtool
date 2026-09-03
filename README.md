@@ -15,6 +15,7 @@ Alles wat je dagelijks doet, gebeurt in het **docentscherm** (tabblad: *Opvolgto
 - [Beveiliging en privacy](#beveiliging-en-privacy)
 - [Na elke codewijziging](#na-elke-codewijziging)
 - [Dagelijks gebruik](#dagelijks-gebruik)
+- [Licentie](#licentie)
 
 ---
 
@@ -302,3 +303,13 @@ Statussen: In orde · Niet in orde · Opgevolgd · Afwezig · Te laat · Te make
 | `docent-kruis.html` | Kruistabel, selectie, slepen |
 | `docent-ui.html` | Lijsten, fiche, instellingen |
 | `leerling.html` | Leerlingscherm (via code) |
+
+---
+
+## Licentie
+
+Copyright © 2026 Dennis Tarnaud
+
+Opvolgtool taken valt onder [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.nl). Scholen en collega’s mogen de code gebruiken en aanpassen, met naamsvermelding. Aanpassingen die je verder deelt, blijven onder dezelfde licentie. Commercieel gebruik is niet toegestaan.
+
+De software wordt geleverd zoals ze is. Er is geen garantie en geen aansprakelijkheid als er iets misloopt. De volledige tekst staat in [`LICENSE`](LICENSE).
