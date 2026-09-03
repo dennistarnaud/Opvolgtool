@@ -244,13 +244,14 @@ const LEERLING_IMPLEMENTATIE_URL = 'https://script.google.com/macros/s/AKfy.../e
 
 Dat moet omdat A en B dezelfde code delen. In `Config.gs` zegt de tool welke URL de **leerlingpagina** is. Het docentscherm gebruikt die URL voor de link en de iframe in de fiche (Smartschool). Op die URL wordt het docentscherm én elke bewerk-functie geblokkeerd, zodat niemand via de leerling-web-app kan wijzigen. Daarom kan deze implementatie op **Iedereen** staan: er is geen Google-login nodig voor het venster in de ELO, en er valt niets te bewerken.
 
-**Iedereen** betekent niet dat alle leerlingen openbaar zijn. Zonder de persoonlijke code zie je niets. Met de code zie je alleen dat ene overzicht, zonder naam. Wie welk kind ziet, bepaalt de ELO (het dossier achter de login). Een losse link deel je alleen met de betrokken leerling of ouders.
+**Iedereen** betekent niet dat alle leerlingen openbaar zijn. Zonder de persoonlijke code zie je niets. Met de code zie je alleen dat ene overzicht, zonder naam. Wie welk kind ziet, bepaalt de ELO (het dossier achter de login). Een losse link is hetzelfde overzicht, bedoeld voor die leerling of de ouders, niet voor een klassengroep.
 
 6. Open daarna **beide** implementaties opnieuw (potlood), kies **Versie: Nieuwe versie**, en sla op. De nieuwe `Config.gs` zit anders niet in de gepubliceerde versie.
 
-`SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt. Alleen bij een losstaand script vul je het spreadsheet-ID in.
+`SPREADSHEET_ID` in `Config.gs` laat je leeg als het script aan de Sheet hangt (wat het geval is als je het stappenplan hierboven volgde). Alleen bij een losstaand script vul je het spreadsheet-ID in.
 
-*Uitvoeren als ik* laat de pagina de Sheet lezen zonder dat de bezoeker de Sheet zelf mag openen. *Iedereen* laat leerlingen en ouders toe zonder Google-account. De code van 8 tekens in de URL is de enige sleutel.
+*Uitvoeren als ik* laat de pagina de Sheet lezen zonder dat de bezoeker de Sheet zelf mag openen.
+*Iedereen* laat leerlingen en ouders toe zonder Google-account. De code van 8 tekens in de URL is de enige sleutel.
 
 Link per leerling (code staat in de leerlingfiche in het docentscherm):
 
@@ -270,8 +271,6 @@ https://script.google.com/macros/s/.../exec?id=AB2CD3EF
 | Iemand met een foute of ontbrekende code | Foutpagina |
 
 De e-maillijst regelt **bewerkingsrecht**, niet of het leerlingscherm bestaat. Dat scherm heeft geen Google-login, zodat het in de ELO past. Het toont geen leerlingnaam. De koppeling aan de juiste leerling zit in het dossier, achter de ELO-login.
-
-Een losse link deel je alleen met de betrokken leerling of ouders. Wie die link heeft, kan dat overzicht zien.
 
 Verdere aandachtspunten:
 
