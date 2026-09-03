@@ -21,13 +21,19 @@ Een tool voor leerkrachten om taken van leerlingen bij te houden en op te volgen
 
 Je houdt per leerling bij hoe taken zijn afgerond: in orde, niet in orde, te laat, nog te maken, en dergelijke.
 
-Haalt een leerling de drempel (standaard 3× niet in orde), dan volg je een vaste ladder: leerling aanspreken, ouders verwittigen, avondstudie, evaluatie. Blijven taken open, dan zet je de leerling **Aan zet**: de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
+Haalt een leerling de drempel (standaard 3× niet in orde), dan volg je een vaste ladder: leerling aanspreken, ouders verwittigen, avondstudie, evaluatie. Blijven taken niet in orde, dan zet je de leerling '**Aan zet**': de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
-Leerling en ouder zien alleen het overzicht van die ene leerling, zonder in te loggen. Wie het venster of de link heeft, kan meekijken.
+Leerling en ouder zien alleen het overzicht van die ene leerling.
 
 ---
 
 ## Schermen
+
+### Computer
+
+Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, kolommen zijn taken.
+
+![Docentscherm op de computer, kruistabel](img/opvolgtool-docentview.png)
 
 ### Telefoon
 
@@ -49,11 +55,7 @@ Na het tikken van een taak: status per leerling, inclusief lege vakjes in één 
 
 ![Docentscherm op telefoon, één taak voor de klas](img/opvolgtool-docentview-taak2.png)
 
-### Computer
-
-Op een breed scherm is de kruistabel de hoofdweergave: rijen zijn leerlingen, kolommen zijn taken.
-
-![Docentscherm op de computer, kruistabel](img/opvolgtool-docentview.png)
+### Dossier
 
 Meestal zet je de leerlingpagina in het dossier (Smartschool of een ander leerlingvolgsysteem), als een ingesloten venster (iframe). Ook daar is geen extra login nodig.
 
