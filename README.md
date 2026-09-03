@@ -148,7 +148,7 @@ De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze h
 
 ![Nieuw HTML-bestand aanmaken](img/gas-html.png)
 
-4. Typ alleen de naam, **zonder** `.gs` of `.html`. Die uitgang verschijnt vanzelf. Dus `Config`, niet `Config.gs`. En `docent`, niet `docent.html`.
+4. Typ alleen de naam, **zonder** `.gs` of `.html`. Die uitgang verschijnt vanzelf. Dus `Config`, niet `Config.gs`. En `leerling`, niet `leerling.html`.
 
 ![Script noemen: alleen Config, zonder .gs](img/gas-script2.png)
 
@@ -158,6 +158,10 @@ De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze h
 
    - Script: `Config`, `LeerlingCodes`
    - Html: `docent`, `docent-kern`, `docent-opvolging`, `docent-kruis`, `docent-ui`, `leerling`
+
+6. Staat er een bolletje naast een bestandsnaam, dan is dat bestand nog niet opgeslagen. Druk op **Ctrl+S** tot de bolletjes weg zijn.
+
+![Bolletje naast Code.gs: nog niet opgeslagen](img/gas-save.png)
 
 ---
 
@@ -177,6 +181,8 @@ const TOEGANG_EMAIL_DOCENT = [
 ```
 
 Kleine en hoofdletters maken niet uit. Wie niet in deze lijst staat, krijgt het docentscherm niet te zien, ook niet via de docent-URL.
+
+Via deze weg kunnen leraren met die e-mailadressen aan de opvolgtool (frontend), maar diezelfde e-mailadressen moeten ook toegevoegd zijn aan de google sheet (backend) om aanpassingen te kunnen maken.
 
 ---
 
