@@ -7,7 +7,7 @@
  *
  * 1. Spreadsheet (alleen structuur — niets invullen onder de koppen)
  *    Maak een Google Sheet en koppel dit script eraan.
- *    Vijf tabbladen met exact deze namen. Rij 1 = koppen in deze volgorde.
+ *    Zes tabbladen met exact deze namen. Rij 1 = koppen in deze volgorde.
  *    Leerlingen, taken en statussen komen uit het docentscherm, niet uit de Sheet.
  *
  *    Tab "Leerlingen"
@@ -17,17 +17,20 @@
  *      A id  B naam  C type  D deadline  E klas
  *    Tab "Registraties"
  *      A datumTijd  B llnId  C taakId  D status  E opmerking  F klas
+ *    Tab "Gedrag"
+ *      A id  B datumTijd  C llnId  D klas  E opmerking  F stap  G gegevenOp
  *    Tab "Klassen"
  *      A naam  B vak
  *    Tab "Instellingen"
  *      A sleutel  B waarde
  *      (opvolgingAan, opvolgingDrempel, berichtLeerling, berichtOuders,
- *       berichtNablijf, berichtAanZet, periodes — tool schrijft dit zelf)
+ *       berichtNablijf, berichtAanZet, periodes, gedragAan, gedragVensterDagen,
+ *       gedragAdvies1, gedragAdvies2, gedragAdvies3, gedragBerichtOuders — tool schrijft dit zelf)
  *
  * 2. Scriptbestanden in Apps Script
  *    Plak: Config.gs, Code.gs, LeerlingCodes.gs
  *    HTML-bestanden (naam in de editor ZONDER .html):
- *      docent, docent-kern, docent-opvolging, docent-kruis, docent-ui, leerling
+ *      docent, docent-kern, docent-opvolging, docent-gedrag, docent-kruis, docent-ui, leerling
  *    Vul Config.gs in: emailadressen, leerling-URL en eventueel spreadsheet-ID.
  *    SPREADSHEET_ID leeg laten bij een gebonden script; anders het spreadsheet-ID.
  *
@@ -49,6 +52,7 @@
 const TAB_LEERLINGEN = 'Leerlingen';
 const TAB_TAKEN = 'Taken_Lijst';
 const TAB_REGISTRATIES = 'Registraties';
+const TAB_GEDRAG = 'Gedrag';
 const TAB_KLASSEN = 'Klassen';
 const TAB_INSTELLINGEN = 'Instellingen';
 
@@ -59,6 +63,31 @@ const INST_BERICHT_OUDERS = 'berichtOuders';
 const INST_BERICHT_NABLIJF = 'berichtNablijf';
 const INST_BERICHT_AAN_ZET = 'berichtAanZet';
 const INST_PERIODES = 'periodes';
+const INST_GEDRAG_AAN = 'gedragAan';
+const INST_GEDRAG_VENSTER = 'gedragVensterDagen';
+const INST_GEDRAG_ADVIES1 = 'gedragAdvies1';
+const INST_GEDRAG_ADVIES2 = 'gedragAdvies2';
+const INST_GEDRAG_ADVIES3 = 'gedragAdvies3';
+const INST_GEDRAG_BERICHT_OUDERS = 'gedragBerichtOuders';
+const DEFAULT_GEDRAG_AAN = true;
+const DEFAULT_GEDRAG_VENSTER = 30;
+const GEDRAG_VENSTER_MIN = 7;
+const GEDRAG_VENSTER_MAX = 180;
+const DEFAULT_GEDRAG_ADVIES1 = 'De leerling krijgt een reflectietaak (ordemaatregel 1).';
+const DEFAULT_GEDRAG_ADVIES2 = 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders.';
+const DEFAULT_GEDRAG_ADVIES3 = 'De coördinator wordt betrokken. De leerling moet nablijven.';
+const DEFAULT_GEDRAG_BERICHT_OUDERS =
+  'Onderwerp: Opvolging werkhouding in de klas - {naam}\n\n' +
+  'Beste ouder(s) van {naam}\n\n' +
+  'Ik neem contact met u op om u kort op de hoogte te brengen van de werkhouding van {naam} tijdens mijn lessen {vak}.\n\n' +
+  'Wij hechten als school veel belang aan een positief en rustig leerklimaat. Eerder heeft {naam} na een incident in de les al een eerste reflectieopdracht gemaakt waarin we afspraken hebben vastgelegd. Helaas heb ik vandaag moeten vaststellen dat deze afspraken onvoldoende werden nageleefd.\n\n' +
+  'Om die reden heeft {naam} vandaag een vervolgreflectie meegekregen. Hierin staat beschreven wat er is misgelopen en vragen we om een concreet plan van aanpak voor de komende lessen.\n\n' +
+  'Wat vraag ik van u? Ik wil u vriendelijk vragen om dit document vanavond samen met {naam} te overlopen, het thuis te bespreken en onderaan te ondertekenen voor gezien. {naam} dient dit de volgende les weer bij mij in te leveren.\n\n' +
+  'We hopen dat dit moment van reflectie, gesteund door u als ouders, ervoor zorgt dat de afspraken in de toekomst goed worden opgevolgd. Zoals ook op het document staat vermeld: mocht een positieve werkhouding na deze taak toch uitblijven, dan overstijgt dit de klasaanpak. Het dossier wordt dan verder besproken met de leerlingencoördinator.\n\n' +
+  'We hopen uiteraard dat het zover niet hoeft te komen.\n\n' +
+  'Graag zou ik jullie ook willen vragen om mij een mail te sturen om te bevestigen dat jullie deze mail goed ontvangen en gelezen hebben.\n\n' +
+  'Alvast hartelijk dank voor uw medewerking en het gesprek thuis. Mocht u hierover nog vragen hebben, dan hoor ik het graag.\n\n' +
+  'Met vriendelijke groeten';
 const PERIODES_MAX = 20;
 const PERIODE_NAAM_MAX = 40;
 const DEFAULT_OPVOLGING_AAN = true;
@@ -352,6 +381,7 @@ function getDocentData() {
     taken: leesTaken_().filter(function (taak) { return !isMateriaalTaak_(taak); }),
     registraties: leesRegistraties_(),
     klassen: leesKlassen_(),
+    gedrag: leesGedrag_(),
     instellingen: leesInstellingen_(),
     webAppUrl: ScriptApp.getService().getUrl() || '',
     webAppDevUrl: String(ScriptApp.getService().getUrl() || '').replace(/\/+$/, '').replace(/\/exec$/i, '/dev'),
@@ -379,6 +409,7 @@ function initSetup_() {
     synchroniseerKlassen_();
     zorgVoorOpvolgingKolommen_();
     zorgVoorVolgordeKolom_();
+    zorgVoorGedragTab_();
     cache.put(SLEUTEL, '1', 6 * 3600); // 6 uur geldig
   } finally {
     lock.releaseLock();
@@ -870,7 +901,91 @@ function saveInstellingen(data) {
     zetInstellingRij_(sheet, INST_BERICHT_NABLIJF, instellingen.berichtNablijf);
     zetInstellingRij_(sheet, INST_BERICHT_AAN_ZET, instellingen.berichtAanZet);
     zetInstellingRij_(sheet, INST_PERIODES, JSON.stringify(instellingen.periodes || []));
+    zetInstellingRij_(sheet, INST_GEDRAG_AAN, instellingen.gedragAan ? 'ja' : 'nee');
+    zetInstellingRij_(sheet, INST_GEDRAG_VENSTER, instellingen.gedragVensterDagen);
+    zetInstellingRij_(sheet, INST_GEDRAG_ADVIES1, instellingen.gedragAdvies1);
+    zetInstellingRij_(sheet, INST_GEDRAG_ADVIES2, instellingen.gedragAdvies2);
+    zetInstellingRij_(sheet, INST_GEDRAG_ADVIES3, instellingen.gedragAdvies3);
+    zetInstellingRij_(sheet, INST_GEDRAG_BERICHT_OUDERS, instellingen.gedragBerichtOuders);
     return { ok: true, instellingen: instellingen };
+  });
+}
+
+/**
+ * Registreert een gedragsmelding. De stap (1–3) wordt berekend uit het 30-dagenvenster.
+ * @param {{llnId: string, klas?: string, opmerking?: string}} data
+ * @return {{ok: boolean, melding: Object}}
+ */
+function saveGedragMelding(data) {
+  assertDocentToegang_();
+  const llnId = String(data && data.llnId ? data.llnId : '').trim();
+  const klas = String(data && data.klas ? data.klas : '').trim();
+  const opmerking = String(data && data.opmerking ? data.opmerking : '').trim();
+  if (!llnId) throw new Error('Leerling is verplicht.');
+
+  return metScriptLock_(function () {
+    const sheet = zorgVoorGedragTab_();
+    const bestaande = leesGedrag_();
+    const inst = leesInstellingen_();
+    const stap = gedragStapVoorNieuweMelding_(bestaande, llnId, klas, inst.gedragVensterDagen);
+    const id = volgendeId_(bestaande, 'G');
+    const nu = new Date();
+    const gegevenOp = stap === 1 ? formatDatumTijd_(nu) : '';
+    sheet.appendRow([id, nu, llnId, klas, opmerking, stap, gegevenOp]);
+    return {
+      ok: true,
+      melding: {
+        id: id,
+        datumTijd: formatDatumTijd_(nu),
+        llnId: llnId,
+        klas: klas,
+        opmerking: opmerking,
+        stap: stap,
+        gegevenOp: gegevenOp
+      }
+    };
+  });
+}
+
+/**
+ * Vinkt een gedragsmaatregel af of maakt dat ongedaan.
+ * @param {{id: string, gegeven?: boolean}} data
+ * @return {{ok: boolean, melding: Object}}
+ */
+function zetGedragMaatregel(data) {
+  assertDocentToegang_();
+  const id = String(data && data.id ? data.id : '').trim();
+  if (!id) throw new Error('Id is verplicht.');
+  const gegeven = !(data && (data.gegeven === false || data.gegeven === 'nee' || data.gegeven === 0));
+
+  return metScriptLock_(function () {
+    const sheet = zorgVoorGedragTab_();
+    const rijen = sheet.getDataRange().getValues();
+    for (let i = 1; i < rijen.length; i++) {
+      if (String(rijen[i][0] || '').trim() !== id) continue;
+      const nu = gegeven ? formatDatumTijd_(new Date()) : '';
+      sheet.getRange(i + 1, 7).setValue(nu);
+      const melding = gedragVanRij_(rijen[i]);
+      melding.gegevenOp = nu;
+      return { ok: true, melding: melding };
+    }
+    throw new Error('Melding niet gevonden.');
+  });
+}
+
+/**
+ * Verwijdert een gedragsmelding (vergissing).
+ * @param {string} id
+ * @return {{ok: boolean, id: string}}
+ */
+function verwijderGedragMelding(id) {
+  assertDocentToegang_();
+  const gezocht = String(id || '').trim();
+  if (!gezocht) throw new Error('Id is verplicht.');
+  return metScriptLock_(function () {
+    zorgVoorGedragTab_();
+    if (!verwijderRijOpId_(TAB_GEDRAG, gezocht)) throw new Error('Melding niet gevonden.');
+    return { ok: true, id: gezocht };
   });
 }
 
@@ -1006,20 +1121,23 @@ function leegPrullenbak() {
   if (!ids.length) return { ok: true, aantal: 0 };
 
   vervangSheetZonderIds_(TAB_REGISTRATIES, 1, weg);
+  zorgVoorGedragTab_();
+  vervangSheetZonderIds_(TAB_GEDRAG, 2, weg);
   vervangSheetZonderIds_(TAB_LEERLINGEN, 0, weg);
   return { ok: true, aantal: ids.length };
 }
 
 /**
  * Reset alles voor een nieuw schooljaar:
- *  - Wist alle leerlingen (inclusief geschrapte), registraties, taken en klassen.
+ *  - Wist alle leerlingen (inclusief geschrapte), registraties, taken, klassen en gedrag.
  *  - Behoudt de instellingen (berichten, drempel, …).
  *  - Reset de initSetup_-cache zodat onderhoudstaken bij de volgende load opnieuw lopen.
  * @return {{ok: boolean}}
  */
 function resetSchooljaar() {
   assertDocentToegang_();
-  const tabNamen = [TAB_LEERLINGEN, TAB_TAKEN, TAB_REGISTRATIES, TAB_KLASSEN];
+  zorgVoorGedragTab_();
+  const tabNamen = [TAB_LEERLINGEN, TAB_TAKEN, TAB_REGISTRATIES, TAB_KLASSEN, TAB_GEDRAG];
   tabNamen.forEach(function (naam) {
     const sheet = getSheet_(naam);
     const aantalRijen = sheet.getLastRow();
@@ -1095,6 +1213,7 @@ function deleteKlas(naam) {
   });
   if (aantalTaken) vervangSheetZonderIds_(TAB_TAKEN, 0, taakIds);
   verwijderRegistratiesVoorKlas_(klas, taakIds);
+  verwijderGedragVoorKlas_(klas);
   verwijderKlasUitGeschraptIn_(klas);
   verwijderKlasnaam_(klas);
   return { ok: true, klas: klas, taken: aantalTaken };
@@ -1260,6 +1379,84 @@ function zorgVoorVolgordeKolom_() {
   if (String(kop[13] || '').trim() === '') sheet.getRange(1, 14).setValue('volgorde');
 }
 
+function zorgVoorGedragTab_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(TAB_GEDRAG);
+  if (!sheet) {
+    sheet = ss.insertSheet(TAB_GEDRAG, ss.getNumSheets());
+    sheet.getRange(1, 1, 1, 7).setValues([['id', 'datumTijd', 'llnId', 'klas', 'opmerking', 'stap', 'gegevenOp']]);
+  } else if (String(sheet.getRange(1, 1).getValue() || '').trim() === '') {
+    sheet.getRange(1, 1, 1, 7).setValues([['id', 'datumTijd', 'llnId', 'klas', 'opmerking', 'stap', 'gegevenOp']]);
+  }
+  _sheetCache[TAB_GEDRAG] = sheet;
+  return sheet;
+}
+
+function leesGedrag_() {
+  const sheet = zorgVoorGedragTab_();
+  const rijen = sheet.getDataRange().getValues();
+  const resultaat = [];
+  for (let i = 1; i < rijen.length; i++) {
+    if (!rijen[i][0] && !rijen[i][1]) continue;
+    resultaat.push(gedragVanRij_(rijen[i]));
+  }
+  return resultaat;
+}
+
+function gedragVanRij_(rij) {
+  const stap = parseInt(rij[5], 10);
+  return {
+    id: String(rij[0] || '').trim(),
+    datumTijd: formatDatumTijd_(rij[1]),
+    llnId: String(rij[2] || '').trim(),
+    klas: String(rij[3] || '').trim(),
+    opmerking: String(rij[4] || '').trim(),
+    stap: (stap >= 1 && stap <= 3) ? stap : 1,
+    gegevenOp: formatDatumTijd_(rij[6])
+  };
+}
+
+function gedragDagenSinds_(datumTijd) {
+  const d = parseDatumTijd_(datumTijd);
+  if (!d || isNaN(d.getTime())) return Number.POSITIVE_INFINITY;
+  return (Date.now() - d.getTime()) / (24 * 60 * 60 * 1000);
+}
+
+function gedragStapVoorNieuweMelding_(bestaande, llnId, klas, vensterDagen) {
+  let laatste = null;
+  (bestaande || []).forEach(function (m) {
+    if (String(m.llnId || '').trim() !== llnId) return;
+    if (klas && String(m.klas || '').trim() && String(m.klas).trim() !== klas) return;
+    if (!laatste || String(m.datumTijd || '') > String(laatste.datumTijd || '')) laatste = m;
+  });
+  if (!laatste) return 1;
+  const venster = (vensterDagen >= GEDRAG_VENSTER_MIN && vensterDagen <= GEDRAG_VENSTER_MAX)
+    ? vensterDagen
+    : DEFAULT_GEDRAG_VENSTER;
+  if (gedragDagenSinds_(laatste.datumTijd) > venster) return 1;
+  const vorige = parseInt(laatste.stap, 10);
+  const stap = (vorige >= 1 && vorige <= 3) ? vorige : 1;
+  return Math.min(3, stap + 1);
+}
+
+function verwijderGedragVoorKlas_(klas) {
+  const doel = String(klas || '').trim();
+  if (!doel) return;
+  zorgVoorGedragTab_();
+  const sheet = getSheet_(TAB_GEDRAG);
+  const rijen = sheet.getDataRange().getValues();
+  if (rijen.length < 2) return;
+  const over = [rijen[0]];
+  for (let i = 1; i < rijen.length; i++) {
+    if (String(rijen[i][3] || '').trim() === doel) continue;
+    over.push(rijen[i]);
+  }
+  if (over.length === rijen.length) return;
+  const kolommen = rijen[0].length;
+  sheet.getRange(1, 1, rijen.length, kolommen).clearContent();
+  sheet.getRange(1, 1, over.length, over[0].length).setValues(over);
+}
+
 function standaardInstellingen_() {
   return {
     opvolgingAan: DEFAULT_OPVOLGING_AAN,
@@ -1268,7 +1465,13 @@ function standaardInstellingen_() {
     berichtOuders: DEFAULT_BERICHT_OUDERS,
     berichtNablijf: DEFAULT_BERICHT_NABLIJF,
     berichtAanZet: DEFAULT_BERICHT_AAN_ZET,
-    periodes: []
+    periodes: [],
+    gedragAan: DEFAULT_GEDRAG_AAN,
+    gedragVensterDagen: DEFAULT_GEDRAG_VENSTER,
+    gedragAdvies1: DEFAULT_GEDRAG_ADVIES1,
+    gedragAdvies2: DEFAULT_GEDRAG_ADVIES2,
+    gedragAdvies3: DEFAULT_GEDRAG_ADVIES3,
+    gedragBerichtOuders: DEFAULT_GEDRAG_BERICHT_OUDERS
   };
 }
 
@@ -1351,8 +1554,20 @@ function normaliseerInstellingen_(data) {
     berichtOuders: normaliseerBericht_(bron.berichtOuders, basis.berichtOuders, OUD_BERICHT_OUDERS),
     berichtNablijf: normaliseerBericht_(bron.berichtNablijf, basis.berichtNablijf, OUD_BERICHT_NABLIJF),
     berichtAanZet: normaliseerBericht_(bron.berichtAanZet, basis.berichtAanZet, OUD_BERICHT_AAN_ZET),
-    periodes: normaliseerPeriodes_(bron.periodes)
+    periodes: normaliseerPeriodes_(bron.periodes),
+    gedragAan: isJaNee_(bron.gedragAan, basis.gedragAan),
+    gedragVensterDagen: normaliseerGedragVenster_(bron.gedragVensterDagen, basis.gedragVensterDagen),
+    gedragAdvies1: normaliseerBericht_(bron.gedragAdvies1, basis.gedragAdvies1),
+    gedragAdvies2: normaliseerBericht_(bron.gedragAdvies2, basis.gedragAdvies2),
+    gedragAdvies3: normaliseerBericht_(bron.gedragAdvies3, basis.gedragAdvies3),
+    gedragBerichtOuders: normaliseerBericht_(bron.gedragBerichtOuders, basis.gedragBerichtOuders)
   };
+}
+
+function normaliseerGedragVenster_(waarde, fallback) {
+  const n = parseInt(waarde, 10);
+  if (n >= GEDRAG_VENSTER_MIN && n <= GEDRAG_VENSTER_MAX) return n;
+  return fallback;
 }
 
 function zorgVoorInstellingenTab_() {
@@ -1386,7 +1601,13 @@ function leesInstellingen_() {
     berichtOuders: map[INST_BERICHT_OUDERS],
     berichtNablijf: map[INST_BERICHT_NABLIJF],
     berichtAanZet: map[INST_BERICHT_AAN_ZET],
-    periodes: map[INST_PERIODES]
+    periodes: map[INST_PERIODES],
+    gedragAan: map[INST_GEDRAG_AAN],
+    gedragVensterDagen: map[INST_GEDRAG_VENSTER],
+    gedragAdvies1: map[INST_GEDRAG_ADVIES1],
+    gedragAdvies2: map[INST_GEDRAG_ADVIES2],
+    gedragAdvies3: map[INST_GEDRAG_ADVIES3],
+    gedragBerichtOuders: map[INST_GEDRAG_BERICHT_OUDERS]
   });
 }
 
@@ -1515,6 +1736,8 @@ function vervangKlasnaamOveral_(oud, nieuw) {
   vervangKlasnaamInGeschraptIn_(oud, nieuw);
   vervangKlasnaamInKolom_(TAB_TAKEN, 4, oud, nieuw);
   vervangKlasnaamInKolom_(TAB_REGISTRATIES, 5, oud, nieuw);
+  zorgVoorGedragTab_();
+  vervangKlasnaamInKolom_(TAB_GEDRAG, 3, oud, nieuw);
 }
 
 function vervangKlasnaamInKolom_(sheetNaam, kolomIndex, oud, nieuw) {

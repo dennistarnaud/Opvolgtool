@@ -1,0 +1,676 @@
+<!--
+  docent-gedrag.html
+  Gedragsladder van het docentscherm.
+  Inhoud: 30-dagenvenster, stappen (reflectietaak / oudermail / nablijven),
+  advies teksten, ouderbericht, kolomcel, balk, geschiedenis en Actie-nodig-deel.
+-->
+<script>
+    function gedragAan() {
+      return !!(staat.instellingen && staat.instellingen.gedragAan !== false);
+    }
+
+    function gedragVensterDagen() {
+      const n = parseInt(staat.instellingen && staat.instellingen.gedragVensterDagen, 10);
+      return (n >= GEDRAG_VENSTER_MIN && n <= GEDRAG_VENSTER_MAX)
+        ? n
+        : DEFAULT_GEDRAG.gedragVensterDagen;
+    }
+
+    function gedragAdviesTekst(stap) {
+      const inst = staat.instellingen || {};
+      if (stap === 2) return inst.gedragAdvies2 || DEFAULT_GEDRAG.gedragAdvies2;
+      if (stap === 3) return inst.gedragAdvies3 || DEFAULT_GEDRAG.gedragAdvies3;
+      return inst.gedragAdvies1 || DEFAULT_GEDRAG.gedragAdvies1;
+    }
+
+    function gedragStapKort(stap) {
+      if (stap === 2) return 'oudermail';
+      if (stap === 3) return 'nablijven';
+      return 'reflectietaak';
+    }
+
+    function gedragStapLabel(stap) {
+      if (stap === 2) return 'Ordemaatregel 2';
+      if (stap === 3) return 'Ordemaatregel 3';
+      return 'Ordemaatregel 1';
+    }
+
+    function gedragStapVakLabel(stap) {
+      if (stap === 2) return 'Ouders';
+      if (stap === 3) return 'Nablijven';
+      return 'Reflectie';
+    }
+
+    function gedragStapIcoonSvg(stap, px) {
+      const s = px || 16;
+      const kop = '<svg xmlns="http://www.w3.org/2000/svg" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+      if (stap === 2) {
+        return kop + '<rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>';
+      }
+      if (stap === 3) {
+        return kop + '<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>';
+      }
+      return kop + '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>';
+    }
+
+    /** Hoogste stap van de jongste melding in het venster, anders 0. */
+    function gedragBereikteStap(lln, klas) {
+      if (!gedragAan() || !lln) return 0;
+      const laatste = gedragLaatsteMelding(lln, klas);
+      if (!laatste || !gedragInVenster(laatste)) return 0;
+      const stap = parseInt(laatste.stap, 10) || 1;
+      return (stap >= 1 && stap <= 3) ? stap : 1;
+    }
+
+    /** 'leeg' | 'aan' | 'klaar' voor een vakje in de ladder. */
+    function gedragStapToestand(lln, stap) {
+      const bereikt = gedragBereikteStap(lln);
+      if (!bereikt) return 'leeg';
+      const open = gedragActieNodig(lln);
+      if (open === stap) return 'aan';
+      if (bereikt > stap || (bereikt === stap && !open)) return 'klaar';
+      return 'leeg';
+    }
+
+    function parseGedragDatum(waarde) {
+      const m = String(waarde || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?/);
+      if (!m) return null;
+      return new Date(
+        Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+        Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0), Number(m[7] || 0)
+      );
+    }
+
+    function gedragDagenSinds(datumTijd) {
+      const d = parseGedragDatum(datumTijd);
+      if (!d || isNaN(d.getTime())) return Number.POSITIVE_INFINITY;
+      return (Date.now() - d.getTime()) / (24 * 60 * 60 * 1000);
+    }
+
+    function gedragMeldingenVan(lln, klas) {
+      const id = lln && lln.id;
+      const doel = klas || (staat && staat.gekozenKlas) || (lln && lln.klas) || '';
+      if (!id) return [];
+      return (staat.gedrag || []).filter(function (m) {
+        if (m.llnId !== id) return false;
+        if (doel && m.klas && m.klas !== doel) return false;
+        return true;
+      }).sort(function (a, b) {
+        return String(b.datumTijd || '').localeCompare(String(a.datumTijd || ''));
+      });
+    }
+
+    function gedragLaatsteMelding(lln, klas) {
+      const lijst = gedragMeldingenVan(lln, klas);
+      return lijst[0] || null;
+    }
+
+    function gedragInVenster(melding) {
+      if (!melding) return false;
+      return gedragDagenSinds(melding.datumTijd) <= gedragVensterDagen();
+    }
+
+    function gedragVolgendeStap(lln, klas) {
+      const laatste = gedragLaatsteMelding(lln, klas);
+      if (!laatste || !gedragInVenster(laatste)) return 1;
+      return Math.min(3, (parseInt(laatste.stap, 10) || 1) + 1);
+    }
+
+    /** Stap 1–3 als de jongste melding in het venster nog openstaat, anders leeg. */
+    function gedragActieNodig(lln) {
+      if (!gedragAan() || !lln) return '';
+      const laatste = gedragLaatsteMelding(lln);
+      if (!laatste || !gedragInVenster(laatste)) return '';
+      if (String(laatste.gegevenOp || '').trim()) return '';
+      const stap = parseInt(laatste.stap, 10);
+      return (stap >= 1 && stap <= 3) ? stap : 1;
+    }
+
+    /** '' | 'open-1' | 'open-2' | 'open-3' | 'gegeven' */
+    function gedragStatus(lln) {
+      if (!gedragAan() || !lln) return '';
+      const laatste = gedragLaatsteMelding(lln);
+      if (!laatste || !gedragInVenster(laatste)) return '';
+      if (!String(laatste.gegevenOp || '').trim()) return 'open-' + (laatste.stap || 1);
+      return 'gegeven';
+    }
+
+    function gedragIcoonSvg(px) {
+      const s = px || 14;
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+    }
+
+    function htmlGedragSein(lln) {
+      const stap = gedragActieNodig(lln);
+      if (!stap) return '';
+      const titel = gedragAdviesTekst(stap);
+      return '<span class="gedrag-sein" title="' + escapeAttr(titel) + '">' + gedragIcoonSvg(14) + '</span>';
+    }
+
+    function htmlGedragKolomCel(lln, geschrapt) {
+      if (geschrapt) {
+        return '<td class="td-gedrag sticky-gedrag bg-slate-50"></td>';
+      }
+      if (!gedragAan()) {
+        return '<td class="td-gedrag sticky-gedrag"></td>';
+      }
+      const bereikt = gedragBereikteStap(lln);
+      const open = gedragActieNodig(lln);
+      const volgende = gedragVolgendeStap(lln);
+      let tekst = '';
+      let klasse = 'cel-gedrag cel-gedrag-leeg';
+      let label = 'Gedrag: melding registreren (ordemaatregel ' + volgende + ').';
+      if (open === 2) {
+        tekst = '2';
+        klasse = 'cel-gedrag cel-gedrag-open cel-gedrag-open-2';
+        label = 'Gedrag: ouderbericht van ordemaatregel 2 kopiëren.';
+      } else if (open === 3) {
+        tekst = '3';
+        klasse = 'cel-gedrag cel-gedrag-open cel-gedrag-open-3';
+        label = 'Gedrag: coördinator betrekken en nablijven inschrijven.';
+      } else if (bereikt) {
+        tekst = String(bereikt);
+        klasse = 'cel-gedrag cel-gedrag-gegeven';
+        label = 'Gedrag: ordemaatregel ' + bereikt + ' gegeven. Klik voor een nieuwe melding.';
+      }
+      return '<td class="td-gedrag sticky-gedrag">' +
+        '<button type="button" class="' + klasse + '" data-actie="gedrag-cel" data-id="' +
+        escapeAttr(lln.id) + '" title="' + escapeAttr(label) + '" aria-label="' +
+        escapeAttr(lln.naam + ': ' + label) + '">' + tekst + '</button></td>';
+    }
+
+    function htmlGedragActieNamen() {
+      if (!gedragAan()) return [];
+      return leerlingenVanKlas().filter(function (lln) {
+        return !!gedragActieNodig(lln);
+      });
+    }
+
+    function htmlGedragMeldKnop(leerling, klasse) {
+      const volgende = gedragVolgendeStap(leerling);
+      return '<button type="button" data-actie="gedrag-melden" data-id="' + escapeAttr(leerling.id) +
+        '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg ' + klasse + ' text-[11px] font-semibold">' +
+        'Melding · ordemaatregel ' + volgende + '</button>';
+    }
+
+    function htmlGedragStappen(leerling) {
+      const stappen = [
+        { id: 1, uitleg: 'Reflectietaak (ordemaatregel 1)' },
+        { id: 2, uitleg: 'Vervolgreflectie en ouderbericht (ordemaatregel 2)' },
+        { id: 3, uitleg: 'Coördinator en nablijven (ordemaatregel 3)' }
+      ];
+      return stappen.map(function (stap) {
+        const toestand = gedragStapToestand(leerling, stap.id);
+        let klasse = 'flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-center text-[10px] font-semibold border w-full ';
+        if (toestand === 'klaar') klasse += 'bg-white border-emerald-200 text-emerald-700';
+        else if (toestand === 'aan') klasse += 'bg-violet-400 border-violet-500 text-violet-950 ring-2 ring-violet-300/60';
+        else klasse += 'bg-white/50 border-transparent text-violet-900/35';
+        const titel = toestand === 'klaar' ? 'Klaar: ' + stap.uitleg
+          : (toestand === 'aan' ? 'Nu: ' + stap.uitleg : stap.uitleg);
+        return '<div class="min-w-0">' +
+          '<div class="' + klasse + '" title="' + escapeAttr(titel) + '" aria-current="' + (toestand === 'aan' ? 'step' : 'false') + '">' +
+          gedragStapIcoonSvg(stap.id, 16) + '<span>' + escapeHtml(gedragStapVakLabel(stap.id)) + '</span></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function htmlGedragOpenActie(leerling) {
+      const stap = gedragActieNodig(leerling);
+      const open = gedragLaatsteMelding(leerling);
+      if (!stap || !open) return '';
+      if (stap === 2) {
+        return '<button type="button" data-actie="gedrag-bericht" data-id="' + escapeAttr(leerling.id) +
+          '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700">' +
+          'Ouderbericht kopiëren</button>';
+      }
+      if (stap === 3) {
+        return '<button type="button" data-actie="gedrag-gegeven" data-id="' + escapeAttr(open.id) +
+          '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700">' +
+          'Coördinator en nablijven gedaan</button>';
+      }
+      return '';
+    }
+
+    function htmlGedragBalk(leerling, opties) {
+      if (!gedragAan() || !leerling) return '';
+      const extra = opties || {};
+      const stap = gedragActieNodig(leerling);
+      const status = gedragStatus(leerling);
+      const volgende = gedragVolgendeStap(leerling);
+      let titel = 'Geen lopende maatregel';
+      let advies = 'Volgende melding: ' + gedragStapLabel(volgende).toLowerCase() + '.';
+      if (stap) {
+        titel = gedragStapLabel(stap);
+        advies = gedragAdviesTekst(stap);
+      } else if (status === 'gegeven') {
+        titel = 'Laatste maatregel gegeven';
+        advies = 'Een nieuwe melding binnen ' + gedragVensterDagen() + ' dagen wordt ' +
+          gedragStapLabel(volgende).toLowerCase() + '.';
+      }
+
+      const knoppen = [];
+      const openActie = htmlGedragOpenActie(leerling);
+      if (openActie) knoppen.push(openActie);
+      knoppen.push(htmlGedragMeldKnop(leerling, stap ? 'border border-violet-200 bg-white text-violet-800 hover:bg-violet-50' : 'bg-violet-600 text-white hover:bg-violet-700'));
+
+      let geschiedenis = '';
+      if (extra.geschiedenis) {
+        geschiedenis = htmlGedragGeschiedenis(leerling);
+      }
+
+      return '<div class="mx-2 mb-2 rounded-xl border border-violet-200 bg-violet-50 p-2.5" data-gedrag-blok data-id="' +
+        escapeAttr(leerling.id) + '">' +
+        '<p class="text-[11px] font-semibold text-violet-950">Gedrag · ' + escapeHtml(titel) + '</p>' +
+        '<p class="text-[11px] text-violet-900/80 mt-0.5 leading-snug">' + escapeHtml(advies) + '</p>' +
+        '<div class="mt-2 grid grid-cols-3 gap-1.5">' + htmlGedragStappen(leerling) + '</div>' +
+        '<label class="block mt-2">' +
+          '<span class="sr-only">Notitie bij de melding</span>' +
+          '<textarea data-gedrag-notitie rows="2" maxlength="400" placeholder="Notitie (optioneel)" ' +
+          'class="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>' +
+        '</label>' +
+        '<div class="mt-2 flex flex-wrap gap-1.5">' + knoppen.join('') + '</div>' +
+        geschiedenis +
+        '</div>';
+    }
+
+    function htmlGedragGeschiedenis(leerling) {
+      const lijst = gedragMeldingenVan(leerling);
+      if (!lijst.length) {
+        return '<p class="mt-2 text-[11px] text-violet-900/70">Nog geen meldingen.</p>';
+      }
+      const rijen = lijst.slice(0, 8).map(function (m) {
+        const open = !String(m.gegevenOp || '').trim();
+        const meta = [korteDatum(m.datumTijd), gedragStapLabel(m.stap)];
+        if (m.stap === 2) meta.push(open ? 'oudermail' : 'mail gekopieerd');
+        else if (m.stap === 3) meta.push(open ? 'open' : 'afgerond');
+        const notitie = m.opmerking
+          ? '<p class="text-[11px] text-slate-600 mt-0.5">' + escapeHtml(m.opmerking) + '</p>'
+          : '';
+        const wis = (m === lijst[0])
+          ? '<button type="button" data-actie="gedrag-melding-wissen" data-id="' + escapeAttr(m.id) +
+            '" class="shrink-0 text-[10px] font-semibold text-violet-700 hover:text-rose-700">Wissen</button>'
+          : '';
+        const terug = (!open && m === lijst[0] && m.stap !== 1)
+          ? '<button type="button" data-actie="gedrag-gegeven-ongedaan" data-id="' + escapeAttr(m.id) +
+            '" class="shrink-0 text-[10px] font-semibold text-violet-700 hover:text-violet-900">Ongedaan</button>'
+          : '';
+        return '<li class="flex items-start justify-between gap-2 py-1.5 border-t border-violet-100 first:border-t-0">' +
+          '<div class="min-w-0">' +
+            '<p class="text-[11px] font-medium text-violet-950">' + escapeHtml(meta.join(' · ')) + '</p>' +
+            notitie +
+          '</div>' +
+          '<span class="flex items-center gap-2">' + terug + wis + '</span>' +
+          '</li>';
+      }).join('');
+      return '<div class="mt-2">' +
+        '<p class="text-[10px] font-semibold uppercase tracking-wide text-violet-800/70">Recente meldingen</p>' +
+        '<ul class="mt-0.5">' + rijen + '</ul></div>';
+    }
+
+    function gedragNotitieBij(el) {
+      const blok = el && el.closest ? el.closest('[data-gedrag-blok], #gedrag-popover') : null;
+      const veld = blok ? blok.querySelector('[data-gedrag-notitie]') : null;
+      return veld ? String(veld.value || '').trim() : '';
+    }
+
+    function sluitGedragPopover() {
+      const pop = document.getElementById('gedrag-popover');
+      if (!pop) return;
+      pop.classList.add('hidden');
+      pop.innerHTML = '';
+      pop.removeAttribute('data-id');
+    }
+
+    function plaatsGedragPopover(anker) {
+      const pop = document.getElementById('gedrag-popover');
+      if (!pop || !anker) return;
+      pop.classList.remove('hidden');
+      const kader = anker.getBoundingClientRect();
+      const breed = Math.min(20 * 16, window.innerWidth - 16);
+      let left = kader.left;
+      if (left + breed > window.innerWidth - 8) left = Math.max(8, window.innerWidth - breed - 8);
+      let top = kader.bottom + 6;
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      pop.style.width = breed + 'px';
+      requestAnimationFrame(function () {
+        const hoogte = pop.offsetHeight;
+        if (top + hoogte > window.innerHeight - 8 && kader.top - hoogte - 6 > 8) {
+          pop.style.top = (kader.top - hoogte - 6) + 'px';
+        }
+      });
+    }
+
+    function openGedragPopover(llnId, anker) {
+      const lln = leerlingOpId(llnId);
+      const pop = document.getElementById('gedrag-popover');
+      if (!lln || !pop) return;
+      const stap = gedragActieNodig(lln);
+      const status = gedragStatus(lln);
+      const volgende = gedragVolgendeStap(lln);
+      let titel = 'Nieuwe melding';
+      let advies = 'Dit wordt ' + gedragStapLabel(volgende).toLowerCase() + '.';
+      let acties = '';
+      if (stap) {
+        titel = gedragStapLabel(stap);
+        advies = gedragAdviesTekst(stap);
+        acties = (htmlGedragOpenActie(lln) || '') +
+          htmlGedragMeldKnop(lln, 'border border-violet-200 bg-white text-violet-800 hover:bg-violet-50');
+      } else {
+        if (status === 'gegeven') {
+          advies = 'Laatste maatregel is gegeven. Nieuwe melding wordt ' + gedragStapLabel(volgende).toLowerCase() + '.';
+        }
+        acties = htmlGedragMeldKnop(lln, 'bg-violet-600 text-white hover:bg-violet-700');
+      }
+      pop.setAttribute('data-id', lln.id);
+      pop.innerHTML =
+        '<div class="rounded-xl border border-violet-200 bg-white p-3 shadow-lg" data-gedrag-blok data-id="' + escapeAttr(lln.id) + '">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<p class="text-[12px] font-semibold text-violet-950">' + escapeHtml(lln.naam) + ' · ' + escapeHtml(titel) + '</p>' +
+            '<button type="button" data-actie="gedrag-popover-sluiten" class="shrink-0 w-6 h-6 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Sluiten">&times;</button>' +
+          '</div>' +
+          '<p class="text-[11px] text-violet-900/80 mt-1 leading-snug">' + escapeHtml(advies) + '</p>' +
+          '<div class="mt-2 grid grid-cols-3 gap-1.5">' + htmlGedragStappen(lln) + '</div>' +
+          '<textarea data-gedrag-notitie rows="2" maxlength="400" placeholder="Notitie (optioneel)" ' +
+          'class="mt-2 w-full rounded-lg border border-violet-200 px-2.5 py-1.5 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>' +
+          '<div class="mt-2 flex flex-wrap gap-1.5">' + acties + '</div>' +
+        '</div>';
+      plaatsGedragPopover(anker);
+      const veld = pop.querySelector('[data-gedrag-notitie]');
+      if (veld) veld.focus();
+    }
+
+    function vervangGedragMelding(oudId, nieuw) {
+      if (!nieuw) return;
+      let vervangen = false;
+      staat.gedrag = (staat.gedrag || []).map(function (m) {
+        if (m.id !== oudId && m.id !== nieuw.id) return m;
+        if (vervangen) return null;
+        vervangen = true;
+        return nieuw;
+      }).filter(Boolean);
+      if (!vervangen) staat.gedrag.push(nieuw);
+      vervangGedragIdInWachtrij(oudId, nieuw.id);
+    }
+
+    function vervangGedragIdInWachtrij(oudId, nieuwId) {
+      if (!oudId || !nieuwId || oudId === nieuwId) return;
+      (staat.gedragWachtrij || []).forEach(function (item) {
+        if (item.payload && item.payload.id === oudId) item.payload.id = nieuwId;
+      });
+    }
+
+    function gedragKlikGeblokkeerd(llnId) {
+      const tot = staat.gedragKlikTot && staat.gedragKlikTot[llnId];
+      return !!(tot && Date.now() < tot);
+    }
+
+    function blokkeerGedragKlik(llnId) {
+      if (!llnId) return;
+      if (!staat.gedragKlikTot) staat.gedragKlikTot = {};
+      staat.gedragKlikTot[llnId] = Date.now() + 450;
+    }
+
+    function wisGedragWachtrijVoorId(id) {
+      if (!id || !staat.gedragWachtrij) return;
+      staat.gedragWachtrij = staat.gedragWachtrij.filter(function (item) {
+        return !(item.payload && item.payload.id === id);
+      });
+    }
+
+    function zetGedragInWachtrij(item) {
+      if (!staat.gedragWachtrij) staat.gedragWachtrij = [];
+      if (item.soort === 'gegeven' && item.payload && item.payload.id) {
+        staat.gedragWachtrij = staat.gedragWachtrij.filter(function (best) {
+          return !(best.soort === 'gegeven' && best.payload && best.payload.id === item.payload.id);
+        });
+      }
+      staat.gedragWachtrij.push(item);
+      startGedragVerzending();
+    }
+
+    function startGedragVerzending() {
+      if (staat.gedragBezig) return;
+      if (!staat.gedragWachtrij || !staat.gedragWachtrij.length) return;
+      const next = staat.gedragWachtrij[0];
+      if (next.soort !== 'melden' && isTijdelijkId(next.payload && next.payload.id)) {
+        const wachtOpMelden = staat.gedragWachtrij.some(function (item) {
+          return item.soort === 'melden';
+        });
+        if (!wachtOpMelden) {
+          staat.gedragWachtrij.shift();
+          startGedragVerzending();
+        }
+        return;
+      }
+      const run = gasRun();
+      if (!run) {
+        setTimeout(startGedragVerzending, 80);
+        return;
+      }
+      staat.gedragWachtrij.shift();
+      staat.gedragBezig = true;
+      const klaar = function (ok, antwoord, fout) {
+        staat.gedragBezig = false;
+        if (ok) {
+          if (next.onSuccess) next.onSuccess(antwoord);
+        } else {
+          if (next.onFailure) next.onFailure(fout);
+        }
+        startGedragVerzending();
+      };
+      if (next.soort === 'melden') {
+        run
+          .withSuccessHandler(function (antwoord) { klaar(true, antwoord); })
+          .withFailureHandler(function (fout) { klaar(false, null, fout); })
+          .saveGedragMelding(next.payload);
+        return;
+      }
+      if (next.soort === 'gegeven') {
+        run
+          .withSuccessHandler(function (antwoord) { klaar(true, antwoord); })
+          .withFailureHandler(function (fout) { klaar(false, null, fout); })
+          .zetGedragMaatregel(next.payload);
+        return;
+      }
+      run
+        .withSuccessHandler(function (antwoord) { klaar(true, antwoord); })
+        .withFailureHandler(function (fout) { klaar(false, null, fout); })
+        .verwijderGedragMelding(next.payload.id);
+    }
+
+    function slaGedragMeldingOp(llnId, opmerking) {
+      const lln = leerlingOpId(llnId);
+      if (!lln) return;
+      if (gedragKlikGeblokkeerd(llnId)) return;
+      blokkeerGedragKlik(llnId);
+      const klas = staat.gekozenKlas || lln.klas || '';
+      const melding = {
+        id: nieuwTijdelijkId('g'),
+        datumTijd: nieuweTijdstempel(),
+        llnId: llnId,
+        klas: klas,
+        opmerking: String(opmerking || '').trim(),
+        stap: gedragVolgendeStap(lln, klas),
+        gegevenOp: ''
+      };
+      if (melding.stap === 1) melding.gegevenOp = melding.datumTijd;
+      staat.gedrag.push(melding);
+      sluitGedragPopover();
+      verversGedragUI(lln);
+      const okTekst = gedragMeldingOkTekst(melding.stap);
+      if (!isGasOmgeving()) {
+        melding.id = volgendeId(staat.gedrag.filter(function (item) {
+          return !isTijdelijkId(item.id);
+        }), 'G');
+        console.log('[LOKAAL] saveGedragMelding', melding);
+        verversGedragUI(lln);
+        toonMelding(okTekst, 'ok');
+        return;
+      }
+      zetGedragInWachtrij({
+        soort: 'melden',
+        payload: { llnId: llnId, klas: klas, opmerking: melding.opmerking },
+        onSuccess: function (antwoord) {
+          if (antwoord && antwoord.melding) vervangGedragMelding(melding.id, antwoord.melding);
+          verversGedragUI(leerlingOpId(llnId));
+          toonMelding(okTekst, 'ok');
+        },
+        onFailure: function (fout) {
+          wisGedragWachtrijVoorId(melding.id);
+          staat.gedrag = (staat.gedrag || []).filter(function (item) { return item.id !== melding.id; });
+          verversGedragUI(leerlingOpId(llnId));
+          toonMelding('Gedragsmelding opslaan mislukt: ' + (fout.message || fout), 'fout');
+        }
+      });
+    }
+
+    function gedragMeldingOkTekst(stap) {
+      if (stap === 1) return 'Reflectietaak (ordemaatregel 1) geregistreerd.';
+      if (stap === 2) return 'Vervolgreflectie geregistreerd. Kopieer het ouderbericht.';
+      if (stap === 3) return 'Melding geregistreerd. Coördinator en nablijven staan open.';
+      return 'Gedragsmelding geregistreerd.';
+    }
+
+    function gedragMaatregelOkTekst(melding, gegeven) {
+      if (!gegeven) return 'Actie ongedaan gemaakt.';
+      if (melding && melding.stap === 2) return 'Ouderbericht gekopieerd.';
+      if (melding && melding.stap === 3) return 'Coördinator en nablijven afgerond.';
+      return 'Maatregel afgevinkt.';
+    }
+
+    function kopieerGedragOuderBericht(llnId) {
+      const leerling = leerlingOpId(llnId);
+      if (!leerling) return;
+      const sjabloon = (staat.instellingen && staat.instellingen.gedragBerichtOuders) || DEFAULT_GEDRAG.gedragBerichtOuders;
+      const tekst = vulOpvolgBericht(sjabloon, leerling).trim();
+      if (!tekst) {
+        toonMelding('Er is geen ouderbericht ingesteld.', 'fout');
+        return;
+      }
+      const open = gedragLaatsteMelding(leerling);
+      kopieerTekst(tekst, function () {
+        if (open && open.stap === 2 && !String(open.gegevenOp || '').trim()) {
+          slaGedragMaatregelOp(open.id, true, { zonderKlikSlot: true, stil: true });
+        } else {
+          sluitGedragPopover();
+        }
+        toonMelding('Ouderbericht gekopieerd.', 'ok');
+      });
+    }
+
+    function slaGedragMaatregelOp(id, gegeven, opties) {
+      const melding = (staat.gedrag || []).filter(function (m) { return m.id === id; })[0];
+      if (!melding) return;
+      opties = opties || {};
+      if (!opties.zonderKlikSlot) {
+        if (gedragKlikGeblokkeerd(melding.llnId)) return;
+        blokkeerGedragKlik(melding.llnId);
+      }
+      const vorige = melding.gegevenOp;
+      melding.gegevenOp = gegeven ? nieuweTijdstempel() : '';
+      sluitGedragPopover();
+      verversGedragUI(leerlingOpId(melding.llnId));
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] zetGedragMaatregel', id, gegeven);
+        if (!opties.stil) toonMelding(gedragMaatregelOkTekst(melding, gegeven), 'ok');
+        return;
+      }
+      zetGedragInWachtrij({
+        soort: 'gegeven',
+        payload: { id: id, gegeven: gegeven },
+        onSuccess: function (antwoord) {
+          if (antwoord && antwoord.melding) vervangGedragMelding(melding.id, antwoord.melding);
+          else vervangGedragIdInWachtrij(id, melding.id);
+          verversGedragUI(leerlingOpId(melding.llnId));
+        },
+        onFailure: function (fout) {
+          melding.gegevenOp = vorige;
+          verversGedragUI(leerlingOpId(melding.llnId));
+          toonMelding('Maatregel opslaan mislukt: ' + (fout.message || fout), 'fout');
+        }
+      });
+    }
+
+    function wisGedragMelding(id) {
+      const melding = (staat.gedrag || []).filter(function (m) { return m.id === id; })[0];
+      if (!melding) return;
+      if (gedragKlikGeblokkeerd(melding.llnId)) return;
+      blokkeerGedragKlik(melding.llnId);
+      staat.gedrag = (staat.gedrag || []).filter(function (m) { return m.id !== id; });
+      sluitGedragPopover();
+      verversGedragUI(leerlingOpId(melding.llnId));
+      if (!isGasOmgeving()) {
+        console.log('[LOKAAL] verwijderGedragMelding', id);
+        toonMelding('Melding verwijderd.', 'ok');
+        return;
+      }
+      zetGedragInWachtrij({
+        soort: 'wissen',
+        payload: { id: id },
+        onSuccess: function () {
+          toonMelding('Melding verwijderd.', 'ok');
+        },
+        onFailure: function (fout) {
+          staat.gedrag.push(melding);
+          verversGedragUI(leerlingOpId(melding.llnId));
+          toonMelding('Melding wissen mislukt: ' + (fout.message || fout), 'fout');
+        }
+      });
+    }
+
+    function verversGedragCel(lln) {
+      if (!lln) return;
+      document.querySelectorAll('.cel-gedrag[data-id="' + lln.id + '"]').forEach(function (knop) {
+        const td = knop.closest('td');
+        if (!td) return;
+        td.outerHTML = htmlGedragKolomCel(lln, false);
+      });
+    }
+
+    function verversGedragSein(lln) {
+      if (!lln) return;
+      document.querySelectorAll('.naam-tekst[data-id="' + lln.id + '"], [data-actie="lijst-leerling"][data-id="' + lln.id + '"]').forEach(function (knop) {
+        const bestaand = knop.querySelector('.gedrag-sein');
+        if (bestaand) bestaand.remove();
+        knop.insertAdjacentHTML('beforeend', htmlGedragSein(lln));
+      });
+    }
+
+    function verversGedragUI(lln) {
+      if (lln) {
+        verversGedragCel(lln);
+        verversGedragSein(lln);
+        document.querySelectorAll('[data-gedrag-balk][data-lln="' + lln.id + '"]').forEach(function (el) {
+          el.innerHTML = htmlGedragBalk(lln);
+        });
+        if (staat.modal === 'fiche') {
+          const ficheKnop = document.getElementById('knop-leerling-verwijderen');
+          if (ficheKnop && ficheKnop.getAttribute('data-id') === lln.id && typeof tekenFicheGedrag === 'function') {
+            tekenFicheGedrag(lln);
+          }
+        }
+      }
+      if (typeof tekenOpvolgActies === 'function') tekenOpvolgActies();
+      const wrapper = document.getElementById('kruistabel-wrapper');
+      if (wrapper && typeof lijnKoppenOpTabel === 'function') lijnKoppenOpTabel(wrapper);
+    }
+
+    function tekenFicheGedrag(leerling) {
+      const wrap = document.getElementById('fiche-gedrag');
+      if (!wrap) return;
+      if (!gedragAan()) {
+        wrap.classList.add('hidden');
+        wrap.innerHTML = '';
+        return;
+      }
+      wrap.classList.remove('hidden');
+      wrap.innerHTML = htmlGedragBalk(leerling, { geschiedenis: true }).replace('mx-2 mb-2 ', '');
+    }
+
+    function onGedragCel(id, anker) {
+      if (!gedragAan()) return;
+      openGedragPopover(id, anker);
+    }
+</script>

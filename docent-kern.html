@@ -2,7 +2,7 @@
   docent-kern.html
   Data-laag van het docentscherm.
   Inhoud: mockdata, constanten, gedeelde staat, GAS-koppeling,
-  laden/opslaan van leerlingen, taken, registraties en klassen,
+  laden/opslaan van leerlingen, taken, registraties, gedrag en klassen,
   klashelpers, filters, instellingen en HTML-escaping.
 -->
 <script>
@@ -69,6 +69,38 @@
       { datumTijd: '2026-09-08 08:12', llnId: 'L007', taakId: 'T010', status: 'Afwezig', opmerking: '' },
       { datumTijd: '2026-09-08 08:13', llnId: 'L008', taakId: 'T010', status: 'Te laat', opmerking: '' }
     ];
+
+    const MOCK_GEDRAG = [
+      { id: 'G001', datumTijd: '2026-09-03 09:10:00.000', llnId: 'L001', klas: '3A', opmerking: 'Stoort herhaaldelijk de les.', stap: 1, gegevenOp: '2026-09-03 09:10:00.000' },
+      { id: 'G002', datumTijd: '2026-08-20 10:05:00.000', llnId: 'L002', klas: '3A', opmerking: 'Reageert brutaal na aanspreken.', stap: 1, gegevenOp: '2026-08-20 16:00:00.000' },
+      { id: 'G003', datumTijd: '2026-09-01 08:40:00.000', llnId: 'L002', klas: '3A', opmerking: 'Opnieuw storend gedrag binnen de 30 dagen.', stap: 2, gegevenOp: '2026-09-02 12:00:00.000' },
+      { id: 'G004', datumTijd: '2026-09-04 11:20:00.000', llnId: 'L004', klas: '3A', opmerking: 'Weigert de opdracht en verstoort de klas.', stap: 3, gegevenOp: '' },
+      { id: 'G005', datumTijd: '2026-07-02 09:00:00.000', llnId: 'L007', klas: '3A', opmerking: 'Oude melding, buiten het venster.', stap: 1, gegevenOp: '2026-07-03 08:00:00.000' },
+      { id: 'G006', datumTijd: '2026-08-25 09:00:00.000', llnId: 'L006', klas: '3A', opmerking: 'Eerste reflectie.', stap: 1, gegevenOp: '2026-08-25 09:00:00.000' },
+      { id: 'G007', datumTijd: '2026-09-04 14:00:00.000', llnId: 'L006', klas: '3A', opmerking: 'Opnieuw storend na de eerste reflectie.', stap: 2, gegevenOp: '' }
+    ];
+
+    const DEFAULT_GEDRAG = {
+      gedragAan: true,
+      gedragVensterDagen: 30,
+      gedragAdvies1: 'De leerling krijgt een reflectietaak (ordemaatregel 1).',
+      gedragAdvies2: 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders.',
+      gedragAdvies3: 'De coördinator wordt betrokken. De leerling moet nablijven.',
+      gedragBerichtOuders:
+        'Onderwerp: Opvolging werkhouding in de klas - {naam}\n\n' +
+        'Beste ouder(s) van {naam}\n\n' +
+        'Ik neem contact met u op om u kort op de hoogte te brengen van de werkhouding van {naam} tijdens mijn lessen {vak}.\n\n' +
+        'Wij hechten als school veel belang aan een positief en rustig leerklimaat. Eerder heeft {naam} na een incident in de les al een eerste reflectieopdracht gemaakt waarin we afspraken hebben vastgelegd. Helaas heb ik vandaag moeten vaststellen dat deze afspraken onvoldoende werden nageleefd.\n\n' +
+        'Om die reden heeft {naam} vandaag een vervolgreflectie meegekregen. Hierin staat beschreven wat er is misgelopen en vragen we om een concreet plan van aanpak voor de komende lessen.\n\n' +
+        'Wat vraag ik van u? Ik wil u vriendelijk vragen om dit document vanavond samen met {naam} te overlopen, het thuis te bespreken en onderaan te ondertekenen voor gezien. {naam} dient dit de volgende les weer bij mij in te leveren.\n\n' +
+        'We hopen dat dit moment van reflectie, gesteund door u als ouders, ervoor zorgt dat de afspraken in de toekomst goed worden opgevolgd. Zoals ook op het document staat vermeld: mocht een positieve werkhouding na deze taak toch uitblijven, dan overstijgt dit de klasaanpak. Het dossier wordt dan verder besproken met de leerlingencoördinator.\n\n' +
+        'We hopen uiteraard dat het zover niet hoeft te komen.\n\n' +
+        'Graag zou ik jullie ook willen vragen om mij een mail te sturen om te bevestigen dat jullie deze mail goed ontvangen en gelezen hebben.\n\n' +
+        'Alvast hartelijk dank voor uw medewerking en het gesprek thuis. Mocht u hierover nog vragen hebben, dan hoor ik het graag.\n\n' +
+        'Met vriendelijke groeten'
+    };
+    const GEDRAG_VENSTER_MIN = 7;
+    const GEDRAG_VENSTER_MAX = 180;
 
     const TAB_ACTIEF = 'bg-indigo-600 text-white';
     const TAB_INACTIEF = 'text-slate-600 hover:bg-slate-100';
@@ -226,8 +258,15 @@
         berichtOuders: '',
         berichtNablijf: '',
         berichtAanZet: '',
-        periodes: []
+        periodes: [],
+        gedragAan: true,
+        gedragVensterDagen: 30,
+        gedragAdvies1: '',
+        gedragAdvies2: '',
+        gedragAdvies3: '',
+        gedragBerichtOuders: ''
       },
+      gedrag: [],
       gekozenKlas: '',
       klasTeVerwijderen: '',
       klasTeHernoemen: '',
@@ -269,6 +308,9 @@
       opvolgingKlikTot: {},
       opvolgingWachtrij: [],
       opvolgingBezig: false,
+      gedragWachtrij: [],
+      gedragBezig: false,
+      gedragKlikTot: {},
       leerlingSleep: null,
       webAppUrl: '',
       webAppDevUrl: '',
@@ -355,6 +397,7 @@
         taken: MOCK_TAKEN,
         registraties: MOCK_REGISTRATIES.slice(),
         klassen: MOCK_KLASSEN.slice(),
+        gedrag: MOCK_GEDRAG.map(function (m) { return Object.assign({}, m); }),
         instellingen: leesLokaleInstellingen()
       });
     }
@@ -1293,8 +1336,25 @@
         berichtOuders: normaliseerBericht(bron.berichtOuders, DEFAULT_OPVOLGING.berichtOuders, OUD_BERICHT_OUDERS),
         berichtNablijf: normaliseerBericht(bron.berichtNablijf, DEFAULT_OPVOLGING.berichtNablijf, OUD_BERICHT_NABLIJF),
         berichtAanZet: normaliseerBericht(bron.berichtAanZet, DEFAULT_OPVOLGING.berichtAanZet, OUD_BERICHT_AAN_ZET),
-        periodes: normaliseerPeriodes(bron.periodes)
+        periodes: normaliseerPeriodes(bron.periodes),
+        gedragAan: gedragAanVan(bron.gedragAan),
+        gedragVensterDagen: normaliseerGedragVenster(bron.gedragVensterDagen),
+        gedragAdvies1: normaliseerBericht(bron.gedragAdvies1, DEFAULT_GEDRAG.gedragAdvies1),
+        gedragAdvies2: normaliseerBericht(bron.gedragAdvies2, DEFAULT_GEDRAG.gedragAdvies2),
+        gedragAdvies3: normaliseerBericht(bron.gedragAdvies3, DEFAULT_GEDRAG.gedragAdvies3),
+        gedragBerichtOuders: normaliseerBericht(bron.gedragBerichtOuders, DEFAULT_GEDRAG.gedragBerichtOuders)
       };
+    }
+
+    function gedragAanVan(waarde) {
+      if (waarde === false || waarde === 0 || waarde === 'nee' || waarde === 'false') return false;
+      if (waarde === true || waarde === 1 || waarde === 'ja' || waarde === 'true') return true;
+      return DEFAULT_GEDRAG.gedragAan;
+    }
+
+    function normaliseerGedragVenster(waarde) {
+      const n = parseInt(waarde, 10);
+      return (n >= GEDRAG_VENSTER_MIN && n <= GEDRAG_VENSTER_MAX) ? n : DEFAULT_GEDRAG.gedragVensterDagen;
     }
 
     function normaliseerIsoDatum(waarde) {
@@ -1505,7 +1565,13 @@
         berichtOuders: DEFAULT_OPVOLGING.berichtOuders,
         berichtNablijf: DEFAULT_OPVOLGING.berichtNablijf,
         berichtAanZet: DEFAULT_OPVOLGING.berichtAanZet,
-        periodes: []
+        periodes: [],
+        gedragAan: DEFAULT_GEDRAG.gedragAan,
+        gedragVensterDagen: DEFAULT_GEDRAG.gedragVensterDagen,
+        gedragAdvies1: DEFAULT_GEDRAG.gedragAdvies1,
+        gedragAdvies2: DEFAULT_GEDRAG.gedragAdvies2,
+        gedragAdvies3: DEFAULT_GEDRAG.gedragAdvies3,
+        gedragBerichtOuders: DEFAULT_GEDRAG.gedragBerichtOuders
       };
     }
 
@@ -1577,10 +1643,13 @@
       staat.leerlingen = data.leerlingen || [];
       staat.taken = herstelLokaleDubbeleTaakIds(data.taken || []);
       staat.registraties = data.registraties || [];
+      staat.gedrag = data.gedrag || [];
       staat.registratieBezig = false;
       staat.registratieWachtDirect = [];
       staat.registratieWachtrij = [];
       staat.taakWijzigingWachtrij = [];
+      staat.gedragBezig = false;
+      staat.gedragWachtrij = [];
       staat.klassen = (data.klassen || []).map(function (item) {
         if (item && typeof item === 'object') {
           return { naam: String(item.naam || '').trim(), vak: String(item.vak || '').trim() };

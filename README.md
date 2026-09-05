@@ -24,6 +24,8 @@ Je houdt per leerling bij hoe taken zijn afgerond: in orde, niet in orde, te laa
 
 Haalt een leerling de drempel (standaard 3× niet in orde), dan volg je een vaste ladder: leerling aanspreken, ouders verwittigen, avondstudie, evaluatie. Blijven taken niet in orde, dan zet je de leerling '**Aan zet**': de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
+Daarnaast registreer je **gedrag** dat na informeel aanspreken blijft voorkomen. Een melding is meteen de ordemaatregel: stap 1 sluit af bij registreren, stap 2 vraagt daarna het ouderbericht te kopiëren, stap 3 blijft open tot coördinator en nablijven gedaan zijn.
+
 Leerling en ouder zien alleen het overzicht van die ene leerling.
 
 ---
@@ -89,6 +91,20 @@ Bij '**Aan zet**' kopieer je een e-mail naar leerling en ouders. In het leerling
 
 In de kruistabel is **Opgevolgd** (toets 6) het lichtrode kruisje: de taak telt niet meer mee voor een volgende cyclus. Intern blijft de status `Al opgevolgd`.
 
+### Gedrag
+
+Informeel aanspreken of waarschuwen blijft buiten de tool. Blijft het gedrag voorkomen, dan registreer je een melding (optioneel met notitie). De tool berekent de volgende stap binnen een venster van 30 dagen (instelbaar):
+
+| Stap | Wat je doet |
+|---|---|
+| 1 | Reflectietaak (ordemaatregel 1). Registreren is genoeg; er blijft niets open. |
+| 2 | Vervolgreflectie meegeven en het ouderbericht kopiëren. **Actie nodig** = oudermail tot je kopieert. |
+| 3 | Coördinator betrekken en nablijven inschrijven. **Actie nodig** = nablijven tot je afrondt. |
+
+Op de man zet je een melding in de smalle kolom **Gedrag** naast de naam. Het cijfer is de hoogste stap in het venster (`1` / `2` / `3`). Extra nadruk betekent dat er nog een actie openstaat (oudermail of nablijven). In het blok (telefoon, fiche, popover) staan drie vakjes naast elkaar: Reflectie, Ouders, Nablijven — dezelfde taal als bij huiswerkopvolging. Recente meldingen blijven in de fiche. De balk **Actie nodig** splitst huiswerk en gedrag.
+
+Gedrag verschijnt niet in het leerlingscherm.
+
 ---
 
 ## Eerste keer opzetten
@@ -101,15 +117,16 @@ Aan die Sheet hang je de code uit dit project (een **Apps Script**). Tot slot pu
 
 Het snelst: [maak een kopie van de templatesheet](https://docs.google.com/spreadsheets/d/1su54OKbVJrFEeISrP23PN-aGJ6jebnEwn3U1EeySLhY/copy). Die kopie komt in jouw Drive. De tabbladen en koppen staan er al in, de rijen daaronder blijven leeg. Hang er nog geen script aan, dat komt in stap 2.
 
-Je kan het ook zelf opbouwen: maak een nieuwe Google Sheet. Voeg vijf tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
+Je kan het ook zelf opbouwen: maak een nieuwe Google Sheet. Voeg zes tabbladen toe met **exact** deze namen (hoofdlettergevoelig):
 
 | Tabblad | Wat de tool erin bewaart |
 |---|---|
 | `Leerlingen` | Namen, klas, persoonlijke code, opvolging |
 | `Taken_Lijst` | Taken (naam, soort, deadline, klas) |
 | `Registraties` | Status per leerling per taak |
+| `Gedrag` | Gedragsmeldingen en afronding van stap 2/3 |
 | `Klassen` | Klassen en vak |
-| `Instellingen` | Drempel, berichten, periodes |
+| `Instellingen` | Drempel, berichten, periodes, gedrag |
 
 **Rij 1** van elk tabblad krijgt alleen koppen. De volgorde van de kolommen is verplicht (de code leest op positie, niet op de tekst van de kop). Typ daaronder **niets**. Geen leerlingen, geen taken, geen voorbeelden.
 
@@ -118,10 +135,13 @@ Je kan het ook zelf opbouwen: maak een nieuwe Google Sheet. Voeg vijf tabbladen 
 | `Leerlingen` | `id` · `naam` · `klas` · `code` · `geschraptIn` · `klasSinds` · `verwijderdOp` · `opvolgingLeerlingOp` · `opvolgingOudersOp` · `opvolgingNablijfOp` · `opvolgingResetOp` · `opvolgingGepauzeerd` · `opvolgingBlokkeerTaken` · `volgorde` |
 | `Taken_Lijst` | `id` · `naam` · `type` · `deadline` · `klas` |
 | `Registraties` | `datumTijd` · `llnId` · `taakId` · `status` · `opmerking` · `klas` |
+| `Gedrag` | `id` · `datumTijd` · `llnId` · `klas` · `opmerking` · `stap` · `gegevenOp` |
 | `Klassen` | `naam` · `vak` |
 | `Instellingen` | `sleutel` · `waarde` |
 
-In `Instellingen` schrijft de tool zelf o.a. `opvolgingAan`, `opvolgingDrempel`, `berichtLeerling`, `berichtOuders`, `berichtNablijf`, `berichtAanZet` en `periodes`.
+In `Instellingen` schrijft de tool zelf o.a. `opvolgingAan`, `opvolgingDrempel`, `berichtLeerling`, `berichtOuders`, `berichtNablijf`, `berichtAanZet`, `periodes`, `gedragAan`, `gedragVensterDagen`, `gedragAdvies1`, `gedragAdvies2`, `gedragAdvies3` en `gedragBerichtOuders`.
+
+Heb je al een Sheet van een eerdere versie, dan maakt de tool het tabblad `Gedrag` zelf aan bij de eerstvolgende load.
 
 Klaar. Vanaf hier vult de tool de rijen zelf. Leerlingen, taken en statussen voeg je later toe in het docentscherm.
 
@@ -158,7 +178,7 @@ De codebestanden staan **bovenaan deze GitHub-pagina**, in de lijst boven deze h
 5. Maak deze bestanden aan en plak telkens de inhoud van het gelijknamige bestand op GitHub (verwijder eerst opnieuw de lege `myFunction` als die er staat):
 
    - Script: `Config`, `LeerlingCodes`
-   - Html: `docent`, `docent-kern`, `docent-opvolging`, `docent-kruis`, `docent-ui`, `leerling`
+   - Html: `docent`, `docent-kern`, `docent-opvolging`, `docent-gedrag`, `docent-kruis`, `docent-ui`, `leerling`
 
 6. Staat er een bolletje naast een bestandsnaam, dan is dat bestand nog niet opgeslagen. Druk op **Ctrl+S** tot de bolletjes weg zijn.
 
@@ -309,7 +329,9 @@ Een nieuwe taak voeg je toe met **Nieuwe taak** rechtsboven. Per cel kies je ond
 
 Haalt een leerling de drempel, dan volg je in de fiche de stappen (leerling, ouders, avondstudie, evaluatie). Per stap kun je het bericht kopiëren. Bij evaluatie kies je **Aan zet** of **Opgevolgd**.
 
-Onder **Instellingen** zet je opvolging aan of uit, de drempel, de vier standaardberichten en de periodes.
+Voor gedrag: klik in de kolom naast de naam (of gebruik het blok bovenaan op de telefoon), voeg eventueel een notitie toe en registreer de melding. Dat is meteen de ordemaatregel. De drie vakjes tonen hoever de leerling staat. Bij stap 2 kopieer je daarna het ouderbericht (dat sluit de actie). Bij stap 3 bevestig je **Coördinator en nablijven gedaan**. Een nieuwe melding binnen het venster (standaard 30 dagen) verhoogt de stap. Wissen van de jongste melding zet de ladder één stap terug; het cijfer in de kolom volgt mee.
+
+Onder **Instellingen** zet je opvolging en gedrag aan of uit, de drempel, het gedragsvenster, de advies teksten, het ouderbericht van stap 2, de vier huiswerkberichten en de periodes.
 
 ### Leerlingscherm
 
@@ -331,6 +353,7 @@ De iframe-code kopieer je in de fiche. Die plak je in de broncode van Smartschoo
 | `docent.html` | Docentscherm: markup en stijl |
 | `docent-kern.html` | Data, GAS-koppeling, klassen |
 | `docent-opvolging.html` | Opvolgingsladder en berichten |
+| `docent-gedrag.html` | Gedragsmeldingen, escalatie, ouderbericht en afronding |
 | `docent-kruis.html` | Kruistabel, selectie, slepen |
 | `docent-ui.html` | Lijsten, fiche, instellingen |
 | `leerling.html` | Leerlingscherm (via code) |

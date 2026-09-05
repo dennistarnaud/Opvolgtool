@@ -437,8 +437,13 @@
             '<span class="min-w-0">' +
               '<span class="flex items-center gap-1.5 text-sm font-semibold text-slate-900">' +
                 '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) +
+                (typeof htmlGedragSein === 'function' ? htmlGedragSein(lln) : '') +
               '</span>' +
-              '<span class="block text-[11px] text-slate-500 mt-0.5">' + escapeHtml(extra) + '</span>' +
+              '<span class="block text-[11px] text-slate-500 mt-0.5">' + escapeHtml(extra) +
+                (typeof gedragActieNodig === 'function' && gedragActieNodig(lln)
+                  ? ' · gedrag: ' + gedragStapKort(gedragActieNodig(lln))
+                  : '') +
+              '</span>' +
             '</span>' +
             '<span class="shrink-0 text-slate-300" aria-hidden="true">›</span>' +
           '</button></div>';
@@ -480,6 +485,9 @@
             filterKnopHtml() +
           '</div>' +
           filterPaneelHtml() +
+          (typeof htmlGedragBalk === 'function' && gedragAan()
+            ? '<div data-gedrag-balk data-lln="' + escapeAttr(leerling.id) + '">' + htmlGedragBalk(leerling) + '</div>'
+            : '') +
         '</div>' +
         '<div data-opvolg-balk data-lln="' + escapeAttr(leerling.id) + '">' + htmlOpvolgingBalk(leerling) + '</div>' +
         '<div data-takenlijst class="divide-y divide-slate-100">' +
@@ -702,6 +710,7 @@
     }
 
     function sluitModal() {
+      if (typeof sluitGedragPopover === 'function') sluitGedragPopover();
       staat.modal = null;
       staat.ficheFilter = null;
       staat.periodeMenuOpen = false;
@@ -863,7 +872,7 @@
       return extra;
     }
 
-    function openLeerlingFiche(id) {
+    function openLeerlingFiche(id, focus) {
       const leerling = staat.leerlingen.filter(function (lln) { return lln.id === id; })[0];
       if (!leerling || leerlingVerwijderd(leerling)) return;
       const ficheLijst = document.getElementById('fiche-lijst');
@@ -878,6 +887,12 @@
       zetModalTopVast(true);
       tekenLeerlingFiche(leerling);
       document.getElementById('modal-toevoegen').classList.remove('hidden');
+      if (focus === 'gedrag') {
+        const blok = document.getElementById('fiche-gedrag');
+        if (blok && !blok.classList.contains('hidden')) {
+          blok.scrollIntoView({ block: 'nearest' });
+        }
+      }
     }
 
     function ficheStatusBadge(status, teltNietMee) {
@@ -986,6 +1001,7 @@
       }
       tekenSorteerFilterKnoppen();
       tekenFicheOpvolging(leerling);
+      if (typeof tekenFicheGedrag === 'function') tekenFicheGedrag(leerling);
     }
 
     function zichtbareFicheItems(items) {
@@ -1416,6 +1432,16 @@
       document.getElementById('modal-toevoegen').classList.remove('hidden');
     }
 
+    function zetGedragInstellingenActief(aan) {
+      const venster = document.getElementById('veld-gedrag-venster');
+      const velden = ['veld-gedrag-advies1', 'veld-gedrag-advies2', 'veld-gedrag-advies3', 'veld-gedrag-bericht-ouders'];
+      if (venster) venster.disabled = !aan;
+      velden.forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !aan;
+      });
+    }
+
     function zetInstellingenVelden() {
       const aan = opvolgingAan();
       const vink = document.getElementById('veld-opvolging-aan');
@@ -1428,6 +1454,20 @@
       document.getElementById('veld-bericht-ouders').value = inst.berichtOuders || DEFAULT_OPVOLGING.berichtOuders;
       document.getElementById('veld-bericht-nablijf').value = inst.berichtNablijf || DEFAULT_OPVOLGING.berichtNablijf;
       document.getElementById('veld-bericht-aanzet').value = inst.berichtAanZet || DEFAULT_OPVOLGING.berichtAanZet;
+      const gedragVink = document.getElementById('veld-gedrag-aan');
+      const gedragAanVeld = inst.gedragAan !== false;
+      if (gedragVink) gedragVink.checked = gedragAanVeld;
+      const venster = document.getElementById('veld-gedrag-venster');
+      if (venster) venster.value = String(inst.gedragVensterDagen || DEFAULT_GEDRAG.gedragVensterDagen);
+      const a1 = document.getElementById('veld-gedrag-advies1');
+      const a2 = document.getElementById('veld-gedrag-advies2');
+      const a3 = document.getElementById('veld-gedrag-advies3');
+      if (a1) a1.value = inst.gedragAdvies1 || DEFAULT_GEDRAG.gedragAdvies1;
+      if (a2) a2.value = inst.gedragAdvies2 || DEFAULT_GEDRAG.gedragAdvies2;
+      if (a3) a3.value = inst.gedragAdvies3 || DEFAULT_GEDRAG.gedragAdvies3;
+      const bericht = document.getElementById('veld-gedrag-bericht-ouders');
+      if (bericht) bericht.value = inst.gedragBerichtOuders || DEFAULT_GEDRAG.gedragBerichtOuders;
+      zetGedragInstellingenActief(gedragAanVeld);
       tekenPeriodeRijen(inst.periodes || []);
     }
 
@@ -1520,7 +1560,13 @@
         berichtOuders: document.getElementById('veld-bericht-ouders').value,
         berichtNablijf: document.getElementById('veld-bericht-nablijf').value,
         berichtAanZet: document.getElementById('veld-bericht-aanzet').value,
-        periodes: periodes.lijst
+        periodes: periodes.lijst,
+        gedragAan: document.getElementById('veld-gedrag-aan').checked,
+        gedragVensterDagen: document.getElementById('veld-gedrag-venster').value,
+        gedragAdvies1: document.getElementById('veld-gedrag-advies1').value,
+        gedragAdvies2: document.getElementById('veld-gedrag-advies2').value,
+        gedragAdvies3: document.getElementById('veld-gedrag-advies3').value,
+        gedragBerichtOuders: document.getElementById('veld-gedrag-bericht-ouders').value
       });
       if (isGasOmgeving()) {
         gasRun()
@@ -1718,6 +1764,9 @@
     document.getElementById('veld-opvolging-aan').addEventListener('change', function () {
       document.getElementById('veld-opvolging-drempel').disabled = !document.getElementById('veld-opvolging-aan').checked;
     });
+    document.getElementById('veld-gedrag-aan').addEventListener('change', function () {
+      zetGedragInstellingenActief(document.getElementById('veld-gedrag-aan').checked);
+    });
     document.getElementById('veld-prullenbak-legen').addEventListener('input', zetPrullenbakLegenKnop);
     document.getElementById('veld-prullenbak-legen').addEventListener('keydown', function (event) {
       if (String(event.key || '').toLowerCase() !== 'enter') return;
@@ -1771,7 +1820,14 @@
       else if (actie === 'lijst-status') zetLijstStatus(doel.getAttribute('data-lln'), doel.getAttribute('data-taak'), doel.getAttribute('data-status'));
       else if (actie === 'bulk-wissel') wisselBulkModus();
       else if (actie === 'bulk-openstaand') zetBulkOpenstaand(doel.getAttribute('data-taak'), doel.getAttribute('data-status'));
-      else if (actie === 'leerling-fiche') openLeerlingFiche(doel.getAttribute('data-id'));
+      else if (actie === 'leerling-fiche') openLeerlingFiche(doel.getAttribute('data-id'), doel.getAttribute('data-focus'));
+      else if (actie === 'gedrag-cel') onGedragCel(doel.getAttribute('data-id'), doel);
+      else if (actie === 'gedrag-melden') slaGedragMeldingOp(doel.getAttribute('data-id'), gedragNotitieBij(doel));
+      else if (actie === 'gedrag-bericht') kopieerGedragOuderBericht(doel.getAttribute('data-id'));
+      else if (actie === 'gedrag-gegeven') slaGedragMaatregelOp(doel.getAttribute('data-id'), true);
+      else if (actie === 'gedrag-gegeven-ongedaan') slaGedragMaatregelOp(doel.getAttribute('data-id'), false);
+      else if (actie === 'gedrag-melding-wissen') wisGedragMelding(doel.getAttribute('data-id'));
+      else if (actie === 'gedrag-popover-sluiten') sluitGedragPopover();
       else if (actie === 'code-kopieren') kopieerLeerlingCode(doel);
       else if (actie === 'url-kopieren') kopieerLeerlingUrl(doel);
       else if (actie === 'iframe-kopieren') kopieerLeerlingIframe(doel);
@@ -1804,11 +1860,26 @@
 
       // Geef focus terug na een knopklik buiten een modal, zodat de kruistabel
       // direct bruikbaar blijft en knoppen geen focus-ring blijven tonen.
-      if (doel.tagName === 'BUTTON' && !doel.closest('[role="dialog"]')) {
+      if (doel.tagName === 'BUTTON' && !doel.closest('[role="dialog"]') && !doel.closest('#gedrag-popover')) {
         doel.blur();
       }
     });
+    document.addEventListener('click', function (event) {
+      const pop = document.getElementById('gedrag-popover');
+      if (!pop || pop.classList.contains('hidden')) return;
+      if (event.target.closest && event.target.closest('#gedrag-popover')) return;
+      if (event.target.closest && event.target.closest('[data-actie="gedrag-cel"]')) return;
+      sluitGedragPopover();
+    });
     document.addEventListener('keydown', function (event) {
+      if (String(event.key || '').toLowerCase() === 'escape') {
+        const pop = document.getElementById('gedrag-popover');
+        if (pop && !pop.classList.contains('hidden')) {
+          event.preventDefault();
+          sluitGedragPopover();
+          return;
+        }
+      }
       if (!modalOpen() || String(event.key || '').toLowerCase() !== 'escape') return;
       if (!document.getElementById('fiche-naam-edit').classList.contains('hidden')) {
         event.preventDefault();

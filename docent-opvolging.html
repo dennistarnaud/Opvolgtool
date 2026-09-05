@@ -186,16 +186,30 @@
 
     function htmlOpvolgActies() {
       // Gepauzeerd: geen nieuwe cyclus. Pas als oude én nieuwe taken afgevinkt zijn, afronden.
-      const items = leerlingenVanKlas().filter(function (lln) {
+      const huiswerk = leerlingenVanKlas().filter(function (lln) {
         const stap = opvolgActieNodig(lln);
         return !!stap && stap !== 'gepauzeerd';
       });
-      if (!items.length) return '';
-      const namen = items.map(function (lln) {
-        return '<button type="button" class="font-semibold underline decoration-amber-400/80 hover:text-amber-700" data-actie="leerling-fiche" data-id="' +
-          escapeAttr(lln.id) + '">' + escapeHtml(lln.naam) + '</button>';
-      }).join(', ');
-      return 'Actie nodig: ' + namen;
+      const gedrag = (typeof htmlGedragActieNamen === 'function') ? htmlGedragActieNamen() : [];
+      if (!huiswerk.length && !gedrag.length) return '';
+      const delen = [];
+      if (huiswerk.length) {
+        const namen = huiswerk.map(function (lln) {
+          return '<button type="button" class="font-semibold underline decoration-amber-400/80 hover:text-amber-700" data-actie="leerling-fiche" data-id="' +
+            escapeAttr(lln.id) + '">' + escapeHtml(lln.naam) + '</button>';
+        }).join(', ');
+        delen.push('<p class="mt-0.5">Huiswerk: ' + namen + '</p>');
+      }
+      if (gedrag.length) {
+        const namen = gedrag.map(function (lln) {
+          const stap = gedragActieNodig(lln);
+          return '<button type="button" class="font-semibold underline decoration-violet-400/80 hover:text-violet-800" data-actie="leerling-fiche" data-id="' +
+            escapeAttr(lln.id) + '" data-focus="gedrag">' + escapeHtml(lln.naam) +
+            ' <span class="font-medium no-underline">(' + escapeHtml(gedragStapKort(stap)) + ')</span></button>';
+        }).join(', ');
+        delen.push('<p class="mt-0.5">Gedrag: ' + namen + '</p>');
+      }
+      return '<p class="font-semibold">Actie nodig</p>' + delen.join('');
     }
 
     function tekenOpvolgActies() {

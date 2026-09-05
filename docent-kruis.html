@@ -134,8 +134,12 @@
         '<div class="naam-cel-binnen">' +
         (geschrapt ? '' : leerlingSleepKnopHtml(lln)) +
         '<button type="button" class="' + naamKlasse + '" data-actie="leerling-fiche" data-id="' + escapeAttr(lln.id) + '" aria-label="' + escapeAttr('Fiche van ' + lln.naam) + '">' +
-        '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) + '</button>' +
+        '<span class="truncate">' + escapeHtml(lln.naam) + '</span>' + opvolgSeinHtml(lln) +
+        (typeof htmlGedragSein === 'function' ? htmlGedragSein(lln) : '') + '</button>' +
         '</div></th>';
+      if (typeof gedragAan === 'function' && gedragAan()) {
+        html += htmlGedragKolomCel(lln, geschrapt);
+      }
       taken.forEach(function (taak) {
         const reg = laatsteRegistratieVoorKlas(lln, taak, staat.gekozenKlas);
         const status = reg ? reg.status : '';
@@ -239,8 +243,13 @@
       tekenSorteerFilterKnoppen();
       tekenOpvolgActies();
 
+      const metGedrag = typeof gedragAan === 'function' && gedragAan();
       let titels = '<div class="kruis-titels-naam"></div>';
       let datums = '<div class="kruis-titels-naam"></div>';
+      if (metGedrag) {
+        titels += '<div class="kruis-titels-gedrag taak-titel" data-groep="gedrag" title="Gedrag"><span>Gedrag</span></div>';
+        datums += '<div class="kruis-datum kruis-datum-gedrag"></div>';
+      }
       taken.forEach(function (taak) {
         const titel = taakTitel(taak);
         titels += '<div class="taak-titel" data-actie="taak-bewerken" data-id="' + escapeAttr(taak.id) + '" data-groep="' + escapeAttr(taakGroep(taak)) + '" data-taak="' + escapeAttr(taak.id) + '" title="' + escapeAttr(titel + ' — bewerken') + '"><span>' + escapeHtml(titel) + '</span></div>';
@@ -259,6 +268,7 @@
         '<span class="nieuwe-leerling-vak">' +
         '<input type="text" class="veld-nieuwe-leerling" placeholder="Nieuwe leerling…" autocomplete="off" aria-label="Nieuwe leerling">' +
         '</span></th>';
+      if (metGedrag) lichaam += '<td class="td-gedrag sticky-gedrag td-nieuw"></td>';
       taken.forEach(function () {
         lichaam += '<td class="td-nieuw"></td>';
       });
@@ -268,6 +278,7 @@
       if (klaswijziging.length) {
         lichaam += '<tr class="rij-geschrapt-kop border-t border-slate-200">';
         lichaam += '<th class="sticky left-0 z-10 bg-slate-50 px-3 py-1.5 text-left">Klaswijziging</th>';
+        if (metGedrag) lichaam += '<td class="td-gedrag sticky-gedrag bg-slate-50"></td>';
         taken.forEach(function () { lichaam += '<td class="bg-slate-50"></td>'; });
         lichaam += '</tr>';
         klaswijziging.forEach(function (lln) {
@@ -276,13 +287,14 @@
       }
 
       let kolommen = '<col class="col-naam">';
+      if (metGedrag) kolommen += '<col class="col-gedrag">';
       taken.forEach(function () {
         kolommen += '<col class="col-vak">';
       });
 
       const n = taken.length + 1;
       wrapper.innerHTML =
-        '<div class="kruis-binnen" style="--n:' + n + ';--taken:' + taken.length + '">' +
+        '<div class="kruis-binnen' + (metGedrag ? ' kruis-met-gedrag' : '') + '" style="--n:' + n + ';--taken:' + taken.length + '">' +
           '<div class="kruis-titels">' + titels + '</div>' +
           '<div class="kruis-datums">' + datums + '</div>' +
           '<table class="kruistabel text-sm">' +
