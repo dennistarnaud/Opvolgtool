@@ -73,8 +73,8 @@ const DEFAULT_GEDRAG_AAN = true;
 const DEFAULT_GEDRAG_VENSTER = 30;
 const GEDRAG_VENSTER_MIN = 7;
 const GEDRAG_VENSTER_MAX = 180;
-const DEFAULT_GEDRAG_ADVIES1 = 'De leerling krijgt een reflectietaak (ordemaatregel 1).';
-const DEFAULT_GEDRAG_ADVIES2 = 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders.';
+const DEFAULT_GEDRAG_ADVIES1 = 'De leerling krijgt een reflectietaak. Opgevolgd als die gemaakt is, Volgende als dat niet zo is.';
+const DEFAULT_GEDRAG_ADVIES2 = 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders. Opgevolgd als de opdracht gemaakt is, Volgende als dat niet zo is.';
 const DEFAULT_GEDRAG_ADVIES3 = 'De coördinator wordt betrokken. De leerling moet nablijven.';
 const DEFAULT_GEDRAG_BERICHT_OUDERS =
   'Onderwerp: Opvolging werkhouding in de klas - {naam}\n\n' +
@@ -930,7 +930,7 @@ function saveGedragMelding(data) {
     const stap = gedragStapVoorNieuweMelding_(bestaande, llnId, klas, inst.gedragVensterDagen);
     const id = volgendeId_(bestaande, 'G');
     const nu = new Date();
-    const gegevenOp = stap === 1 ? formatDatumTijd_(nu) : '';
+    const gegevenOp = '';
     sheet.appendRow([id, nu, llnId, klas, opmerking, stap, gegevenOp]);
     return {
       ok: true,
@@ -948,7 +948,7 @@ function saveGedragMelding(data) {
 }
 
 /**
- * Vinkt een gedragsmaatregel af of maakt dat ongedaan.
+ * Zet of wist gegevenOp: opdracht opgevolgd (stap 1–2) of nablijven afgerond (stap 3).
  * @param {{id: string, gegeven?: boolean}} data
  * @return {{ok: boolean, melding: Object}}
  */

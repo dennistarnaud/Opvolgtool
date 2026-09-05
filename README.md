@@ -24,7 +24,7 @@ Je houdt per leerling bij hoe taken zijn afgerond: in orde, niet in orde, te laa
 
 Haalt een leerling de drempel (standaard 3× niet in orde), dan volg je een vaste ladder: leerling aanspreken, ouders verwittigen, avondstudie, evaluatie. Blijven taken niet in orde, dan zet je de leerling '**Aan zet**': de verantwoordelijkheid ligt bij de leerling tot de lijst in orde is.
 
-Daarnaast registreer je **gedrag** dat na informeel aanspreken blijft voorkomen. Een melding is meteen de ordemaatregel: stap 1 sluit af bij registreren, stap 2 vraagt daarna het ouderbericht te kopiëren, stap 3 blijft open tot coördinator en nablijven gedaan zijn.
+Daarnaast registreer je **gedrag** dat na informeel aanspreken blijft voorkomen. Het blok werkt zoals huiswerkopvolging: het volgende vakje staat al in kleur, **Volgende** geeft de ordemaatregel, **Opgevolgd** sluit de controle als de opdracht gemaakt is, **Terug** maakt de laatste stap ongedaan, en **E-mail** kopieert het ouderbericht bij stap 2.
 
 Leerling en ouder zien alleen het overzicht van die ene leerling.
 
@@ -97,11 +97,11 @@ Informeel aanspreken of waarschuwen blijft buiten de tool. Blijft het gedrag voo
 
 | Stap | Wat je doet |
 |---|---|
-| 1 | Reflectietaak (ordemaatregel 1). Registreren is genoeg; er blijft niets open. |
-| 2 | Vervolgreflectie meegeven en het ouderbericht kopiëren. **Actie nodig** = oudermail tot je kopieert. |
+| 1 | Reflectietaak meegeven. **Actie nodig** tot je controleert of die gemaakt is. **Opgevolgd** als ja, **Volgende** als nee. |
+| 2 | Vervolgreflectie meegeven en het ouderbericht kopiëren. **Actie nodig** tot de opdracht gemaakt is. **Opgevolgd** als ja, **Volgende** als nee. |
 | 3 | Coördinator betrekken en nablijven inschrijven. **Actie nodig** = nablijven tot je afrondt. |
 
-Op de man zet je een melding in de smalle kolom **Gedrag** naast de naam. Het cijfer is de hoogste stap in het venster (`1` / `2` / `3`). Extra nadruk betekent dat er nog een actie openstaat (oudermail of nablijven). In het blok (telefoon, fiche, popover) staan drie vakjes naast elkaar: Reflectie, Ouders, Nablijven — dezelfde taal als bij huiswerkopvolging. Recente meldingen blijven in de fiche. De balk **Actie nodig** splitst huiswerk en gedrag.
+Op de man zet je een melding in de smalle kolom **Gedrag** naast de naam. Het cijfer is de hoogste stap in het venster (`1` / `2` / `3`). Extra nadruk betekent dat er nog een actie openstaat (opdracht controleren of nablijven). In het blok (telefoon, fiche, popover) staan drie vakjes naast elkaar: Reflectie, Ouders, Nablijven. Het volgende vakje is gekleurd. Daaronder staan **Terug**, **Volgende**, **Opgevolgd** en — bij stap 2 — **E-mail**, dezelfde plek als bij huiswerk. Recente meldingen blijven in de fiche. De balk **Actie nodig** splitst huiswerk en gedrag.
 
 Gedrag verschijnt niet in het leerlingscherm.
 
@@ -329,7 +329,7 @@ Een nieuwe taak voeg je toe met **Nieuwe taak** rechtsboven. Per cel kies je ond
 
 Haalt een leerling de drempel, dan volg je in de fiche de stappen (leerling, ouders, avondstudie, evaluatie). Per stap kun je het bericht kopiëren. Bij evaluatie kies je **Aan zet** of **Opgevolgd**.
 
-Voor gedrag: klik in de kolom naast de naam (of gebruik het blok bovenaan op de telefoon), voeg eventueel een notitie toe en registreer de melding. Dat is meteen de ordemaatregel. De drie vakjes tonen hoever de leerling staat. Bij stap 2 kopieer je daarna het ouderbericht (dat sluit de actie). Bij stap 3 bevestig je **Coördinator en nablijven gedaan**. Een nieuwe melding binnen het venster (standaard 30 dagen) verhoogt de stap. Wissen van de jongste melding zet de ladder één stap terug; het cijfer in de kolom volgt mee.
+Voor gedrag: klik in de kolom naast de naam (of gebruik het blok bovenaan op de telefoon), voeg eventueel een notitie toe en klik **Volgende**. Dat is de ordemaatregel. De leerling blijft onder **Actie nodig** tot je de opdracht controleert. **Opgevolgd** als die gemaakt is (geen actie meer tot een volgende stap). Is de opdracht niet gemaakt, dan blijft **Volgende** de weg naar de volgende ordemaatregel. Bij stap 2 kopieer je **E-mail** naar de ouders. Bij stap 3 klik je **Volgende** als coördinator en nablijven gedaan zijn. **Terug** zet de laatste afronding of melding terug.
 
 Onder **Instellingen** zet je opvolging en gedrag aan of uit, de drempel, het gedragsvenster, de advies teksten, het ouderbericht van stap 2, de vier huiswerkberichten en de periodes.
 

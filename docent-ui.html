@@ -1822,7 +1822,8 @@
       else if (actie === 'bulk-openstaand') zetBulkOpenstaand(doel.getAttribute('data-taak'), doel.getAttribute('data-status'));
       else if (actie === 'leerling-fiche') openLeerlingFiche(doel.getAttribute('data-id'), doel.getAttribute('data-focus'));
       else if (actie === 'gedrag-cel') onGedragCel(doel.getAttribute('data-id'), doel);
-      else if (actie === 'gedrag-melden') slaGedragMeldingOp(doel.getAttribute('data-id'), gedragNotitieBij(doel));
+      else if (actie === 'gedrag-melden' || actie === 'gedrag-volgende') onGedragVolgende(doel.getAttribute('data-id'), gedragNotitieBij(doel));
+      else if (actie === 'gedrag-terug') onGedragTerug(doel.getAttribute('data-id'));
       else if (actie === 'gedrag-bericht') kopieerGedragOuderBericht(doel.getAttribute('data-id'));
       else if (actie === 'gedrag-gegeven') slaGedragMaatregelOp(doel.getAttribute('data-id'), true);
       else if (actie === 'gedrag-gegeven-ongedaan') slaGedragMaatregelOp(doel.getAttribute('data-id'), false);

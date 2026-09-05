@@ -71,7 +71,7 @@
     ];
 
     const MOCK_GEDRAG = [
-      { id: 'G001', datumTijd: '2026-09-03 09:10:00.000', llnId: 'L001', klas: '3A', opmerking: 'Stoort herhaaldelijk de les.', stap: 1, gegevenOp: '2026-09-03 09:10:00.000' },
+      { id: 'G001', datumTijd: '2026-09-03 09:10:00.000', llnId: 'L001', klas: '3A', opmerking: 'Stoort herhaaldelijk de les.', stap: 1, gegevenOp: '' },
       { id: 'G002', datumTijd: '2026-08-20 10:05:00.000', llnId: 'L002', klas: '3A', opmerking: 'Reageert brutaal na aanspreken.', stap: 1, gegevenOp: '2026-08-20 16:00:00.000' },
       { id: 'G003', datumTijd: '2026-09-01 08:40:00.000', llnId: 'L002', klas: '3A', opmerking: 'Opnieuw storend gedrag binnen de 30 dagen.', stap: 2, gegevenOp: '2026-09-02 12:00:00.000' },
       { id: 'G004', datumTijd: '2026-09-04 11:20:00.000', llnId: 'L004', klas: '3A', opmerking: 'Weigert de opdracht en verstoort de klas.', stap: 3, gegevenOp: '' },
@@ -83,8 +83,8 @@
     const DEFAULT_GEDRAG = {
       gedragAan: true,
       gedragVensterDagen: 30,
-      gedragAdvies1: 'De leerling krijgt een reflectietaak (ordemaatregel 1).',
-      gedragAdvies2: 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders.',
+      gedragAdvies1: 'De leerling krijgt een reflectietaak. Opgevolgd als die gemaakt is, Volgende als dat niet zo is.',
+      gedragAdvies2: 'De leerling krijgt een vervolgreflectie. Kopieer het bericht naar de ouders. Opgevolgd als de opdracht gemaakt is, Volgende als dat niet zo is.',
       gedragAdvies3: 'De coördinator wordt betrokken. De leerling moet nablijven.',
       gedragBerichtOuders:
         'Onderwerp: Opvolging werkhouding in de klas - {naam}\n\n' +

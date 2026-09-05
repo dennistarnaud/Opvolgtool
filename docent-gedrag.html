@@ -1,8 +1,8 @@
 <!--
   docent-gedrag.html
   Gedragsladder van het docentscherm.
-  Inhoud: 30-dagenvenster, stappen (reflectietaak / oudermail / nablijven),
-  advies teksten, ouderbericht, kolomcel, balk, geschiedenis en Actie-nodig-deel.
+  Inhoud: 30-dagenvenster, stappen (reflectietaak / vervolgreflectie / nablijven),
+  advies teksten, ouderbericht, Opgevolgd, kolomcel, balk, geschiedenis en Actie-nodig-deel.
 -->
 <script>
     function gedragAan() {
@@ -24,9 +24,9 @@
     }
 
     function gedragStapKort(stap) {
-      if (stap === 2) return 'oudermail';
+      if (stap === 2) return 'vervolgreflectie';
       if (stap === 3) return 'nablijven';
-      return 'reflectietaak';
+      return 'reflectie';
     }
 
     function gedragStapLabel(stap) {
@@ -62,12 +62,22 @@
       return (stap >= 1 && stap <= 3) ? stap : 1;
     }
 
+    /** Eerstvolgende stap (1–3), of 0 als ordemaatregel 3 is afgerond. */
+    function gedragHuidigeStap(lln, klas) {
+      if (!gedragAan() || !lln) return 0;
+      const open = gedragActieNodig(lln);
+      if (open) return open;
+      const laatste = gedragLaatsteMelding(lln, klas);
+      if (laatste && gedragInVenster(laatste) && (parseInt(laatste.stap, 10) || 1) >= 3) return 0;
+      return gedragVolgendeStap(lln, klas);
+    }
+
     /** 'leeg' | 'aan' | 'klaar' voor een vakje in de ladder. */
     function gedragStapToestand(lln, stap) {
       const bereikt = gedragBereikteStap(lln);
-      if (!bereikt) return 'leeg';
       const open = gedragActieNodig(lln);
-      if (open === stap) return 'aan';
+      const huidig = gedragHuidigeStap(lln);
+      if (open === stap || huidig === stap) return 'aan';
       if (bereikt > stap || (bereikt === stap && !open)) return 'klaar';
       return 'leeg';
     }
@@ -161,10 +171,14 @@
       let tekst = '';
       let klasse = 'cel-gedrag cel-gedrag-leeg';
       let label = 'Gedrag: melding registreren (ordemaatregel ' + volgende + ').';
-      if (open === 2) {
+      if (open === 1) {
+        tekst = '1';
+        klasse = 'cel-gedrag cel-gedrag-open cel-gedrag-open-1';
+        label = 'Gedrag: controleren of de reflectietaak gemaakt is.';
+      } else if (open === 2) {
         tekst = '2';
         klasse = 'cel-gedrag cel-gedrag-open cel-gedrag-open-2';
-        label = 'Gedrag: ouderbericht van ordemaatregel 2 kopiëren.';
+        label = 'Gedrag: controleren of de vervolgreflectie gemaakt is.';
       } else if (open === 3) {
         tekst = '3';
         klasse = 'cel-gedrag cel-gedrag-open cel-gedrag-open-3';
@@ -187,11 +201,71 @@
       });
     }
 
-    function htmlGedragMeldKnop(leerling, klasse) {
-      const volgende = gedragVolgendeStap(leerling);
-      return '<button type="button" data-actie="gedrag-melden" data-id="' + escapeAttr(leerling.id) +
-        '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg ' + klasse + ' text-[11px] font-semibold">' +
-        'Melding · ordemaatregel ' + volgende + '</button>';
+    function htmlGedragActieRij(links, rechts) {
+      return '<div class="flex items-center justify-between gap-1.5">' +
+        '<div class="flex items-center gap-1.5 shrink-0">' + (links || '') + '</div>' +
+        '<div class="flex items-center gap-1.5 shrink-0">' + (rechts || '') + '</div>' +
+      '</div>';
+    }
+
+    function htmlGedragTerugKnop(leerling) {
+      const laatste = gedragLaatsteMelding(leerling);
+      const zichtbaar = !!(laatste && gedragInVenster(laatste));
+      const label = 'Laatste ordemaatregel ongedaan maken';
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-violet-900/80 hover:bg-violet-100 hover:text-violet-950' +
+        (zichtbaar ? '' : ' invisible pointer-events-none') + '" ' +
+        (zichtbaar
+          ? 'data-actie="gedrag-terug" data-id="' + escapeAttr(leerling.id) + '" title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '"'
+          : 'disabled tabindex="-1" aria-hidden="true"') +
+        '>' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.7 2.8L3 13" /></svg>' +
+        'Terug</button>';
+    }
+
+    function htmlGedragVolgendeKnop(leerling) {
+      const open = gedragActieNodig(leerling);
+      const huidig = gedragHuidigeStap(leerling);
+      if (!huidig && open !== 3) return '';
+      const label = (open === 1 || open === 2)
+        ? 'Opdracht niet gemaakt: volgende ordemaatregel'
+        : (open === 3 ? 'Coördinator en nablijven afronden' : 'Ordemaatregel geven');
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-2.5 h-8 text-[11px] font-semibold text-white bg-violet-600 hover:bg-violet-700" ' +
+        'data-actie="gedrag-volgende" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
+        'Volgende' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>' +
+        '</button>';
+    }
+
+    function htmlGedragEmailKnop(leerling) {
+      const huidig = gedragHuidigeStap(leerling);
+      if (huidig !== 2 && gedragActieNodig(leerling) !== 2) return '';
+      const label = 'Ouderbericht kopiëren';
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-violet-950 bg-white border border-violet-200 hover:bg-violet-100" ' +
+        'data-actie="gedrag-bericht" data-id="' + escapeAttr(leerling.id) + '" ' +
+        'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
+        'E-mail' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>' +
+        '</button>';
+    }
+
+    function htmlGedragOpgevolgdKnop(leerling) {
+      const open = gedragActieNodig(leerling);
+      const melding = gedragLaatsteMelding(leerling);
+      if ((open !== 1 && open !== 2) || !melding) return '';
+      const label = 'Opdracht gemaakt: geen actie meer nodig';
+      return '<button type="button" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 h-8 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700" ' +
+        'data-actie="gedrag-gegeven" data-id="' + escapeAttr(melding.id) + '" ' +
+        'title="' + escapeAttr(label) + '" aria-label="' + escapeAttr(label) + '">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>' +
+        'Opgevolgd</button>';
+    }
+
+    function htmlGedragActiePaneel(leerling) {
+      return htmlGedragActieRij(
+        htmlGedragTerugKnop(leerling) + htmlGedragVolgendeKnop(leerling),
+        htmlGedragEmailKnop(leerling) + htmlGedragOpgevolgdKnop(leerling)
+      );
     }
 
     function htmlGedragStappen(leerling) {
@@ -215,44 +289,14 @@
       }).join('');
     }
 
-    function htmlGedragOpenActie(leerling) {
-      const stap = gedragActieNodig(leerling);
-      const open = gedragLaatsteMelding(leerling);
-      if (!stap || !open) return '';
-      if (stap === 2) {
-        return '<button type="button" data-actie="gedrag-bericht" data-id="' + escapeAttr(leerling.id) +
-          '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700">' +
-          'Ouderbericht kopiëren</button>';
-      }
-      if (stap === 3) {
-        return '<button type="button" data-actie="gedrag-gegeven" data-id="' + escapeAttr(open.id) +
-          '" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700">' +
-          'Coördinator en nablijven gedaan</button>';
-      }
-      return '';
-    }
-
     function htmlGedragBalk(leerling, opties) {
       if (!gedragAan() || !leerling) return '';
       const extra = opties || {};
-      const stap = gedragActieNodig(leerling);
-      const status = gedragStatus(leerling);
-      const volgende = gedragVolgendeStap(leerling);
-      let titel = 'Geen lopende maatregel';
-      let advies = 'Volgende melding: ' + gedragStapLabel(volgende).toLowerCase() + '.';
-      if (stap) {
-        titel = gedragStapLabel(stap);
-        advies = gedragAdviesTekst(stap);
-      } else if (status === 'gegeven') {
-        titel = 'Laatste maatregel gegeven';
-        advies = 'Een nieuwe melding binnen ' + gedragVensterDagen() + ' dagen wordt ' +
-          gedragStapLabel(volgende).toLowerCase() + '.';
-      }
-
-      const knoppen = [];
-      const openActie = htmlGedragOpenActie(leerling);
-      if (openActie) knoppen.push(openActie);
-      knoppen.push(htmlGedragMeldKnop(leerling, stap ? 'border border-violet-200 bg-white text-violet-800 hover:bg-violet-50' : 'bg-violet-600 text-white hover:bg-violet-700'));
+      const huidig = gedragHuidigeStap(leerling);
+      const titel = huidig ? gedragStapLabel(huidig) : 'Alle stappen gegeven';
+      const advies = huidig
+        ? gedragAdviesTekst(huidig)
+        : 'Een nieuwe melding binnen ' + gedragVensterDagen() + ' dagen start opnieuw bij ordemaatregel 1.';
 
       let geschiedenis = '';
       if (extra.geschiedenis) {
@@ -269,7 +313,7 @@
           '<textarea data-gedrag-notitie rows="2" maxlength="400" placeholder="Notitie (optioneel)" ' +
           'class="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>' +
         '</label>' +
-        '<div class="mt-2 flex flex-wrap gap-1.5">' + knoppen.join('') + '</div>' +
+        '<div class="mt-2">' + htmlGedragActiePaneel(leerling) + '</div>' +
         geschiedenis +
         '</div>';
     }
@@ -282,8 +326,8 @@
       const rijen = lijst.slice(0, 8).map(function (m) {
         const open = !String(m.gegevenOp || '').trim();
         const meta = [korteDatum(m.datumTijd), gedragStapLabel(m.stap)];
-        if (m.stap === 2) meta.push(open ? 'oudermail' : 'mail gekopieerd');
-        else if (m.stap === 3) meta.push(open ? 'open' : 'afgerond');
+        if (m.stap === 3) meta.push(open ? 'open' : 'afgerond');
+        else meta.push(open ? 'opdracht' : 'opgevolgd');
         const notitie = m.opmerking
           ? '<p class="text-[11px] text-slate-600 mt-0.5">' + escapeHtml(m.opmerking) + '</p>'
           : '';
@@ -291,16 +335,12 @@
           ? '<button type="button" data-actie="gedrag-melding-wissen" data-id="' + escapeAttr(m.id) +
             '" class="shrink-0 text-[10px] font-semibold text-violet-700 hover:text-rose-700">Wissen</button>'
           : '';
-        const terug = (!open && m === lijst[0] && m.stap !== 1)
-          ? '<button type="button" data-actie="gedrag-gegeven-ongedaan" data-id="' + escapeAttr(m.id) +
-            '" class="shrink-0 text-[10px] font-semibold text-violet-700 hover:text-violet-900">Ongedaan</button>'
-          : '';
         return '<li class="flex items-start justify-between gap-2 py-1.5 border-t border-violet-100 first:border-t-0">' +
           '<div class="min-w-0">' +
             '<p class="text-[11px] font-medium text-violet-950">' + escapeHtml(meta.join(' · ')) + '</p>' +
             notitie +
           '</div>' +
-          '<span class="flex items-center gap-2">' + terug + wis + '</span>' +
+          '<span class="flex items-center gap-2">' + wis + '</span>' +
           '</li>';
       }).join('');
       return '<div class="mt-2">' +
@@ -346,23 +386,11 @@
       const lln = leerlingOpId(llnId);
       const pop = document.getElementById('gedrag-popover');
       if (!lln || !pop) return;
-      const stap = gedragActieNodig(lln);
-      const status = gedragStatus(lln);
-      const volgende = gedragVolgendeStap(lln);
-      let titel = 'Nieuwe melding';
-      let advies = 'Dit wordt ' + gedragStapLabel(volgende).toLowerCase() + '.';
-      let acties = '';
-      if (stap) {
-        titel = gedragStapLabel(stap);
-        advies = gedragAdviesTekst(stap);
-        acties = (htmlGedragOpenActie(lln) || '') +
-          htmlGedragMeldKnop(lln, 'border border-violet-200 bg-white text-violet-800 hover:bg-violet-50');
-      } else {
-        if (status === 'gegeven') {
-          advies = 'Laatste maatregel is gegeven. Nieuwe melding wordt ' + gedragStapLabel(volgende).toLowerCase() + '.';
-        }
-        acties = htmlGedragMeldKnop(lln, 'bg-violet-600 text-white hover:bg-violet-700');
-      }
+      const huidig = gedragHuidigeStap(lln);
+      const titel = huidig ? gedragStapLabel(huidig) : 'Alle stappen gegeven';
+      const advies = huidig
+        ? gedragAdviesTekst(huidig)
+        : 'Een nieuwe melding binnen ' + gedragVensterDagen() + ' dagen start opnieuw bij ordemaatregel 1.';
       pop.setAttribute('data-id', lln.id);
       pop.innerHTML =
         '<div class="rounded-xl border border-violet-200 bg-white p-3 shadow-lg" data-gedrag-blok data-id="' + escapeAttr(lln.id) + '">' +
@@ -374,7 +402,7 @@
           '<div class="mt-2 grid grid-cols-3 gap-1.5">' + htmlGedragStappen(lln) + '</div>' +
           '<textarea data-gedrag-notitie rows="2" maxlength="400" placeholder="Notitie (optioneel)" ' +
           'class="mt-2 w-full rounded-lg border border-violet-200 px-2.5 py-1.5 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>' +
-          '<div class="mt-2 flex flex-wrap gap-1.5">' + acties + '</div>' +
+          '<div class="mt-2">' + htmlGedragActiePaneel(lln) + '</div>' +
         '</div>';
       plaatsGedragPopover(anker);
       const veld = pop.querySelector('[data-gedrag-notitie]');
@@ -480,6 +508,30 @@
         .verwijderGedragMelding(next.payload.id);
     }
 
+    function onGedragVolgende(llnId, opmerking) {
+      const lln = leerlingOpId(llnId);
+      if (!lln) return;
+      const open = gedragActieNodig(lln);
+      if (open === 3) {
+        const melding = gedragLaatsteMelding(lln);
+        if (melding) slaGedragMaatregelOp(melding.id, true);
+        return;
+      }
+      slaGedragMeldingOp(llnId, opmerking);
+    }
+
+    function onGedragTerug(llnId) {
+      const lln = leerlingOpId(llnId);
+      if (!lln) return;
+      const melding = gedragLaatsteMelding(lln);
+      if (!melding || !gedragInVenster(melding)) return;
+      if (String(melding.gegevenOp || '').trim()) {
+        slaGedragMaatregelOp(melding.id, false);
+        return;
+      }
+      wisGedragMelding(melding.id);
+    }
+
     function slaGedragMeldingOp(llnId, opmerking) {
       const lln = leerlingOpId(llnId);
       if (!lln) return;
@@ -495,7 +547,6 @@
         stap: gedragVolgendeStap(lln, klas),
         gegevenOp: ''
       };
-      if (melding.stap === 1) melding.gegevenOp = melding.datumTijd;
       staat.gedrag.push(melding);
       sluitGedragPopover();
       verversGedragUI(lln);
@@ -527,17 +578,16 @@
     }
 
     function gedragMeldingOkTekst(stap) {
-      if (stap === 1) return 'Reflectietaak (ordemaatregel 1) geregistreerd.';
-      if (stap === 2) return 'Vervolgreflectie geregistreerd. Kopieer het ouderbericht.';
+      if (stap === 1) return 'Reflectietaak gegeven. Controleer later of die gemaakt is.';
+      if (stap === 2) return 'Vervolgreflectie gegeven. Kopieer het ouderbericht en controleer later of de opdracht gemaakt is.';
       if (stap === 3) return 'Melding geregistreerd. Coördinator en nablijven staan open.';
       return 'Gedragsmelding geregistreerd.';
     }
 
     function gedragMaatregelOkTekst(melding, gegeven) {
       if (!gegeven) return 'Actie ongedaan gemaakt.';
-      if (melding && melding.stap === 2) return 'Ouderbericht gekopieerd.';
       if (melding && melding.stap === 3) return 'Coördinator en nablijven afgerond.';
-      return 'Maatregel afgevinkt.';
+      return 'Opdracht opgevolgd.';
     }
 
     function kopieerGedragOuderBericht(llnId) {
@@ -549,13 +599,8 @@
         toonMelding('Er is geen ouderbericht ingesteld.', 'fout');
         return;
       }
-      const open = gedragLaatsteMelding(leerling);
       kopieerTekst(tekst, function () {
-        if (open && open.stap === 2 && !String(open.gegevenOp || '').trim()) {
-          slaGedragMaatregelOp(open.id, true, { zonderKlikSlot: true, stil: true });
-        } else {
-          sluitGedragPopover();
-        }
+        sluitGedragPopover();
         toonMelding('Ouderbericht gekopieerd.', 'ok');
       });
     }
