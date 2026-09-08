@@ -350,3 +350,4 @@ De software wordt geleverd zoals ze is. Er is geen garantie en geen aansprakelij
 ## Steun
 
 Hopelijk helpt dit project je verder. Je kunt me vrijblijvend een koffie trakteren via [Ko-fi](https://ko-fi.com/dennistarnaud).
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L2X426BQ5H)
